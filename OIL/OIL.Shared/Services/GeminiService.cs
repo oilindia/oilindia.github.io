@@ -25,7 +25,7 @@ namespace OIL.Shared.Services
 
         private string BaseUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{_modelName}:generateContent";
 
-        //private string gkey = "AQ.Ab8RN6KTTyDYYvEmBi3g2HIQF3XMqOVYoIQrD_N-wQAPn2brOg";
+        
 
         //private readonly string gkey = config["Gemini:ApiKey"] ?? "";
 
