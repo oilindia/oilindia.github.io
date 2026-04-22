@@ -1,0 +1,164 @@
+﻿@page "/jobcard"
+
+@using MudBlazor
+@inject IJSRuntime JSRuntime
+
+@if (JobData == null)
+{
+    @* Show a loading state or nothing while data is null *@
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <div class="print-container">
+        <div class="job-card-main">
+            <div class="header-grid">
+                <div class="logo-box d-flex align-center pa-2">
+                    <div class="logo-placeholder">
+                        <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Large" />
+                    </div>
+                    <div class="ml-2">
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">ऑयल इंडिया लिमिटेड</MudText><br />
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">Oil India Limited</MudText><br />
+                        <MudText Style="font-size: 8px;">(A Govt. of India Enterprise)</MudText>
+                    </div>
+                </div>
+                <div class="dept-box pa-1 text-center">
+                    <MudText Style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: bold;">Instrumentation Department, Field Headquarter, Duliajan</MudText>
+                    <MudText Style="font-size: 11px;">कार्य आवंटन पर्ची</MudText>
+                    <MudText Typo="Typo.button" Style="font-weight: bold; letter-spacing: 2px;">JOB CARD</MudText>
+                </div>
+                <div class="doc-box pa-1">
+                    <div class="d-flex justify-space-between">
+                        <MudText Style="font-size: 10px;">दस्तावेज सं./Doc No:</MudText>
+                    </div>
+                    <MudText Typo="Typo.body2" Class="pl-2">@JobData.DocNumber</MudText>
+                    <div class="d-flex justify-space-between mt-1" style="border-top: 1px solid black;">
+                        <MudText Style="font-size: 10px;">दिनांक /Date:</MudText>
+                        <MudText Typo="Typo.body2">@JobData.Date.ToString("dd/MM/yy")</MudText>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row-flex border-top">
+                <div class="col-30 pa-1 border-right">Job Assigned by:</div>
+                <div class="col-70 pa-1 font-handwriting">@JobData.AssignedBy</div>
+            </div>
+
+            <div class="row-flex border-top">
+                <div class="col-30 pa-1 border-right text-center"><MudText Typo="Typo.caption">Location/ Unit/Notification</MudText></div>
+                <div class="col-70 pa-1 text-center"><MudText Typo="Typo.caption">Job Description</MudText></div>
+            </div>
+
+            <div class="row-flex border-top" style="min-height: 400px;">
+                <div class="col-30 pa-2 border-right font-handwriting">
+                    @JobData.Location
+                </div>
+                <div class="col-70 pa-2 font-handwriting">
+                    @if (JobData.Tasks != null)
+                    {
+                        @foreach (var task in JobData.Tasks)
+                        {
+                            <div class="mb-2">→ @task.Description</div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="pa-1 border-top" style="min-height: 60px;">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">Details of any interlock bypass Or Setpoint Change :</MudText>
+            </div>
+
+            <div class="row-flex border-top">
+                <div class="col-60 border-right"></div>
+                <div class="col-40 pa-1 text-center" style="min-height: 80px;">
+                    <MudText Style="font-size: 10px;">Signature of Change Requestor and Name</MudText>
+                </div>
+            </div>
+
+            <div class="pa-1 border-top bg-light">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">Details of Personnel and Vehicle Assigned :</MudText>
+            </div>
+            <div class="row-flex border-top">
+                <div class="col-50 border-right text-center pa-1"><MudText Typo="Typo.caption">Personnel</MudText></div>
+                <div class="col-50 text-center pa-1"><MudText Typo="Typo.caption">Vehicle</MudText></div>
+            </div>
+            <div class="row-flex border-top">
+                <div class="col-50 border-right pa-2 font-handwriting" style="min-height: 60px;">
+                    @(JobData.Personnel != null ? string.Join(", ", JobData.Personnel) : "")
+                </div>
+                <div class="col-50 pa-2">
+                    <div class="font-handwriting">@JobData.Vehicle</div>
+                    <div class="d-flex mt-2 border-top-dotted">
+                        <MudText Style="font-size: 9px;" Class="mr-4">Opening KMS</MudText>
+                        <MudText Style="font-size: 9px;">Closing KMS</MudText>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pa-1 border-top bg-light">
+                <MudText Typo="Typo.caption" Style="font-weight: bold;">Tool Box Talk Record :</MudText>
+            </div>
+            <div class="pa-2 border-top" style="font-size: 10px; line-height: 1.2;">
+                <div class="row-flex">
+                    <div class="col-50">1. Job Specific PPE to be worn including coveralls.</div>
+                    <div class="col-50">2. Appropriate work permit to be taken at the installation.</div>
+                </div>
+                <div class="row-flex">
+                    <div class="col-50">3. Operator in-charge to be informed before starting job.</div>
+                    <div class="col-50">4. Operator in-charge to be informed after finishing job.</div>
+                </div>
+                <div>5. Set point change or interlock bypass done to be recorded and operator to be informed.</div>
+                <div>6. Others. ____________________________________________________________________</div>
+            </div>
+
+            <div class="pa-2 border-top text-center">
+                <MudText Typo="Typo.caption" Style="font-style: italic;">Certified that Tool Box meeting has been conducted to execute job safely</MudText>
+                <div class="d-flex justify-center mt-4">
+                    <div style="border-top: 1px solid black; width: 300px;">
+                        <MudText Style="font-size: 10px;">Signature of attendees</MudText>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pa-1 d-flex justify-space-between" style="font-size: 9px;">
+                <span>(Bpp/24)</span>
+                <span class="font-weight-bold">@JobData.JobNumber</span>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Styles remain the same */
+    .job-card-main { width: 100%; max-width: 800px; margin: auto; border: 2px solid black; font-family: 'Segoe UI', sans-serif; background-color: white; color: black; }
+    .header-grid { display: grid; grid-template-columns: 1.2fr 2fr 1fr; }
+    .logo-box, .dept-box, .doc-box { border-right: 1px solid black; }
+    .doc-box { border-right: none; }
+    .row-flex { display: flex; width: 100%; }
+    .col-30 { width: 30%; } .col-40 { width: 40%; } .col-50 { width: 50%; } .col-60 { width: 60%; } .col-70 { width: 70%; }
+    .border-top { border-top: 1px solid black; }
+    .border-right { border-right: 1px solid black; }
+    .bg-light { background-color: #f0f0f0; }
+    .border-top-dotted { border-top: 1px dashed #666; }
+    .font-handwriting { font-family: 'Comic Sans MS', cursive; color: #1a237e; font-size: 1.1rem; }
+    @@media print { .print-container { padding: 0; margin: 0; } .mud-button-root { display: none !important; } }
+</style>
+
+@code {
+    [Parameter] public JobCardModel JobData { get; set; } = new(); // Initialize with default constructor
+
+    public class JobCardModel {
+        public string JobNumber { get; set; } = "2403";
+        public string DocNumber { get; set; } = "F-Maint-01";
+        public DateTime Date { get; set; } = DateTime.Now;
+        public string AssignedBy { get; set; } = "";
+        public string Location { get; set; } = "";
+        public List<JobTask> Tasks { get; set; } = new();
+        public List<string> Personnel { get; set; } = new();
+        public string Vehicle { get; set; } = "";
+    }
+
+    public class JobTask { public string Description { get; set; } = ""; }
+}

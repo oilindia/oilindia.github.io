@@ -1,0 +1,44 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0' 
+
+      - name: Publish App
+        # This path points to the WASM project inside your 'oil' subfolder
+        run: dotnet publish OIL/OIL.Web.Client/OIL.Web.Client.csproj -c Release -o release
+
+      - name: Fix Service Worker Integrity
+        run: |
+          cd release/wwwroot
+          sed -i 's/integrity="[^"]*"//g' index.html
+          touch .nojekyll
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: release/wwwroot
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

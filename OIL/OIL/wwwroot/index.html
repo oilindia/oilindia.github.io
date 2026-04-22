@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>OIL</title>
+    <base href="/" />
+
+
+
+    <link rel="stylesheet" href="_content/OIL.Shared/app.css" />
+
+    <link rel="stylesheet" href="app.css" />
+
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    <link rel="icon" type="image/x-icon" href="favicon.png">
+
+    <!--<link rel="icon" href="data:,">-->
+</head>
+
+<body>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <div class="status-bar-safe-area"></div>
+
+    <div id="app">
+        @* Simple loading spinner while MAUI starts up *@
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; color:#D32F2F;">
+            Loading OIL Systems...
+        </div>
+    </div>
+
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <script>
+        window.getElementDimensions = (id) => {
+            const el = document.getElementById(id);
+            if (!el) return { width: 0, height: 0 };
+            return { width: el.offsetWidth, height: el.offsetHeight };
+        };
+    </script>
+</body>
+</html>

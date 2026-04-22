@@ -1,0 +1,83 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+<MudNavMenu>
+    <AuthorizeView>
+        <Authorized>
+            @* --- GLOBAL LINKS (Everyone) --- *@
+            <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
+            <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+            
+            <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+
+            <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
+            <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+
+            <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
+            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink>
+
+            @* --- ADMIN & MANAGER SECTION --- *@
+            @if (context.User.IsInRole("Admin") || context.User.IsInRole("Manager"))
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4">ADMIN & MANAGEMENT</MudText>
+
+                <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+                
+                <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+                
+                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Analytics">
+                    <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
+                    <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
+                    <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
+                    <MudNavLink Href="/jobcard">Job Card</MudNavLink>
+                </MudNavGroup>
+
+                <MudNavGroup Title="Portal Data" Icon="@Icons.Material.Filled.Storage">
+                    <MudNavLink Href="/managedrivers">Manage Drivers</MudNavLink>
+                    <MudNavLink Href="/manageengineers">Manage Engineers</MudNavLink>
+                    <MudNavLink Href="/manageexecutives">Manage Executives</MudNavLink>
+                    <MudNavLink Href="/managelocations">Manage Locations</MudNavLink>
+                </MudNavGroup>
+
+                <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
+                <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+
+
+
+                <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">ChatBot</MudNavLink>
+            }
+
+            @* --- COST DASHBOARDS (GM & Manager Only) --- *@
+            @if (context.User.IsInRole("GM") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4">FINANCIALS</MudText>
+                <MudNavGroup Title="Cost Monitoring" Icon="@Icons.Material.Filled.MonetizationOn">
+                    <MudNavLink Href="/cost/costdashboard">Dept. Cost Portal</MudNavLink>
+                    <MudNavLink Href="/cost/productivity">Employee Productivity</MudNavLink>
+                    <MudNavLink Href="/cost/jobcosts">Job Cost Analysis</MudNavLink>
+                </MudNavGroup>
+            }
+
+            @* --- INSTRUMENTATION PM SECTION --- *@
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.caption" Class="px-4">MAINTENANCE (PM)</MudText>
+            
+            @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
+            {
+                @* PM Planning for Managers *@
+                <MudNavLink Href="pmschedule" Icon="@Icons.Material.Filled.CalendarMonth">PM Scheduling</MudNavLink>
+            }
+
+            @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
+            {
+                @* Execution for Engineers and Managers *@
+                <MudNavLink Href="pmentry" Icon="@Icons.Material.Filled.AssignmentTurnedIn">PM Execution</MudNavLink>
+                <MudNavLink Href="/pmreports" Icon="@Icons.Material.Filled.Assessment">PM Reports</MudNavLink>
+            }
+
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>

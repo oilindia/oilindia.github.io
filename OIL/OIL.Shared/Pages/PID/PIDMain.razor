@@ -1,0 +1,219 @@
+﻿@page "/pidmain"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject IJSRuntime JS
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudGrid>
+        @* --- TOP CONTROLS --- *@
+        <MudItem xs="12">
+            <MudPaper Elevation="3" Class="pa-4 d-flex align-center gap-4">
+                <MudSelect T="string" Label="Field Type" Value="_selectedFieldType" ValueChanged="OnFieldTypeChanged" Variant="Variant.Outlined" Style="width: 180px;">
+                    <MudSelectItem Value="@("Eastern Fields")" />
+                    <MudSelectItem Value="@("Western Fields")" />
+                    <MudSelectItem Value="@("Other")" />
+                </MudSelect>
+
+                <MudSelect T="Location" Label="Select Installation" @bind-Value="_tempLocation" ToStringFunc="@(l => l?.InstallationName)" Variant="Variant.Outlined" Class="flex-grow-1">
+                    @foreach (var loc in _filteredLocations)
+                    {
+                        <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="LoadDrawing" Disabled="@(_tempLocation == null)">Go</MudButton>
+
+                <MudDivider Vertical="true" FlexItem="true" />
+
+                <MudToggleGroup T="bool" @bind-Value="_isMappingMode" Color="Color.Error" Outline="true" Size="Size.Small">
+                    <MudToggleItem Value="false" Text="View Mode" />
+                    <MudToggleItem Value="true" Text="Edit Mode" />
+                </MudToggleGroup>
+            </MudPaper>
+        </MudItem>
+
+        @if (_currentLocation != null)
+        {
+            @* --- ENLARGED P&ID DRAWING AREA --- *@
+            <MudItem xs="12">
+                @* Changed height to 80vh and set background to a neutral dark *@
+                <div @ref="_mapScrollContainer" style="width: 100%; height: 80vh; overflow: auto; border: 2px solid #444; background: #1a1a1a; position: relative; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    
+                    @* Floating Controls *@
+                    <div style="position: sticky; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 8px;">
+                        <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="() => _zoomLevel += 0.15" />
+                        <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" Size="Size.Small" OnClick="() => _zoomLevel = Math.Max(0.1, _zoomLevel - 0.15)" />
+                        <MudFab Color="Color.Info" StartIcon="@Icons.Material.Filled.FullscreenExit" Size="Size.Small" OnClick="() => _zoomLevel = 1.0" Tooltip="Reset View" />
+                    </div>
+
+                    <div id="pid-map-container" @onclick="HandleImageClick" style="@GetZoomStyle()" class="@(_isMappingMode ? "mapping-active" : "")">
+                        <img src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
+
+                        @foreach (var m in _markers.Where(x => x.CoordX.HasValue && x.CoordY.HasValue))
+                        {
+                            <div style="position: absolute; top: @($"{m.CoordY}%"); left: @($"{m.CoordX}%"); transform: translate(-50%, -50%);">
+                                <MudTooltip Text="@($"{m.TagNumber} | {m.MakeModelType}")">
+                                    <MudIconButton Icon="@Icons.Material.Filled.LocationOn"
+                                                   Style="color: #00C853; filter: drop-shadow(0px 0px 4px rgba(0,0,0,0.8));"
+                                                   Size="Size.Medium"
+                                                   OnClick="() => OpenEdit(m)" />
+                                </MudTooltip>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </MudItem>
+
+            @* --- MARKER DATA TABLE --- *@
+            <MudItem xs="12" Class="mt-4">
+                <MudTable Items="@_markers" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="3" Height="300px" FixedHeader="true">
+                    <HeaderContent>
+                        <MudTh>Tag Number</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Make/Model</MudTh>
+                        <MudTh>Range</MudTh>
+                        <MudTh Style="text-align:right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="m">
+                        <MudTd><b>@m.TagNumber</b></MudTd>
+                        <MudTd>@m.InstrumentType</MudTd>
+                        <MudTd>@m.MakeModelType</MudTd>
+                        <MudTd>@m.Range</MudTd>
+                        <MudTd Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.MyLocation" Color="Color.Info" Size="Size.Small" OnClick="() => LocateMarker(m)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => OpenEdit(m)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteMarker(m)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
+
+@* --- DRAWER REMAINS SAME --- *@
+<MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="400px" Variant="DrawerVariant.Temporary">
+    <MudDrawerHeader Class="pa-4"><MudText Typo="Typo.h6">Marker Configuration</MudText></MudDrawerHeader>
+    <div class="pa-4">
+        @if (_selectedMarker != null)
+        {
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_selectedMarker.TagNumber" Label="Tag Number" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_selectedMarker.InstrumentType" Label="Instrument Type" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_selectedMarker.MakeModelType" Label="Make & Model" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_selectedMarker.Range" Label="Range" Variant="Variant.Outlined" />
+                <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Class="mt-4">Save</MudButton>
+            </MudStack>
+        }
+    </div>
+</MudDrawer>
+
+@code {
+    private ElementReference _mapScrollContainer;
+    private Location _tempLocation;
+    private Location _currentLocation;
+    private double _zoomLevel = 1.0; // Starts at 100% width
+    private bool _isMappingMode = false;
+    private bool _drawerOpen = false;
+    private string _selectedFieldType;
+    private List<Location> _allLocations = new();
+    private List<Location> _filteredLocations = new();
+    private List<Marker> _markers = new();
+    private Marker _selectedMarker;
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [Column("id")] public long Id { get; set; }
+        [Column("installation_name")] public string InstallationName { get; set; }
+        [Column("field_type")] public string FieldType { get; set; }
+        [Column("image_url")] public string ImageUrl { get; set; }
+    }
+
+    [Table("pid_markers")]
+    public class Marker : BaseModel
+    {
+        [Column("id")] public long Id { get; set; }
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("tag_number")] public string TagNumber { get; set; }
+        [Column("instrument_type")] public string InstrumentType { get; set; }
+        [Column("make_model_type")] public string MakeModelType { get; set; }
+        [Column("range")] public string Range { get; set; }
+        [Column("coord_x")] public double? CoordX { get; set; }
+        [Column("coord_y")] public double? CoordY { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await SupabaseClient.From<Location>().Get();
+        _allLocations = res.Models;
+    }
+
+    private void OnFieldTypeChanged(string t)
+    {
+        _selectedFieldType = t;
+        _filteredLocations = _allLocations.Where(x => x.FieldType != null && x.FieldType.Equals(t, StringComparison.OrdinalIgnoreCase)).ToList();
+        _tempLocation = null;
+    }
+
+    private async Task LoadDrawing()
+    {
+        _currentLocation = _tempLocation;
+        _zoomLevel = 1.0; // Adjust zoom to 1.0 or lower to see full image vertically
+        await RefreshMarkers();
+    }
+
+    private async Task RefreshMarkers()
+    {
+        if (_currentLocation == null) return;
+        var res = await SupabaseClient.From<Marker>().Match(new Dictionary<string, string> { { "location_id", _currentLocation.Id.ToString() } }).Get();
+        _markers = res.Models;
+        StateHasChanged();
+    }
+
+    private async Task HandleImageClick(MouseEventArgs e)
+    {
+        if (!_isMappingMode) return;
+        var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+        _selectedMarker = new Marker
+        {
+            LocationId = _currentLocation.Id,
+            CoordX = (e.OffsetX / dims.Width) * 100,
+            CoordY = (e.OffsetY / dims.Height) * 100,
+            TagNumber = "TAG-" + (_markers.Count + 1)
+        };
+        _drawerOpen = true;
+    }
+
+    private async Task SaveMarker()
+    {
+        await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
+        _drawerOpen = false;
+        await RefreshMarkers();
+        Snackbar.Add("Updated Successfully", Severity.Success);
+    }
+
+    private async Task LocateMarker(Marker m)
+    {
+        if (!m.CoordX.HasValue || !m.CoordY.HasValue) return;
+        _zoomLevel = 1.2;
+        StateHasChanged();
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("scrollToMarker", "pid-map-container", m.CoordX.Value, m.CoordY.Value);
+    }
+
+    private async Task DeleteMarker(Marker m)
+    {
+        await SupabaseClient.From<Marker>().Delete(m);
+        _markers.Remove(m);
+        Snackbar.Add("Deleted", Severity.Warning);
+    }
+
+    private void OpenEdit(Marker m) { _selectedMarker = m; _drawerOpen = true; }
+    private string GetZoomStyle() => $"position: relative; display: inline-block; width: {(_zoomLevel * 100)}%; transition: width 0.2s ease; transform-origin: top left;";
+    public class Dimensions { public double Width { get; set; } public double Height { get; set; } }
+}

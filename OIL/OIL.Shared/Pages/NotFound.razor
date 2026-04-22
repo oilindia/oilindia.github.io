@@ -1,0 +1,22 @@
+﻿@page "/404"
+@layout MainLayout
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex flex-column align-center justify-center mt-16">
+    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Error" Style="font-size: 5rem;" />
+    
+    <MudText Typo="Typo.h3" GutterBottom="true" Class="mt-4">404</MudText>
+    <MudText Typo="Typo.h5" Align="Align.Center">Oops! Page not found.</MudText>
+    
+    <MudText Typo="Typo.body1" Align="Align.Center" Class="mud-text-secondary mt-2">
+        The resource you are looking for might have been moved,
+        had its name changed, or is temporarily unavailable.
+    </MudText>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               Href="/"
+               StartIcon="@Icons.Material.Filled.Home"
+               Class="mt-6">
+        Back to Dashboard
+    </MudButton>
+</MudContainer>

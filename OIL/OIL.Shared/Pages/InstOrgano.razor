@@ -1,0 +1,221 @@
+@page "/instorgano"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Supabase.Client SupabaseClient
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10 mb-10">
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mud-text-primary font-weight-bold">Department Organogram</MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">Hierarchical View (HOD > GM > Manager > Engineers)</MudText>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center align-center" style="height: 400px;">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (RootNode != null)
+    {
+        <div class="org-wrapper">
+            
+            @* --- LEVEL 1: HOD --- *@
+            <div class="level-1-container">
+                <div class="d-flex justify-center">
+                    <MudPaper Elevation="12" Class="pa-6 hod-card text-center">
+                        <MudAvatar Color="Color.Dark" Size="Size.Large" Class="mb-2">
+                            @(string.IsNullOrEmpty(RootNode.FullName) ? "?" : RootNode.FullName[0])
+                        </MudAvatar>
+                        <MudText Typo="Typo.h5"><b>@RootNode.FullName</b></MudText>
+                        <MudText Typo="Typo.subtitle2">@RootNode.Designation</MudText>
+                    </MudPaper>
+                </div>
+                <div class="hierarchy-line-v-main"></div>
+            </div>
+
+            @* --- LEVEL 2: GMs --- *@
+            <div class="gm-grid" style="grid-template-columns: repeat(@Math.Max(1, RootNode.Subordinates.Count), 1fr);">
+                <div class="hierarchy-bridge"></div>
+
+                @foreach (var gm in RootNode.Subordinates)
+                {
+                    <div class="gm-column">
+                        <div class="hierarchy-line-v-short"></div>
+                        
+                        <MudPaper Elevation="6" Class="pa-4 mb-8 gm-card text-center">
+                            <MudText Typo="Typo.h6"><b>@gm.FullName</b></MudText>
+                            <MudText Typo="Typo.caption" Class="designation-label">@gm.Designation</MudText>
+                        </MudPaper>
+
+                        <div class="hierarchy-line-v-short"></div>
+
+                        @* --- LEVEL 3+: MANAGERS & ENGINEERS --- *@
+                        <div class="manager-stack">
+                            <MudExpansionPanels MultiExpansion="true" Elevation="4" Class="manager-panels">
+                                @foreach (var manager in gm.Subordinates)
+                                {
+                                    <MudExpansionPanel Class="manager-item">
+                                        <TitleContent>
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Primary" Class="mr-3" />
+                                                <div class="text-left">
+                                                    <MudText Typo="Typo.body1"><b>@manager.FullName</b></MudText>
+                                                    <MudText Typo="Typo.caption">@manager.Designation</MudText>
+                                                </div>
+                                            </div>
+                                        </TitleContent>
+                                        <ChildContent>
+                                            <div class="engineer-zone pa-2">
+                                                @if (manager.Subordinates.Any())
+                                                {
+                                                    <MudText Typo="Typo.caption" Style="color: #000; font-weight: 900;">REPORTING TO @manager.FullName.Split(' ')[0].ToUpper():</MudText>
+                                                    <div class="d-flex flex-wrap gap-1 mt-2">
+                                                        @foreach (var eng in manager.Subordinates)
+                                                        {
+                                                            <MudChip T="string" Variant="Variant.Filled" Color="Color.Info" Size="Size.Small" Style="font-weight: bold;">
+                                                                @eng.FullName (@eng.Designation)
+                                                            </MudChip>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.caption">No direct reports found.</MudText>
+                                                }
+                                            </div>
+                                        </ChildContent>
+                                    </MudExpansionPanel>
+                                }
+                            </MudExpansionPanels>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="pa-10 text-center">
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">No hierarchy data found. Check Supabase connection or RLS policies.</MudAlert>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4" OnClick="LoadData">Retry Fetch</MudButton>
+        </div>
+    }
+</MudContainer>
+
+<style>
+    :root {
+        --line-color: #1a1a1a;
+        --line-width: 4px;
+    }
+
+    .org-wrapper {
+        overflow-x: auto;
+        padding: 40px;
+        background-color: #fafafa;
+    }
+
+    .hierarchy-line-v-main {
+        width: var(--line-width);
+        height: 50px;
+        background: var(--line-color);
+        margin: 0 auto;
+    }
+
+    .gm-grid {
+        display: grid;
+        min-width: 1200px;
+        position: relative;
+    }
+
+    .hierarchy-bridge {
+        position: absolute;
+        top: 0;
+        left: 10%; 
+        right: 10%; 
+        height: var(--line-width);
+        background: var(--line-color);
+    }
+
+    .gm-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    .hierarchy-line-v-short {
+        width: var(--line-width);
+        height: 30px;
+        background: var(--line-color);
+    }
+
+    .hod-card { width: 320px; border: var(--line-width) solid var(--line-color) !important; }
+    .gm-card { width: 260px; border: 2px solid var(--line-color) !important; background: #ebf1f5; }
+    .manager-stack { width: 300px; margin-top: 5px; }
+    .manager-item { border-left: 6px solid var(--line-color) !important; margin-bottom: 6px !important; }
+    .engineer-zone { background: #f0f0f0; border-radius: 4px; border: 1px solid #ccc; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private Employee? RootNode;
+
+    [Table("employees_executives")]
+    public class Employee : BaseModel
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("full_name")] public string? FullName { get; set; }
+        [Column("designation")] public string? Designation { get; set; }
+        [Column("reports_to_id")] public int? ReportsToId { get; set; }
+        
+        public List<Employee> Subordinates { get; set; } = new();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            RootNode = null; // Reset
+
+            // 1. Fetch from Supabase
+            var response = await SupabaseClient.From<Employee>().Get();
+            var allEmployees = response.Models;
+
+            Console.WriteLine($"Fetched {allEmployees.Count} employees.");
+
+            if (allEmployees.Any())
+            {
+                // 2. Build Dictionary for fast lookup
+                var lookup = allEmployees.ToDictionary(e => e.Id);
+
+                foreach (var emp in allEmployees)
+                {
+                    // Check for HOD (Chinmay in your data has ReportsToId = 0)
+                    if (emp.ReportsToId == 0 || emp.ReportsToId == null)
+                    {
+                        RootNode = emp;
+                    }
+                    else if (lookup.ContainsKey(emp.ReportsToId.Value))
+                    {
+                        // Add to boss's subordinate list
+                        lookup[emp.ReportsToId.Value].Subordinates.Add(emp);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Critical Error: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

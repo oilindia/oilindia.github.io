@@ -1,0 +1,154 @@
+﻿@page "/manageexecutives"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Typo="Typo.h5" Style="font-weight: bold;">Executive Management Directory</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal">
+                Add Executive
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="Executive" Items="@_execs" Loading="@_loading" Bordered="true" Dense="true" Hover="true">
+            <Columns>
+                <PropertyColumn Property="x => x.FullName" Title="Full Name" />
+                <PropertyColumn Property="x => x.Designation" Title="Designation" />
+                <PropertyColumn Property="x => x.Department" Title="Department" />
+                <PropertyColumn Property="x => x.Email" Title="Email" />
+                <PropertyColumn Property="x => x.AnnualCost" Title="Annual Cost" Format="N0" />
+                <TemplateColumn Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="Executive" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <MudPaper Style="width: 700px; max-width: 95%; padding: 24px;" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">@(_editingExec.Id == 0 ? "New Executive Entry" : "Update Executive Profile")</MudText>
+            
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="8">
+                    <MudTextField @bind-Value="_editingExec.FullName" Label="Full Name" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="_editingExec.AnnualCost" Label="Annual Cost" Variant="Variant.Outlined" HideSpinButtons="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingExec.Email" Label="Email Address" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingExec.Mobile" Label="Mobile Number" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingExec.Designation" Label="Designation" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingExec.Department" Label="Department" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="_editingExec.ReportsToId" Label="Reports To (Manager ID)" Variant="Variant.Outlined" HelperText="Enter the ID of the reporting manager" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2 mt-6">
+                <MudButton OnClick="() => _isModalOpen = false">Cancel</MudButton>
+                <MudButton OnClick="SaveExec" Variant="Variant.Filled" Color="Color.Secondary">Save Profile</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    [Table("employees_executives")]
+    public class Executive : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string Email { get; set; } = "";
+        [Column("designation")] public string Designation { get; set; } = "";
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("Department")] public string? Department { get; set; } // Case sensitive mapping
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+    }
+
+    private List<Executive> _execs = new();
+    private Executive _editingExec = new();
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var result = await SupabaseClient.From<Executive>().Get();
+            _execs = result.Models;
+            StateHasChanged();
+        }
+        catch (Exception ex) { Snackbar.Add($"Sync Error: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OpenAddModal() { _editingExec = new Executive(); _isModalOpen = true; }
+
+    private void OpenEditModal(Executive e)
+    {
+        _editingExec = new Executive
+        {
+            Id = e.Id,
+            ReportsToId = e.ReportsToId,
+            Email = e.Email,
+            Designation = e.Designation,
+            FullName = e.FullName,
+            Mobile = e.Mobile,
+            Department = e.Department,
+            AnnualCost = e.AnnualCost
+        };
+        _isModalOpen = true;
+    }
+
+    private async Task SaveExec()
+    {
+        try
+        {
+            await SupabaseClient.From<Executive>().Upsert(_editingExec);
+            _isModalOpen = false;
+            await LoadData();
+            Snackbar.Add("Executive data synced successfully", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private async Task ConfirmDelete(Executive e)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Confirm Delete", $"Remove executive record for {e.FullName}?", yesText: "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            await SupabaseClient.From<Executive>().Where(x => x.Id == e.Id).Delete();
+            await LoadData();
+            Snackbar.Add("Record removed", Severity.Warning);
+        }
+    }
+}

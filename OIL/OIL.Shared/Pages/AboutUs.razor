@@ -1,0 +1,190 @@
+﻿@page "/home"
+
+
+@using MudBlazor
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<style>
+    /* Absolute full-page styling */
+    .presentation-root {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100vw !important;
+        height: 100vh;
+        background-color: #050505;
+        color: white;
+        position: relative;
+    }
+
+    .slide-body {
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 5rem;
+        text-align: center;
+    }
+
+    .white-text { color: #ffffff !important; text-shadow: 0px 4px 15px rgba(0,0,0,1); }
+    .sub-text { color: #e0e0e0 !important; max-width: 1000px; line-height: 1.6; }
+    
+    .overlay-vibrant { 
+        background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.9)); 
+        width: 100%; height: 100%; 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    }
+
+    /* Professional bottom controller */
+    .nav-controller {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 25px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 12px 30px;
+        border-radius: 50px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        z-index: 1000;
+        transition: opacity 0.3s;
+    }
+    .nav-controller:hover { background: rgba(255, 255, 255, 0.15); }
+</style>
+
+<div id="presentationCanvas" class="presentation-root">
+    <MudCarousel @ref="_carousel" TData="object" Style="height:100vh" 
+                 ShowArrows="false" ShowBullets="true" AutoCycle="false" 
+                 @bind-SelectedIndex="_currentIndex">
+        
+        @* Slide 1: Introduction *@
+        <MudCarouselItem Transition="Transition.Slide">
+            <div class="slide-body" style="background: radial-gradient(circle, #232526 0%, #060606 100%);">
+                <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Size="Size.Large" Style="font-size: 8rem;" Color="Color.Info" />
+                <MudText Typo="Typo.h1" Class="white-text fw-bold">Department Overview</MudText>
+                <MudText Typo="Typo.h4" Class="sub-text mt-4">Instrumentation & Maintenance | Management Portal 2026</MudText>
+            </div>
+        </MudCarouselItem>
+
+        @* Slide 2: Zero Production Loss *@
+        <MudCarouselItem Transition="Transition.Fade">
+            <div class="slide-body" style="background: url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1920&q=100'); background-size: cover;">
+                <div class="overlay-vibrant">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Large" Color="Color.Error" Style="font-size: 6rem;"/>
+                    <MudText Typo="Typo.h2" Class="white-text fw-bold">ZERO PRODUCTION LOSS</MudText>
+                    <MudText Typo="Typo.h5" Class="white-text mt-6 sub-text">
+                        Strategic maintenance ensures zero unplanned downtime. By monitoring instrument health 
+                        directly through our portal, we address risks before they become costs.
+                    </MudText>
+                </div>
+            </div>
+        </MudCarouselItem>
+
+        @* Slide 3: Maintenance Pillar *@
+        <MudCarouselItem Transition="Transition.Slide">
+            <div class="slide-body" style="background-color: #111;">
+                <MudText Typo="Typo.h2" Color="Color.Info" Class="fw-bold mb-10">CORE MAINTENANCE ACTIVITIES</MudText>
+                <MudGrid Justify="Justify.Center">
+                    <MudItem xs="12" sm="4">
+                        <MudIcon Icon="@Icons.Material.Filled.Construction" Color="Color.Primary" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="white-text mt-2">Upkeep</MudText>
+                        <MudText Typo="Typo.body1" Class="sub-text">Preventive servicing of all field hardware.</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudIcon Icon="@Icons.Material.Filled.ModelTraining" Color="Color.Success" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="white-text mt-2">Calibration</MudText>
+                        <MudText Typo="Typo.body1" Class="sub-text">Precision tuning for measurement accuracy.</MudText>
+                    </MudItem>
+                </MudGrid>
+            </div>
+        </MudCarouselItem>
+
+        @* Slide 4: Safety Pillar *@
+        <MudCarouselItem Transition="Transition.Fade">
+            <div class="slide-body" style="background-color: #1b5e20;">
+                <MudIcon Icon="@Icons.Material.Filled.GppGood" Size="Size.Large" Style="font-size: 7rem;" />
+                <MudText Typo="Typo.h2" Class="white-text fw-bold">SAFETY WITHOUT COMPROMISE</MudText>
+                <MudText Typo="Typo.h5" Class="white-text mt-4 sub-text">
+                    Instruments are safety barriers. We maintain ESD (Emergency Shutdown) 
+                    and F&G systems to protect lives and assets.
+                </MudText>
+            </div>
+        </MudCarouselItem>
+
+        @* Slide 5: Digital Transformation *@
+        <MudCarouselItem Transition="Transition.Slide">
+            <div class="slide-body" style="background: #000;">
+                <MudIcon Icon="@Icons.Material.Filled.Dashboard" Size="Size.Large" Color="Color.Info" Style="font-size: 6rem;"/>
+                <MudText Typo="Typo.h2" Class="white-text fw-bold">THE DIGITAL PORTAL</MudText>
+                <MudText Typo="Typo.h5" Class="white-text mt-4 sub-text">
+                    Bridging the gap between the field and the office. Real-time data, 
+                    driver management, and technical reporting in one unified interface.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Info" Class="mt-12 px-10 py-3 rounded-pill" OnClick="HandleNext">
+                    FINISH & EXIT
+                </MudButton>
+            </div>
+        </MudCarouselItem>
+    </MudCarousel>
+
+    @* Combined Nav Controller *@
+    <div class="nav-controller">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit" 
+                       OnClick="Previous" Disabled="@(_currentIndex == 0)" />
+        
+        <MudTooltip Text="Toggle Fullscreen">
+            <MudIconButton Icon="@(_isFull ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)" 
+                           Color="Color.Info" OnClick="ToggleFullScreen" />
+        </MudTooltip>
+        
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Inherit" 
+                       OnClick="HandleNext" />
+    </div>
+</div>
+
+@code {
+    private MudCarousel<object>? _carousel;
+    private int _currentIndex = 0;
+    private bool _isFull = false;
+    private const int TotalSlides = 5;
+
+    private async Task ToggleFullScreen()
+    {
+        if (!_isFull)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('presentationCanvas').requestFullscreen()");
+            _isFull = true;
+        }
+        else
+        {
+            await ExitFullScreen();
+        }
+    }
+
+    private async Task ExitFullScreen()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "if(document.fullscreenElement) document.exitFullscreen()");
+        _isFull = false;
+    }
+
+    private void Previous() => _carousel?.Previous();
+
+    private async Task HandleNext()
+    {
+        if (_currentIndex == TotalSlides - 1)
+        {
+            await ExitFullScreen();
+            Snackbar.Add("Presentation Completed", Severity.Success);
+            _currentIndex = 0; // Reset for next time
+        }
+        else
+        {
+            _carousel?.Next();
+        }
+    }
+}

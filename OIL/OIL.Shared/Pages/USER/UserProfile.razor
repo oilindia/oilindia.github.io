@@ -1,0 +1,252 @@
+﻿@page "/profile"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using Supabase
+@attribute [Authorize]
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-10">
+    @if (_isInitialLoading)
+    {
+        <div class="d-flex justify-center align-center" style="height:200px;">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <MudGrid>
+            @* --- PROFILE CARD --- *@
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="4" Class="pa-6" Style="height: 100%; border-top: 6px solid var(--mud-palette-primary);">
+                    <div class="d-flex align-center mb-6">
+                        <MudAvatar Color="Color.Primary" Style="height:80px; width:80px; font-size:2rem;">
+                            @(!string.IsNullOrEmpty(_fullName) ? _fullName[0].ToString().ToUpper() : "U")
+                        </MudAvatar>
+                        <div class="ms-4">
+                            <MudText Typo="Typo.h5"><b>@_fullName</b></MudText>
+                            <MudText Typo="Typo.body1" Color="Color.Secondary">@_userEmail</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text" Class="mt-1">@_designation</MudChip>
+                        </div>
+                    </div>
+
+                    <MudGrid Spacing="2">
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Department</MudText>
+                            <MudText Typo="Typo.body1"><b>@_department</b></MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Reporting To</MudText>
+                            <MudText Typo="Typo.body1"><b>@_bossName</b></MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Annual Cost (Est.)</MudText>
+                            <MudText Typo="Typo.body1" Color="Color.Error"><b>₹ @(_cost?.ToString("N0") ?? "0")</b></MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Mobile</MudText>
+                            <MudText Typo="Typo.body1"><b>@_mobile</b></MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            @* --- PASSWORD MANAGEMENT --- *@
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="4" Class="pa-6" Style="height: 100%;">
+                    <MudText Typo="Typo.h6" Class="mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Security" Class="me-2" />Security Settings
+                    </MudText>
+                    
+                    <MudForm @ref="_form" @bind-IsValid="@_success">
+                        <MudTextField T="string" Label="New Password"
+                                      @bind-Value="_newPassword"
+                                      InputType="@_passwordInput"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@_passwordIcon"
+                                      OnAdornmentClick="TogglePasswordVisibility" />
+
+                        <MudTextField T="string" Label="Confirm New Password"
+                                      @bind-Value="_confirmPassword"
+                                      InputType="@_passwordInput"
+                                      Variant="Variant.Outlined"
+                                      Class="mt-4"
+                                      Required="true"
+                                      Validation="@(new Func<string, string>(PasswordsMatch))" />
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   FullWidth="true"
+                                   Class="mt-6 py-3"
+                                   Disabled="@(!_success || _isProcessing)"
+                                   OnClick="HandleUpdatePassword">
+                            @if (_isProcessing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                            }
+                            else
+                            {
+                                <MudText>Update Password</MudText>
+                            }
+                        </MudButton>
+                    </MudForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+    @code {
+    private MudForm _form;
+    private bool _success;
+    private bool _isProcessing = false;
+    private bool _isInitialLoading = true;
+
+    private string _userEmail = "";
+    private string _fullName = "Loading...";
+    private string _designation = "";
+    private string _department = "";
+    private string _bossName = "N/A";
+    private string _mobile = "";
+    private long? _cost = 0;
+
+    private string _newPassword;
+    private string _confirmPassword;
+    private bool _showPassword = false;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    [Table("employees_executives")]
+    public class UserProfileModel : BaseModel
+    {
+        [Column("id")] public long Id { get; set; }
+        [Column("full_name")] public string FullName { get; set; }
+        [Column("email")] public string Email { get; set; }
+        [Column("designation")] public string Designation { get; set; }
+        [Column("Department")] public string Department { get; set; }
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+    }
+
+    [Table("engineers")]
+    public class EngineerProfileModel : UserProfileModel { }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // FORCE RETRIEVE SESSION FROM BROWSER STORAGE
+            var session = await SupabaseClient.Auth.RetrieveSessionAsync();
+
+            if (session?.User != null)
+            {
+                _userEmail = session.User.Email;
+                Console.WriteLine($"[Debug] Found User via RetrieveSessionAsync: {_userEmail}");
+                await LoadData();
+            }
+            else
+            {
+                // Fallback to AuthProvider if RetrieveSession fails
+                var authState = await AuthProvider.GetAuthenticationStateAsync();
+                _userEmail = authState.User.FindFirst("email")?.Value ?? authState.User.Identity?.Name ?? "";
+
+                if (!string.IsNullOrEmpty(_userEmail))
+                {
+                    await LoadData();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Debug] Session Retrieval Error: {ex.Message}");
+        }
+        finally
+        {
+            _isInitialLoading = false;
+            StateHasChanged();
+        }
+    }
+
+   private async Task LoadData()
+{
+    if (string.IsNullOrEmpty(_userEmail)) return;
+
+    // Admin check
+    if (_userEmail.ToLower().Contains("admin")) {
+        _fullName = "System Administrator";
+        _designation = "Super Admin";
+        _department = "IT / Instrumentation";
+        _bossName = "Management";
+        return;
+    }
+
+    try {
+        // 1. Try Executives - Using Dictionary<string, string>
+        var res = await SupabaseClient.From<UserProfileModel>()
+            .Match(new Dictionary<string, string> { { "email", _userEmail } })
+            .Get();
+
+        var user = res.Models.FirstOrDefault();
+
+        // 2. Try Engineers fallback
+        if (user == null) {
+            var resEng = await SupabaseClient.From<EngineerProfileModel>()
+                .Match(new Dictionary<string, string> { { "email", _userEmail } })
+                .Get();
+            user = resEng.Models.FirstOrDefault();
+        }
+
+        if (user != null) {
+            _fullName = user.FullName ?? "User";
+            _designation = user.Designation ?? "Personnel";
+            _department = user.Department ?? "N/A";
+            _cost = user.AnnualCost;
+            _mobile = user.Mobile?.ToString() ?? "N/A";
+
+            // 3. Resolve Boss Name
+            if (user.ReportsToId.HasValue && user.ReportsToId > 0) {
+                // Convert the ID to string to match the Dictionary<string, string> requirement
+                var bossRes = await SupabaseClient.From<UserProfileModel>()
+                    .Match(new Dictionary<string, string> { { "id", user.ReportsToId.Value.ToString() } })
+                    .Get();
+                
+                _bossName = bossRes.Models.FirstOrDefault()?.FullName ?? "N/A";
+            }
+            
+            StateHasChanged();
+        }
+    } 
+    catch (Exception ex) { 
+        Console.WriteLine("Data Fetch Error: " + ex.Message); 
+    }
+}
+    
+    
+    private async Task HandleUpdatePassword()
+    {
+        _isProcessing = true;
+        try
+        {
+            await SupabaseClient.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = _newPassword });
+            Snackbar.Add("Password updated successfully!", Severity.Success);
+            _newPassword = ""; _confirmPassword = "";
+        }
+        catch (Exception ex) { Snackbar.Add("Update Failed: " + ex.Message, Severity.Error); }
+        finally { _isProcessing = false; }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+        _passwordIcon = _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+        _passwordInput = _showPassword ? InputType.Text : InputType.Password;
+    }
+
+    private string PasswordsMatch(string confirm) => _newPassword != confirm ? "Passwords do not match" : null;
+}

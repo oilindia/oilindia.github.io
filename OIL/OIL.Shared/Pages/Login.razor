@@ -1,0 +1,158 @@
+﻿@page "/"
+@page "/login"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+@inject OIL.Shared.Services.AuthService AuthService
+@inject NavigationManager Nav
+@layout MainLayout
+@namespace OIL.Shared.Pages
+@using Microsoft.AspNetCore.Components.Authorization
+@using OIL.Shared.Services
+@inject AuthService AuthService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+@inject AuthenticationStateProvider AuthProvider
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 80vh;">
+    <MudPaper Elevation="4" Class="pa-8" Width="100%" MaxWidth="400px" Style="border-radius: 12px;">
+        <MudStack Spacing="4">
+            <div class="d-flex flex-column align-center mb-4">
+                @* Using MudImage for the OIL Logo *@
+                <MudImage Src="_content/OIL.Shared/imgs/oil.png"
+                          Alt="Oil India Limited Logo"
+                          Fluid="true"
+                          Style="max-width: 150px; height: auto;"
+                          Class="mb-2" />
+              
+                <MudText Typo="Typo.h4" Align="Align.Center" Class="mt-2" Style="font-weight: 700;">
+                    @(_isSignup ? "Create Account" : "OIL Login")
+                </MudText>
+    
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    Industrial Portal - Upper Assam Basin
+                </MudText>
+            </div>
+
+            @* Change this line *@
+            <MudCheckBox @bind-Value="_isAdminMode" Label="Admin Mode" Color="Color.Secondary" Class="mb-4" />
+
+            <MudTextField @bind-Value="_email"
+                          Label="Email"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Email"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Email"
+                          Immediate="true" />
+
+            <MudTextField @bind-Value="_password"
+                          Label="Password"
+                          Variant="Variant.Outlined"
+                          InputType="@_passwordInput"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@_passwordIcon"
+                          OnAdornmentClick="TogglePasswordVisibility"
+                          Immediate="true" />
+
+            @if (_isSignup)
+            {
+                <MudTextField @bind-Value="_confirmPassword"
+                              Label="Confirm Password"
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Immediate="true" />
+            }
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       OnClick="ProcessLogin"
+                       Disabled="@_loading"
+                       Class="mt-4 py-3"
+                       Style="border-radius: 8px;">
+                @if (_loading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Processing...</MudText>
+                }
+                else
+                {
+                    <MudText>@(_isSignup ? "REGISTER" : "LOGIN")</MudText>
+                }
+            </MudButton>
+
+            <MudDivider Class="my-2" />
+
+            <div class="d-flex justify-center">
+                <MudLink OnClick="ToggleMode" Underline="Underline.None" Typo="Typo.body2" Style="cursor: pointer;">
+                    @(_isSignup ? "Already have an account? Login" : "Don't have an account? Sign Up")
+                </MudLink>
+            </div>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+
+
+
+
+
+
+
+
+
+@code {
+    private string _email = "";
+    private string _password = "";
+    private string _confirmPassword = "";
+    private bool _isSignup = false;
+    private bool _loading = false;
+
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+    private readonly CustomAuthStateProvider _authStateProvider;
+    private bool _isAdminMode; // Add this variable
+    bool isAdminChecked;
+    private void ToggleMode()
+    {
+        _isSignup = !_isSignup;
+        _email = "";
+        _password = "";
+        _confirmPassword = "";
+    }
+    private async Task ProcessLogin()
+    {
+        var success = await AuthService.Login(_email, _password, _isAdminMode);
+        if (success)
+        {
+            // Small delay helps the StateProvider sync with the UI components
+            await Task.Delay(2000);
+            Nav.NavigateTo("home");
+        }
+        if (success == null)
+        {
+            Console.WriteLine("Login failed: Session is null.");
+            //return false;
+        }
+
+
+    }
+    
+
+    private void TogglePasswordVisibility()
+    {
+        if (_passwordInput == InputType.Password)
+        {
+            _passwordInput = InputType.Text;
+            _passwordIcon = Icons.Material.Filled.Visibility;
+        }
+        else
+        {
+            _passwordInput = InputType.Password;
+            _passwordIcon = Icons.Material.Filled.VisibilityOff;
+        }
+    }
+    
+    
+}

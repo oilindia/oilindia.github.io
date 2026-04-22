@@ -1,0 +1,116 @@
+﻿@page "/managedrivers"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IDialogService DialogService 
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">Driver Fleet Management</MudText>
+            <MudSpacer />
+            @* FIX: Direct bool toggle *@
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal">
+                Add Driver
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="Driver" Items="@_drivers" Loading="@_loading" Dense="true" Hover="true" Bordered="true">
+            <Columns>
+                <PropertyColumn Property="x => x.FullName" Title="Name" />
+                <PropertyColumn Property="x => x.Vehicle_number" Title="License" />
+                <TemplateColumn Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@* --- THE MODAL OVERLAY --- *@
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+        <MudPaper Style="width: 500px; max-width: 90%; padding: 24px;" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">@(_editingDriver.Id == 0 ? "Add New Driver" : "Edit Driver")</MudText>
+            
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_editingDriver.FullName" Label="Full Name" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_editingDriver.Vehicle_number" Label="Vehicle Number" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_editingDriver.Mobile" Label="Mobile" Variant="Variant.Outlined" />
+                
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton OnClick="() => _isModalOpen = false" Variant="Variant.Text">Cancel</MudButton>
+                    <MudButton OnClick="SaveDriver" Variant="Variant.Filled" Color="Color.Primary">Save Driver</MudButton>
+                </div>
+            </MudStack>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    [Table("drivers")]
+    public class Driver : BaseModel {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("mobile")] public string? Mobile { get; set; }
+        [Column("vehicle_number")] public string? Vehicle_number { get; set; }
+        [Column("status")] public string Status { get; set; } = "active";
+    }
+
+    private List<Driver> _drivers = new();
+    private Driver _editingDriver = new();
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+
+    protected override async Task OnInitializedAsync() => await LoadDrivers();
+
+    private async Task LoadDrivers() {
+        try {
+            _loading = true;
+            var result = await SupabaseClient.From<Driver>().Get();
+            _drivers = result.Models;
+            StateHasChanged();
+        } finally { _loading = false; }
+    }
+
+    private void OpenAddModal() {
+        _editingDriver = new Driver();
+        _isModalOpen = true;
+        StateHasChanged();
+    }
+
+    private void OpenEditModal(Driver driver) {
+        _editingDriver = new Driver {
+            Id = driver.Id, FullName = driver.FullName, Mobile = driver.Mobile,
+            Vehicle_number = driver.Vehicle_number,
+            Status = driver.Status
+        };
+        _isModalOpen = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveDriver() {
+        try {
+            await SupabaseClient.From<Driver>().Upsert(_editingDriver);
+            _isModalOpen = false;
+            await LoadDrivers();
+            Snackbar.Add("Driver Saved", Severity.Success);
+        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private async Task ConfirmDelete(Driver driver) {
+        var result = await DialogService.ShowMessageBoxAsync("Delete", "Are you sure?", "Delete", "Cancel");
+        if (result == true) {
+            await SupabaseClient.From<Driver>().Where(x => x.Id == driver.Id).Delete();
+            await LoadDrivers();
+        }
+    }
+}

@@ -1,0 +1,41 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
+
+<Router AppAssembly="@typeof(MainLayout).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <div class="pa-10">
+                    <MudAlert Severity="Severity.Warning">You are not authorized. Redirecting...</MudAlert>
+                </div>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudAlert Severity="Severity.Error">Page not found.</MudAlert>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 1. Check if the task itself is null
+        if (AuthStateTask == null) return;
+
+        // 2. Await the task safely
+        var authState = await AuthStateTask;
+        
+        if (authState?.User?.Identity != null)
+        {
+            if (!authState.User.Identity.IsAuthenticated && !Nav.Uri.Contains("login"))
+            {
+                Nav.NavigateTo("login");
+            }
+        }
+    }
+}

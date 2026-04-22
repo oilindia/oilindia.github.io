@@ -1,0 +1,54 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using OIL.Shared.Services
+
+<MudThemeProvider Theme="_currentTheme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<AuthorizeView>
+    <Authorized>
+        <MudLayout>
+            <MudAppBar Elevation="1" Style="background-color: white; color: black;">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Primary" Edge="Edge.False" OnClick="@((e) => _drawerOpen = !_drawerOpen)" >Menu</MudIconButton>>
+                <MudText Typo="Typo.h6" Class="ms-2">OIL Inst Systems</MudText>
+                <MudSpacer />
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="Logout">Logout</MudButton>
+            </MudAppBar>
+            
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+                <NavMenu />
+            </MudDrawer>
+
+            <MudMainContent>
+                <div class="pa-4">
+                    @Body
+                </div>
+            </MudMainContent>
+        </MudLayout>
+    </Authorized>
+    <NotAuthorized>
+        @* This block renders for the Login Page *@
+        <div class="d-flex align-center justify-center" style="height:100vh;">
+            @Body
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    bool _drawerOpen = true;
+    [Inject] private AuthService AuthService { get; set; }
+    [Inject] private NavigationManager Nav { get; set; }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        Nav.NavigateTo("login");
+    }
+
+    private MudTheme _currentTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight() { Primary = "#D32F2F", AppbarBackground = "#D32F2F" }
+    };
+}

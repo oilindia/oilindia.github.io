@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="OIL/OIL.Shared/OIL.Shared.csproj" />
+  <Project Path="OIL/OIL.Web.Client/OIL.Web.Client.csproj" />
+  <Project Path="OIL/OIL.Web/OIL.Web.csproj" />
+  <Project Path="OIL/OIL/OIL.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

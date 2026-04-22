@@ -1,0 +1,9 @@
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.DS_Store
+appsettings.json
+wwwroot/appsettings.json
+**/appsettings.json

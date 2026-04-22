@@ -1,0 +1,283 @@
+﻿@page "/dms"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-6" Color="Color.Primary" Style="font-weight: bold;">
+        OIL Systems: Technical Document Management
+    </MudText>
+
+    <MudTabs Elevation="4" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Primary">
+        
+        @* --- BROWSE & SEARCH SECTION --- *@
+        <MudTabPanel Text="Browse Documents" Icon="@Icons.Material.Filled.Folder">
+            
+            <MudPaper Class="pa-4 mb-4 bg-light shadow-none border">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="string" Label="Location / Site" @bind-Value="_searchSite" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var s in _documents.Select(x => x.Site).Distinct())
+                            { <MudSelectItem Value="@s">@s</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="string" Label="Area" @bind-Value="_searchArea" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var a in _documents.Select(x => x.Area).Distinct())
+                            { <MudSelectItem Value="@a">@a</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="_searchTag" Placeholder="Search Tag..." Label="Instrument Tag" 
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" 
+                                     AdornmentIcon="@Icons.Material.Filled.Search" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-center">
+                         <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Color="Color.Default">Refresh</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudTable Items="@FilteredDocuments" Hover="true" Loading="@_loading" Dense="true" FixedHeader="true" Height="500px">
+                <HeaderContent>
+                    <MudTh>Instrument Tag</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>File Name</MudTh>
+                    <MudTh Style="text-align:right">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="doc">
+                    <MudTd DataLabel="Tag"><b>@doc.InstrumentTag</b></MudTd>
+                    <MudTd DataLabel="Location">@doc.Site / @doc.Area</MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@doc.DocType</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="File">@doc.FileName</MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align:right">
+                        <MudTooltip Text="View PDF">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" OnClick="@(() => ViewDoc(doc))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Download">
+                            <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Secondary" OnClick="@(() => DownloadDoc(doc))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Delete">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(doc))" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        @* --- UPLOAD SECTION --- *@
+        <MudTabPanel Text="Upload New" Icon="@Icons.Material.Filled.CloudUpload">
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="8">
+                    <MudPaper Class="pa-8" Elevation="3">
+                        <MudText Typo="Typo.h6" Class="mb-4">Upload Technical Document</MudText>
+                        <MudGrid Spacing="3">
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_uploadModel.InstrumentTag" Label="Tag Number (e.g. 10-PT-101)" Required="true" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Document Type" @bind-Value="_uploadModel.DocType" Variant="Variant.Outlined">
+                                    <MudSelectItem Value="@("Manual")" />
+                                    <MudSelectItem Value="@("Drawing")" />
+                                    <MudSelectItem Value="@("Datasheet")" />
+                                    <MudSelectItem Value="@("P&ID")" />
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_uploadModel.Site" Label="Site/Location" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_uploadModel.Area" Label="Area/Section" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf">
+                                    <ActivatorContent>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.AttachFile" Class="py-3">
+                                            @(_selectedFile == null ? "Select PDF Document" : _selectedFile.Name)
+                                        </MudButton>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+                                @if(_selectedFile != null)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mt-2">Size: @((_selectedFile.Size / 1024.0 / 1024.0).ToString("0.##")) MB</MudText>
+                                }
+                            </MudItem>
+                            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" 
+                                           OnClick="ProcessUpload" Disabled="@(_selectedFile == null || _isUploading)">
+                                    @if (_isUploading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/> }
+                                    Start Upload & Register
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@* --- PDF VIEWER DIALOG --- *@
+<MudDialog @bind-IsVisible="_viewerOpen" Options="_dialogOptions">
+    <TitleContent>
+        <div class="d-flex align-center justify-space-between w-100">
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Class="mr-2"/>
+                <MudText Typo="Typo.h6">@_viewingDocName</MudText>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _viewerOpen = false" />
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div style="height: 75vh; width: 100%; border-radius: 8px; overflow: hidden; background-color: #525659;">
+            @if (!string.IsNullOrEmpty(_viewingUrl))
+            {
+                <object data="@_viewingUrl" type="application/pdf" width="100%" height="100%">
+                    <iframe src="@_viewingUrl" width="100%" height="100%" style="border:none;"></iframe>
+                </object>
+            }
+            else
+            {
+                <div class="d-flex align-center justify-center h-100">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                </div>
+            }
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    private bool _loading = true;
+    private bool _isUploading = false;
+    private List<TechnicalDoc> _documents = new();
+    private IBrowserFile? _selectedFile;
+    private TechnicalDoc _uploadModel = new();
+    
+    private string? _searchSite;
+    private string? _searchArea;
+    private string? _searchTag;
+
+    private bool _viewerOpen;
+    private string _viewingUrl = "";
+    private string _viewingDocName = "";
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true, NoHeader = true };
+
+    [Table("technical_documents")]
+    public class TechnicalDoc : BaseModel
+    {
+        [PrimaryKey("id", false)] public Guid id { get; set; }
+        [Column("instrument_tag")] public string InstrumentTag { get; set; } = "";
+        [Column("site")] public string Site { get; set; } = "";
+        [Column("area")] public string Area { get; set; } = "";
+        [Column("doc_type")] public string DocType { get; set; } = "Manual";
+        [Column("file_name")] public string FileName { get; set; } = "";
+        [Column("storage_path")] public string StoragePath { get; set; } = "";
+        
+        // Helper to generate the URL (Replace with your project ref)
+        public string GetPublicUrl(string projectRef) => 
+            $"https://{projectRef}.supabase.co/storage/v1/object/public/technical-docs/{StoragePath}";
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var response = await SupabaseClient.From<TechnicalDoc>().Get();
+            _documents = response.Models;
+        }
+        catch (Exception ex) { Snackbar.Add($"Fetch Error: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private IEnumerable<TechnicalDoc> FilteredDocuments => _documents
+        .Where(x => (string.IsNullOrEmpty(_searchSite) || x.Site == _searchSite) &&
+                    (string.IsNullOrEmpty(_searchArea) || x.Area == _searchArea) &&
+                    (string.IsNullOrEmpty(_searchTag) || x.InstrumentTag.Contains(_searchTag, StringComparison.OrdinalIgnoreCase)));
+
+    private void OnFileSelected(IBrowserFile file) => _selectedFile = file;
+
+    private async Task ProcessUpload()
+    {
+        if (_selectedFile == null) return;
+        _isUploading = true;
+
+        try
+        {
+            // 1. Upload file to Storage Bucket
+            var fileName = $"{Guid.NewGuid()}_{_selectedFile.Name}";
+            var storagePath = $"{_uploadModel.Site}/{fileName}";
+
+            using var stream = _selectedFile.OpenReadStream(maxAllowedSize: 15 * 1024 * 1024);
+            var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            
+            await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), storagePath);
+
+            // 2. Save Metadata to DB
+            _uploadModel.FileName = _selectedFile.Name;
+            _uploadModel.StoragePath = storagePath;
+            await SupabaseClient.From<TechnicalDoc>().Insert(_uploadModel);
+
+            Snackbar.Add("Document Successfully Registered", Severity.Success);
+            _uploadModel = new TechnicalDoc(); // Reset form
+            _selectedFile = null;
+            await LoadData();
+        }
+        catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
+        finally { _isUploading = false; }
+    }
+
+    private async Task ViewDoc(TechnicalDoc doc)
+    {
+        _viewingUrl = ""; // Reset
+        _viewerOpen = true;
+        _viewingDocName = doc.FileName;
+        StateHasChanged();
+
+        await Task.Delay(150); // Important: Allows DOM to clear previous viewer
+        _viewingUrl = doc.GetPublicUrl("YOUR_PROJECT_REF"); // <-- CHANGE THIS
+        StateHasChanged();
+    }
+
+    private async Task DownloadDoc(TechnicalDoc doc)
+    {
+        await JS.InvokeVoidAsync("open", doc.GetPublicUrl("YOUR_PROJECT_REF"), "_blank");
+    }
+
+
+
+
+    private async Task ConfirmDelete(TechnicalDoc doc)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Delete Document", 
+            $"Permanent removal of {doc.FileName}?", yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
+                await SupabaseClient.From<TechnicalDoc>().Where(x => x.id == doc.id).Delete();
+                Snackbar.Add("Deleted from Cloud", Severity.Warning);
+                await LoadData();
+            }
+            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+    }
+}

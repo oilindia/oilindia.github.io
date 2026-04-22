@@ -1,0 +1,160 @@
+﻿@page "/managelocations"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Large" Color="Color.Info" />
+            <MudText Typo="Typo.h5" Style="font-weight: bold;">Asset Locations & Installations</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal">
+                Add Location
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="Location" Items="@_locations" Loading="@_loading" Bordered="true" Dense="true" Hover="true">
+            <Columns>
+                <PropertyColumn Property="x => x.InstallationName" Title="Installation" />
+                <PropertyColumn Property="x => x.AreaName" Title="Area" />
+                <PropertyColumn Property="x => x.SubArea" Title="Sub-Area" />
+                <PropertyColumn Property="x => x.InstallationType" Title="Type" />
+                <TemplateColumn Title="Status">
+                    <CellTemplate>
+                        <MudChip T="bool" Color="@(context.Item.IsActive == true ? Color.Success : Color.Default)" Size="Size.Small">
+                            @(context.Item.IsActive == true ? "Active" : "Inactive")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="Location" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <MudPaper Style="width: 700px; max-width: 95%; padding: 24px;" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">@(_editingLoc.Id == 0 ? "New Location Entry" : "Edit Location Details")</MudText>
+            
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.InstallationType" Label="Installation Type" Variant="Variant.Outlined" Placeholder="e.g. Plant, Station" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.AreaName" Label="Area Name" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.SubArea" Label="Sub-Area" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.FieldType" Label="Field Type" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingLoc.ImageUrl" Label="Image URL" Variant="Variant.Outlined" HelperText="Path to location drawing or photo" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_editingLoc.IsActive" Label="Location is Active" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2 mt-6">
+                <MudButton OnClick="() => _isModalOpen = false">Cancel</MudButton>
+                <MudButton OnClick="SaveLoc" Variant="Variant.Filled" Color="Color.Info">Save Location</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("sub_area")] public string? SubArea { get; set; }
+        [Column("area_name")] public string? AreaName { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+        [Column("field_type")] public string? FieldType { get; set; }
+        [Column("image_url")] public string? ImageUrl { get; set; }
+        [Column("installation_type")] public string? InstallationType { get; set; }
+        [Column("is_active")] public bool? IsActive { get; set; } = true;
+    }
+
+    private List<Location> _locations = new();
+    private Location _editingLoc = new();
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var result = await SupabaseClient.From<Location>().Get();
+            _locations = result.Models;
+            StateHasChanged();
+        }
+        catch (Exception ex) { Snackbar.Add($"Load Error: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OpenAddModal() { _editingLoc = new Location { IsActive = true }; _isModalOpen = true; }
+
+    private void OpenEditModal(Location l)
+    {
+        _editingLoc = new Location
+        {
+            Id = l.Id,
+            SubArea = l.SubArea,
+            AreaName = l.AreaName,
+            InstallationName = l.InstallationName,
+            FieldType = l.FieldType,
+            ImageUrl = l.ImageUrl,
+            InstallationType = l.InstallationType,
+            IsActive = l.IsActive
+        };
+        _isModalOpen = true;
+    }
+
+    private async Task SaveLoc()
+    {
+        try
+        {
+            await SupabaseClient.From<Location>().Upsert(_editingLoc);
+            _isModalOpen = false;
+            await LoadData();
+            Snackbar.Add("Location data updated", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private async Task ConfirmDelete(Location l)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Confirm Removal", $"Delete location: {l.InstallationName}?", yesText: "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            await SupabaseClient.From<Location>().Where(x => x.Id == l.Id).Delete();
+            await LoadData();
+            Snackbar.Add("Location removed", Severity.Warning);
+        }
+    }
+}

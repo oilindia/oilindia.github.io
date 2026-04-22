@@ -1,0 +1,195 @@
+﻿@page "/manageengineers"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Engineering" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">Engineering Personnel Management</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal">
+                Add Engineer
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="Engineer" Items="@_engineers" Loading="@_loading" Dense="true" Hover="true" Bordered="true" QuickFilter="@_quickFilter">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchString" Placeholder="Search Name, Email or Code..." Adornment="Adornment.Start" Immediate="true" AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.EmpCode" Title="Code" />
+                <PropertyColumn Property="x => x.FullName" Title="Name" />
+                <PropertyColumn Property="x => x.Designation" Title="Designation" />
+                <PropertyColumn Property="x => x.Department" Title="Dept" />
+                <PropertyColumn Property="x => x.AnnualCost" Title="Annual Cost" Format="N0" />
+                <TemplateColumn Title="Actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="Engineer" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 20px;">
+        <MudPaper Style="width: 800px; max-width: 95%; padding: 24px;" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">@(_editingEngineer.Id == 0 ? "Register New Engineer" : "Update Engineer Profile")</MudText>
+            
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingEngineer.FullName" Label="Full Name" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingEngineer.EmpCode" Label="Employee Code" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingEngineer.Email" Label="Email Address" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_editingEngineer.Mobile" Label="Mobile Number" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_editingEngineer.Designation" Label="Designation" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_editingEngineer.Department" Label="Department" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_editingEngineer.Section" Label="Section" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" @bind-Value="_editingEngineer.Grade" Label="Grade" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("Junior")" />
+                        <MudSelectItem Value="@("Senior")" />
+                        <MudSelectItem Value="@("Lead")" />
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="_editingEngineer.AnnualCost" Label="Annual Cost" Variant="Variant.Outlined" HideSpinButtons="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" @bind-Value="_editingEngineer.Gender" Label="Gender" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("Male")" />
+                        <MudSelectItem Value="@("Female")" />
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="_editingEngineer.ReportsToId" Label="Reports To (Executive ID)" Variant="Variant.Outlined" HelperText="ID of the Executive Manager" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2 mt-6">
+                <MudButton OnClick="() => _isModalOpen = false">Cancel</MudButton>
+                <MudButton OnClick="SaveEngineer" Variant="Variant.Filled" Color="Color.Primary">Save Record</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    [Table("employees_engineers")]
+    public class Engineer : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string? Email { get; set; }
+        [Column("emp_code")] public string EmpCode { get; set; } = "";
+        [Column("designation")] public string? Designation { get; set; }
+        [Column("grade")] public string? Grade { get; set; }
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("gender")] public string? Gender { get; set; }
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("department")] public string? Department { get; set; }
+        [Column("section")] public string? Section { get; set; }
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+    }
+
+    private List<Engineer> _engineers = new();
+    private Engineer _editingEngineer = new();
+    private string _searchString = "";
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var result = await SupabaseClient.From<Engineer>().Get();
+            _engineers = result.Models;
+            StateHasChanged();
+        }
+        catch (Exception ex) { Snackbar.Add($"Load Failed: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OpenAddModal() { _editingEngineer = new Engineer(); _isModalOpen = true; }
+
+    private void OpenEditModal(Engineer e)
+    {
+        // Clone all fields for editing
+        _editingEngineer = new Engineer
+        {
+            Id = e.Id,
+            ReportsToId = e.ReportsToId,
+            Email = e.Email,
+            EmpCode = e.EmpCode,
+            Designation = e.Designation,
+            Grade = e.Grade,
+            FullName = e.FullName,
+            Gender = e.Gender,
+            Mobile = e.Mobile,
+            Department = e.Department,
+            Section = e.Section,
+            AnnualCost = e.AnnualCost
+        };
+        _isModalOpen = true;
+    }
+
+    private async Task SaveEngineer()
+    {
+        try
+        {
+            await SupabaseClient.From<Engineer>().Upsert(_editingEngineer);
+            _isModalOpen = false;
+            await LoadData();
+            Snackbar.Add("Engineer database updated", Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private async Task ConfirmDelete(Engineer e)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Delete Record", $"Are you sure you want to remove {e.FullName}?", yesText: "Delete", cancelText: "Cancel");
+        if (result == true)
+        {
+            await SupabaseClient.From<Engineer>().Where(x => x.Id == e.Id).Delete();
+            await LoadData();
+            Snackbar.Add("Record deleted", Severity.Warning);
+        }
+    }
+
+    private Func<Engineer, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (x.FullName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.EmpCode.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.Email?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        return false;
+    };
+}

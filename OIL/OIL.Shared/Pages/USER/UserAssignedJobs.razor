@@ -1,0 +1,190 @@
+﻿@page "/userassignedjobs"
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    @if (!_isEditing)
+    {
+        <MudText Typo="Typo.h5" GutterBottom="true" Class="fw-bold">My Pending Assignments</MudText>
+        
+        <MudTable Items="@_pendingJobs" Context="JobRow" Hover="true" Elevation="4" Class="rounded-lg">
+            <HeaderContent>
+                <MudTh>Job ID</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh>Assigned Date</MudTh>
+                <MudTh>Action</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Job ID">@JobRow.JobId</MudTd>
+                <MudTd DataLabel="Description">@JobRow.Description</MudTd>
+                <MudTd DataLabel="Assigned Date">@JobRow.AssignedDate.ToString("dd-MMM-yyyy")</MudTd>
+                <MudTd DataLabel="Action">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.EditNote"
+                               OnClick="@(() => StartEdit(JobRow))">
+                        Update Job
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+    else
+    {
+        <MudPaper Class="pa-6" Elevation="4">
+            <div class="d-flex align-center mb-4">
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CancelEdit" />
+                <MudText Typo="Typo.h6" Class="ml-2">Updating Job: @_selectedJob?.JobId</MudText>
+            </div>
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" 
+                                  Lines="3" @bind-Value="_workDone" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Evidence / Photos</MudText>
+                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileUpload" Accept="image/*" id="job-photo-upload" capture="camera">
+                        <ButtonTemplate>
+                            <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Info" 
+                                       StartIcon="@Icons.Material.Filled.PhotoCamera" for="job-photo-upload">
+                                Take Photo or Upload
+                            </MudButton>
+                        </ButtonTemplate>
+                    </MudFileUpload>
+                    
+                    @if (_uploadedFiles.Any())
+                    {
+                        <div class="mt-2">
+                            @foreach (var file in _uploadedFiles)
+                            {
+                                <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip>
+                            }
+                        </div>
+                    }
+                </MudItem>
+
+                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                    @* Manual event handling to force UI refresh *@
+                    <MudSwitch T="bool" 
+                               Value="@_partReplaced" 
+                               ValueChanged="@OnPartReplacedChanged"
+                               Color="Color.Secondary" 
+                               Label="Was any part replaced?" />
+                </MudItem>
+
+                @* This section uses a manual check to ensure it renders *@
+                @if (_partReplaced)
+                {
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4 grey lighten-5" Outlined="true">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Replacement Details</b></MudText>
+                            <MudGrid>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Location" @bind-Value="_location" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Instrument" @bind-Value="_instrument" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Type" @bind-Value="_partType" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Make" @bind-Value="_partMake" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Model" @bind-Value="_partModel" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField T="string" Label="Range" @bind-Value="_partRange" Variant="Variant.Outlined" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                }
+
+                <MudItem xs="12" Class="d-flex flex-wrap gap-4 mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="() => SubmitJob(false)">
+                        Mark Still Pending
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="() => SubmitJob(true)">
+                        Mark as Completed
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="CancelEdit">Cancel</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    public class JobAssignment
+    {
+        public string JobId { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime AssignedDate { get; set; }
+    }
+
+    private bool _isEditing = false;
+    private JobAssignment? _selectedJob;
+    private List<JobAssignment> _pendingJobs = new();
+    
+    private string _workDone = "";
+    private bool _partReplaced = false;
+    private string _location = ""; 
+    private string _instrument = ""; 
+    private string _partType = "";
+    private string _partMake = ""; 
+    private string _partModel = ""; 
+    private string _partRange = "";
+    private List<IBrowserFile> _uploadedFiles = new();
+
+    protected override void OnInitialized()
+    {
+        _pendingJobs = new List<JobAssignment>
+        {
+            new() { JobId = "INST-001", Description = "Flow Control Valve Repair", AssignedDate = DateTime.Now.AddDays(-2) },
+            new() { JobId = "INST-002", Description = "Temp Gauge Calibration", AssignedDate = DateTime.Now.AddDays(-1) }
+        };
+    }
+
+    private void StartEdit(JobAssignment job)
+    {
+        _selectedJob = job;
+        _isEditing = true;
+        ResetForm();
+    }
+
+    private void OnPartReplacedChanged(bool value)
+    {
+        _partReplaced = value;
+        // This forces the Blazor renderer to check the @if (_partReplaced) block
+        StateHasChanged(); 
+    }
+
+    private void ResetForm()
+    {
+        _workDone = ""; _partReplaced = false;
+        _location = ""; _instrument = ""; _partType = "";
+        _partMake = ""; _partModel = ""; _partRange = "";
+        _uploadedFiles.Clear();
+    }
+
+    private void CancelEdit() => _isEditing = false;
+
+    private void HandleFileUpload(IBrowserFile file)
+    {
+        if (file != null) _uploadedFiles.Add(file);
+    }
+
+    private void SubmitJob(bool isComplete)
+    {
+        if (isComplete && _selectedJob != null)
+        {
+            _pendingJobs.Remove(_selectedJob);
+        }
+        _isEditing = false;
+    }
+}

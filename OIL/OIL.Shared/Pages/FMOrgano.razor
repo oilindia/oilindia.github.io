@@ -1,0 +1,216 @@
+﻿@page "/fmorgano"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Supabase.Client SupabaseClient
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10 mb-10">
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mud-text-primary font-weight-bold">Department Organogram</MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">Instrumentation & Maintenance Hierarchy</MudText>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center align-center" style="height: 400px;">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (RootNode != null)
+    {
+        <div class="org-scroll-container">
+            <div class="org-tree">
+                
+                @* --- LEVEL 1: HOD --- *@
+                <div class="node-group">
+                    <MudPaper Elevation="8" Class="pa-4 node-card root-node">
+                        <MudAvatar Color="Color.Dark" Size="Size.Medium" Class="mb-2">
+                            @(RootNode.FullName?[0])
+                        </MudAvatar>
+                        <MudText Typo="Typo.h6"><b>@RootNode.FullName</b></MudText>
+                        <MudText Typo="Typo.caption">@RootNode.Designation</MudText>
+                    </MudPaper>
+
+                    @if (RootNode.Subordinates.Any())
+                    {
+                        <div class="connector-v"></div>
+                        
+                        @* --- LEVEL 2: GMs (Horizontal Row) --- *@
+                        <div class="node-children">
+                            @foreach (var gm in RootNode.Subordinates)
+                            {
+                                <div class="node-group">
+                                    <div class="connector-h-branch"></div>
+                                    <MudPaper Elevation="6" Class="pa-4 node-card gm-node">
+                                        <MudText Typo="Typo.subtitle1"><b>@gm.FullName</b></MudText>
+                                        <MudText Typo="Typo.caption">@gm.Designation</MudText>
+                                    </MudPaper>
+
+                                    @if (gm.Subordinates.Any())
+                                    {
+                                        <div class="connector-v"></div>
+
+                                        @* --- LEVEL 3: MANAGERS (Horizontal Row) --- *@
+                                        <div class="node-children">
+                                            @foreach (var manager in gm.Subordinates)
+                                            {
+                                                <div class="node-group">
+                                                    <div class="connector-h-branch"></div>
+                                                    <MudPaper Elevation="4" Class="pa-3 node-card manager-node">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                                        <MudText Typo="Typo.body2"><b>@manager.FullName</b></MudText>
+                                                        <MudText Typo="Typo.caption" Class="d-block mb-2">@manager.Designation</MudText>
+
+                                                        @* --- LEVEL 4: ENGINEERS (Expansion/Chips) --- *@
+                                                        @if (manager.Subordinates.Any())
+                                                        {
+                                                            <MudDivider Class="my-2" />
+                                                            <div class="engineer-container">
+                                                                @foreach (var eng in manager.Subordinates)
+                                                                {
+                                                                    <MudTooltip Text="@eng.Designation">
+                                                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">
+                                                                            @eng.FullName
+                                                                        </MudChip>
+                                                                    </MudTooltip>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </MudPaper>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="pa-10 text-center">
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">No hierarchy data found.</MudAlert>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4" OnClick="LoadData">Retry</MudButton>
+        </div>
+    }
+</MudContainer>
+
+<style>
+    .org-scroll-container {
+        overflow-x: auto;
+        padding: 40px 0;
+        display: flex;
+        justify-content: center;
+        background: #f9f9f9;
+        border-radius: 12px;
+    }
+
+    .org-tree {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .node-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    .node-children {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        position: relative;
+        padding-top: 20px;
+        gap: 20px;
+    }
+
+    /* Vertical Connectors */
+    .connector-v {
+        width: 2px;
+        height: 20px;
+        background: #bccad6;
+    }
+
+    /* Horizontal branch lines */
+    .node-children::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 20px;
+        right: 20px;
+        height: 2px;
+        background: #bccad6;
+    }
+
+    .node-card {
+        width: 220px;
+        text-align: center;
+        z-index: 2;
+        border-bottom: 4px solid transparent;
+    }
+
+    .root-node { border-bottom-color: var(--mud-palette-dark); }
+    .gm-node { border-bottom-color: var(--mud-palette-warning); width: 240px; }
+    .manager-node { border-bottom-color: var(--mud-palette-info); width: 200px; }
+
+    .engineer-container {
+        max-height: 120px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+    private Employee? RootNode;
+
+    [Table("employees_fm")] // Corrected to your latest table name
+    public class Employee : BaseModel
+    {
+        [Column("id")] public int Id { get; set; }
+        [Column("full_name")] public string? FullName { get; set; }
+        [Column("designation")] public string? Designation { get; set; }
+        [Column("reports_to_id")] public int? ReportsToId { get; set; }
+        
+        public List<Employee> Subordinates { get; set; } = new();
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var response = await SupabaseClient.From<Employee>().Get();
+            var allEmployees = response.Models;
+
+            if (allEmployees.Any())
+            {
+                var lookup = allEmployees.ToDictionary(e => e.Id);
+                foreach (var emp in allEmployees)
+                {
+                    // Chinmay is ID 1, reporting to 0
+                    if (emp.ReportsToId == 0 || emp.ReportsToId == null)
+                    {
+                        RootNode = emp;
+                    }
+                    else if (lookup.ContainsKey(emp.ReportsToId.Value))
+                    {
+                        lookup[emp.ReportsToId.Value].Subordinates.Add(emp);
+                    }
+                }
+            }
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        finally { _loading = false; }
+    }
+}

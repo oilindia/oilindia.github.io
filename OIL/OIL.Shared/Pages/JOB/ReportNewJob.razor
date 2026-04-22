@@ -1,0 +1,166 @@
+﻿@page "/reportnewjob"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using OIL.Shared.Models
+@using Supabase
+@attribute [Authorize]
+@inject Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudGrid>
+        @* --- TOP: REPORTING FORM --- *@
+        <MudItem xs="12">
+            <MudPaper Elevation="4" Class="pa-6" Style="border-left: 8px solid var(--mud-palette-primary);">
+                <MudText Typo="Typo.h5" GutterBottom="true"><b>Report New Instrumentation Problem</b></MudText>
+                
+                <MudForm @ref="_form" @bind-IsValid="@_success">
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField T="string" Label="Job/Problem Title" Required="true"
+                                          @bind-Value="_newJob.JobName" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="string" Label="Location" @bind-Value="_newJob.Location" Variant="Variant.Outlined" Required="true">
+                                <MudSelectItem Value="@("Eastern Field")" />
+                                <MudSelectItem Value="@("Western Field")" />
+                                <MudSelectItem Value="@("Central Plant")" />
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="string" Label="Priority" @bind-Value="_newJob.Priority" Variant="Variant.Outlined">
+                                <MudSelectItem Value="@("Low")" />
+                                <MudSelectItem Value="@("Normal")" />
+                                <MudSelectItem Value="@("High")" />
+                                <MudSelectItem Value="@("Emergency")" />
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField T="string" Label="Detailed Description" Lines="3"
+                                          @bind-Value="_newJob.Description" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" Class="d-flex justify-end">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       Disabled="@(!_success || _isProcessing)" OnClick="SubmitJob">
+                                @if (_isProcessing)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                }
+                                else
+                                {
+
+                                    <MudText>Submit & Notify Desk</MudText>
+                                }
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudForm>
+            </MudPaper>
+        </MudItem>
+
+        @* --- BOTTOM: LAST 50 JOBS TABLE --- *@
+        <MudItem xs="12" Class="mt-4">
+            <MudTable Items="@_lastJobs" Hover="true" Breakpoint="Breakpoint.Sm"
+                      Loading="@_loadingTable" LoadingProgressColor="Color.Info"
+                      Elevation="4" Dense="true" FixedHeader="true" Height="400px">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Recent Reported Jobs (Last 50)</MudText>
+                    <MudSpacer />
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" OnClick="LoadRecentJobs" />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Reporter</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.Id</MudTd>
+                    <MudTd DataLabel="Title"><b>@context.JobName</b></MudTd>
+                    <MudTd DataLabel="Location">@context.Location</MudTd>
+                    <MudTd DataLabel="Priority">
+                        <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">@context.Priority</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Status</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Reporter">@context.ReportedByEmail</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private MudForm _form;
+    private bool _success;
+    private bool _isProcessing = false;
+    private bool _loadingTable = true;
+    private JobModel _newJob = new JobModel { Priority = "Normal", Status = "Reported" };
+    private List<JobModel> _lastJobs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecentJobs();
+    }
+
+    private async Task LoadRecentJobs()
+    {
+        _loadingTable = true;
+        try
+        {
+            var result = await SupabaseClient.From<JobModel>()
+                .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(50)
+                .Get();
+            
+            _lastJobs = result.Models;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Could not load recent jobs: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loadingTable = false;
+        }
+    }
+
+    private async Task SubmitJob()
+    {
+        _isProcessing = true;
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            _newJob.ReportedByEmail = authState.User.Identity?.Name;
+
+            await SupabaseClient.From<JobModel>().Insert(_newJob);
+            
+            Snackbar.Add("Job reported successfully!", Severity.Success);
+            
+            // Clear form and refresh table
+            _newJob = new JobModel { Priority = "Normal", Status = "Reported" };
+            await _form.ResetAsync();
+            await LoadRecentJobs();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private Color GetPriorityColor(string priority) => priority switch
+    {
+        "Emergency" => Color.Error,
+        "High" => Color.Warning,
+        "Normal" => Color.Info,
+        _ => Color.Default
+    };
+}

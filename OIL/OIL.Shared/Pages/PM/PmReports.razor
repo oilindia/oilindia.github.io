@@ -1,0 +1,47 @@
+﻿@page "/pmreports"
+
+<MudText Typo="Typo.h4" Class="mb-4">Compliance Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="3">
+            <MudText Typo="Typo.h6">Compliance Rate</MudText>
+            <MudChart T="double" ChartType="ChartType.Donut" InputData="@(new double[] { 85, 15 })"
+                      InputLabels="@(new string[] { "Completed", "Pending" })" 
+                      Width="150px" Height="150px" />
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="8">
+        <MudTable Items="@RecentActivity" Elevation="3" Dense="true" Hover="true">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Recent Activity</MudText>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh>Tag</MudTh>
+                <MudTh>Result</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Date</MudTd>
+                <MudTd>@context.Tag</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.Pass ? Color.Success : Color.Error)" Size="Size.Small">
+                        @(context.Pass ? "Passed" : "Failed")
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<LogEntry> RecentActivity = new()
+    {
+        new LogEntry { Date = "2026-04-10", Tag = "PT-101", Pass = true },
+        new LogEntry { Date = "2026-04-11", Tag = "FT-202", Pass = false },
+        new LogEntry { Date = "2026-04-12", Tag = "TT-303", Pass = true }
+    };
+
+    public class LogEntry { public string Date; public string Tag; public bool Pass; }
+}

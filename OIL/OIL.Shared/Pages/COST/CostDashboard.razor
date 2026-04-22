@@ -1,0 +1,135 @@
+﻿@page "/costdashboard"
+
+
+@using System.Collections.Generic
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-16">
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-8" Color="Color.Primary" Style="font-weight: 700;">
+        Instrumentation Analytics Portal
+    </MudText>
+
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center justify-center mud-theme-primary" Elevation="4" Style="height: 120px;">
+                <MudText Typo="Typo.h6">Annual Cost (YTD)</MudText>
+                <MudText Typo="Typo.h4">@AnnualCost.ToString("C0")</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center justify-center mud-theme-success" Elevation="4" Style="height: 120px;">
+                <MudText Typo="Typo.h6">Avg. Utilization</MudText>
+                <MudText Typo="Typo.h4">88.5%</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-6 d-flex flex-column align-center justify-center mud-theme-secondary" Elevation="4" Style="height: 120px;">
+                <MudText Typo="Typo.h6">Current Cost / Hr</MudText>
+                <MudText Typo="Typo.h4">$412</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="7">
+            <MudPaper Class="pa-4" Elevation="3">
+                <MudText Typo="Typo.h6" Class="mb-4">Monthly Expenditure Trends</MudText>
+                <MudChart ChartType="ChartType.Bar" T="double" ChartSeries="@_series" XAxisLabels="@_labels" Width="100%" Height="300px" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="5">
+            <MudPaper Class="pa-4" Elevation="3">
+                <MudText Typo="Typo.h6" Class="mb-4">Utilization Distribution</MudText>
+                <MudChart ChartType="ChartType.Donut" T="double" InputData="@_productivityData" InputLabels="@_employeeLabels" Width="100%" Height="300px" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudDivider Class="my-6" />
+            <MudText Typo="Typo.h5" Class="mb-4" Color="Color.Primary">New Cost Entry</MudText>
+            <MudPaper Class="pa-6" Elevation="4" Outlined="true">
+                <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="newSection" Label="Section" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudNumericField @bind-Value="newSpares" Label="Spares Cost" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudNumericField @bind-Value="newLabour" Label="Labour Cost" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="AddEntry" StartIcon="@Icons.Material.Filled.Add">
+                            Save Record
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTable Items="@CostRecords" Hover="true" Striped="true" Elevation="2" Class="mt-4">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Recently Added Monthly Records</MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Date Added</MudTh>
+                    <MudTh>Section</MudTh>
+                    <MudTh>Spares Cost</MudTh>
+                    <MudTh>Labour Cost</MudTh>
+                    <MudTh>Total</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Date">@context.EntryDate.ToShortDateString()</MudTd>
+                    <MudTd DataLabel="Section">@context.Section</MudTd>
+                    <MudTd DataLabel="Spares">@context.Spares.ToString("C2")</MudTd>
+                    <MudTd DataLabel="Labour">@context.Labour.ToString("C2")</MudTd>
+                    <MudTd DataLabel="Total"><b>@((context.Spares + context.Labour).ToString("C2"))</b></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    // Chart Data
+    private List<ChartSeries<double>> _series = new()
+    {
+        new ChartSeries<double> { Name = "Spares", Data = new double[] { 4800, 5100, 4200, 6300, 5500 } },
+        new ChartSeries<double> { Name = "Labour", Data = new double[] { 11000, 11500, 12000, 11800, 12100 } }
+    };
+
+    private string[] _labels = { "Jan", "Feb", "Mar", "Apr", "May" };
+    private double[] _productivityData = { 94, 88, 79, 91 };
+    private string[] _employeeLabels = { "Lead Eng", "Tech 1", "Tech 2", "Junior" };
+
+    private decimal AnnualCost = 158200;
+    
+    // Entry Form Binding
+    private string newSection = "Instrumentation";
+    private double newSpares;
+    private double newLabour;
+
+    // Record Model
+    public record CostRecord(DateTime EntryDate, string Section, double Spares, double Labour);
+    private List<CostRecord> CostRecords = new()
+    {
+        new (DateTime.Now.AddDays(-5), "Maintenance", 1200, 4500),
+        new (DateTime.Now.AddDays(-2), "Calibration", 800, 3200)
+    };
+
+    private void AddEntry()
+    {
+        if (newSpares > 0 || newLabour > 0)
+        {
+            // Update the Annual KPI
+            AnnualCost += (decimal)(newSpares + newLabour);
+            
+            // Add to the table list
+            CostRecords.Insert(0, new CostRecord(DateTime.Now, newSection, newSpares, newLabour));
+
+            // Reset Form
+            newSpares = 0;
+            newLabour = 0;
+        }
+    }
+}

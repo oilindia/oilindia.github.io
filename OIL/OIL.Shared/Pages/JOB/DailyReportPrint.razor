@@ -1,0 +1,154 @@
+﻿@page "/dailyreportprint"
+@using MudBlazor
+
+@inject IJSRuntime JS
+
+
+
+<style>
+    @@media print {
+        @@page { 
+            size: A4 landscape; 
+            margin: 5mm; 
+        }
+        .no-print { display: none !important; }
+    }
+
+    .a4-container {
+        width: 297mm; min-height: 210mm; padding: 10mm;
+        margin: 20px auto; background: white; color: black;
+        font-family: 'Arial', sans-serif; border: 1px solid #eee;
+    }
+    
+    .report-header { display: flex; justify-content: space-between; border: 1px solid black; padding: 10px; margin-bottom: 5px; }
+    .title-area { text-align: center; flex-grow: 1; }
+    .title-area h3, .title-area h5, .title-area h4 { margin: 2px 0; }
+    
+    .section-title { background: #f0f0f0; padding: 5px; font-weight: bold; border: 1px solid black; margin-top: 10px; font-size: 13px; }
+    
+    .report-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    .report-table th, .report-table td { border: 1px solid black; padding: 6px; font-size: 11px; text-align: left; }
+    .report-table th { background-color: #f9f9f9; }
+
+    .footer-sign { margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .sign-box p { margin: 5px 0; font-size: 12px; }
+</style>
+
+<div class="no-print pa-4" style="background: #e3f2fd; border-bottom: 2px solid #1976d2;">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" />
+        <MudText Typo="Typo.h6">Instrumentation Daily Report Console</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandlePrint">Print Preview</MudButton>
+    </MudStack>
+</div>
+
+<div class="a4-container">
+    <header class="report-header">
+        <div style="width: 80px;">
+             @* Placeholder for Oil India Logo *@
+             <MudIcon Icon="@Icons.Material.Filled.SettingsInputComponent" Size="Size.Large" />
+        </div>
+        <div class="title-area">
+            <h3>Instrumentation Department, Field Headquarters</h3>
+            <h5>यांत्रिकीकरण विभाग, क्षेत्र मुख्यालय</h5>
+            <h4>दैनिक रिपोर्ट / Daily Report</h4>
+        </div>
+        <div style="font-size: 11px; text-align: right;">
+            <p><strong>Date:</strong> @DateTime.Now.ToString("10-04-2026")</p>
+            <p><strong>Ref No:</strong> INST/16-14(B)/WA/01</p>
+            <p><strong>Field:</strong> Western Field</p>
+        </div>
+    </header>
+
+    @* --- PREVIOUS DAY JOBS --- *@
+    <div class="section-title">Previous Day Job Carried Out: @DateTime.Now.AddDays(-1).ToString("09-04-2026")</div>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>SL</th><th>SHIFT</th><th>INSTALLATION</th><th>EQUIPMENT</th><th>TAG NO.</th><th>FIELD REPORT</th><th>PERSON</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!PreviousDayEntries.Any()) {
+                <tr><td colspan="7" style="text-align:center;">No previous-day job entries available.</td></tr>
+            } else {
+                @foreach (var item in PreviousDayEntries) {
+                    <tr>
+                        <td>@item.SL</td><td>@item.Shift</td><td>@item.Installation</td>
+                        <td>@item.Equipment</td><td>@item.TagNo</td><td>@item.FieldReport</td><td>@item.Person</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @* --- TODAY'S JOBS --- *@
+    <div class="section-title">Activity on (Date): @DateTime.Now.ToString("10-04-2026")</div>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>SL</th><th>SHIFT</th><th>INSTALLATION</th><th>EQUIPMENT</th><th>TAG NO.</th><th>FIELD REPORT</th><th>VEHICLE</th><th>PERSON</th><th>REMARKS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in TodaysEntries) {
+                <tr>
+                    <td>@item.SL</td><td>@item.Shift</td><td>@item.Installation</td>
+                    <td>@item.Equipment</td><td>@item.TagNo</td><td>@item.FieldReport</td>
+                    <td>@item.Vehicle</td><td>@item.Person</td><td>@item.Remarks</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="footer-sign">
+        <div class="sign-box">
+            <p><strong>Signed By:</strong></p>
+            <p>Name: ____________________</p>
+            <p>Signature: ________________</p>
+        </div>
+        <MudText Typo="Typo.body2"><strong>Today's Jobs:</strong> @TodaysEntries.Count</MudText>
+    </div>
+</div>
+
+@code {
+    private List<ReportEntry> PreviousDayEntries = new();
+    private List<ReportEntry> TodaysEntries = new();
+
+    protected override void OnInitialized() {
+        LoadSampleData();
+    }
+
+    private void LoadSampleData() {
+        // Sample for Previous Day (Empty to match your screenshot example)
+        // PreviousDayEntries.Add(new ReportEntry { ... });
+
+        // Sample for Today's Jobs
+        TodaysEntries.Add(new ReportEntry { 
+            SL = 1, Shift = "A", Installation = "NHK GCS 2", Equipment = "Transmitter", 
+            TagNo = "PT-101", FieldReport = "PM job to be carried out.", 
+            Vehicle = "Lahan", Person = "S.Borah, P.Baruah, P.Gogoi", Remarks = "Completed" 
+        });
+
+        TodaysEntries.Add(new ReportEntry { 
+            SL = 2, Shift = "A", Installation = "Tengakhat OCS", Equipment = "BMS", 
+            TagNo = "BMS-02", FieldReport = "IH, pilot burner firing problem.", 
+            Vehicle = "Sambhu", Person = "G.Baruah, P.Gogoi, D.Rabha", Remarks = "" 
+        });
+    }
+
+    private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
+
+    public class ReportEntry {
+        public int SL { get; set; }
+        public string Shift { get; set; }
+        public string Installation { get; set; }
+        public string Equipment { get; set; }
+        public string TagNo { get; set; }
+        public string FieldReport { get; set; }
+        public string Vehicle { get; set; }
+        public string Person { get; set; }
+        public string Remarks { get; set; }
+    }
+}

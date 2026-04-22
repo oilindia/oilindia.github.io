@@ -1,0 +1,215 @@
+﻿@page "/dashboardhome"
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudGrid Spacing="4">
+        
+        <MudItem xs="12" md="3">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6 rounded-lg border-2">
+                <MudText Typo="Typo.h5" Class="mb-4"><b>Dashboard Analytics</b></MudText>
+                
+                <div class="financial-year-chip mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Size="Size.Small" Class="mr-1" />
+                    <span>Current Financial Year</span>
+                </div>
+
+                <MudText Typo="Typo.h6"><b>FY 2026-27</b></MudText>
+                <MudText Typo="Typo.subtitle1"><b>(from 2026-03-31)</b></MudText>
+                
+                <MudText Typo="Typo.caption" Color="Color.Error" Class="d-block mt-2" Style="line-height: 1.2;">
+                    Analytics records from 1 April of the current financial year.
+                </MudText>
+
+                <MudDivider Class="my-6" />
+
+                <div class="mb-6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">OVERALL JOBS</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary"><b>@overallJobs</b></MudText>
+                    <MudText Typo="Typo.caption">Total jobs logged across all fields.</MudText>
+                </div>
+
+                <div class="mb-8">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">OVERALL NOTIFICATION BACKLOG</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Primary"><b>@overallBacklog</b></MudText>
+                    <MudText Typo="Typo.caption">Reports without Notification.</MudText>
+                </div>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Error"
+                           FullWidth="true"
+                           Class="py-3 rounded-lg"
+                           OnClick="RefreshData">
+                    Refresh Analytics
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="9">
+            <MudGrid Spacing="4">
+                
+                @foreach (var field in FieldStats)
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="0" Outlined="true" Class="pa-4 rounded-lg">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">FIELD KPI</MudText>
+                            <MudText Typo="Typo.h6"><b>@field.Name</b></MudText>
+                            <div class="d-flex justify-space-between mt-4">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">TOTAL JOBS</MudText>
+                                    <MudText Typo="Typo.h5" Color="Color.Error"><b>@field.TotalJobs</b></MudText>
+                                </div>
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">BACKLOG</MudText>
+                                    <MudText Typo="Typo.h5" Color="Color.Error"><b>@field.Backlog</b></MudText>
+                                </div>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-6 rounded-lg">
+                        <MudText Typo="Typo.h6"><b>Month-wise Trend Graph</b></MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-4 d-block">Monthly job distribution per field.</MudText>
+                        
+                        <MudChart ChartType="ChartType.Bar"
+                                  T="double"
+                                  ChartSeries="@Series"
+                                  XAxisLabels="@Labels"
+                                  Width="100%"
+                                  Height="300px"
+                                  LegendPosition="Position.Bottom" />
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-6 rounded-lg">
+                        <div class="d-flex justify-space-between align-center mb-6">
+                            <div>
+                                <MudText Typo="Typo.h6"><b>Installation-wise Jobs Overview</b></MudText>
+                            </div>
+                            <MudSelect T="string" Label="FIELD / GROUP" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 200px;" @bind-Value="selectedField">
+                                <MudSelectItem Value="@("Eastern Field")" />
+                                <MudSelectItem Value="@("Western Field")" />
+                            </MudSelect>
+                        </div>
+
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                @foreach (var item in InstallationData)
+                                {
+                                    <div class="d-flex align-center mb-4">
+                                        <MudText Style="width: 140px; font-size: 0.85rem;" Class="text-truncate"><b>@item.Name</b></MudText>
+                                        <div class="flex-grow-1 mx-2">
+                                            <MudProgressLinear Color="Color.Error"
+                                                               Value="@CalculatePercent(item.TotalJobs)"
+                                                               Size="Size.Large"
+                                                               Class="rounded-pill custom-gradient-bar" />
+                                        </div>
+                                        <MudText Style="width: 25px; text-align: right;"><b>@item.TotalJobs</b></MudText>
+                                    </div>
+                                }
+                            </MudItem>
+                            
+                            <MudItem xs="12" md="6">
+                                <MudTable Items="@InstallationData" Dense="true" Hover="true" Elevation="0">
+                                    <HeaderContent>
+                                        <MudTh><MudText Typo="Typo.caption"><b>INSTALLATION</b></MudText></MudTh>
+                                        <MudTh><MudText Typo="Typo.caption"><b>TOTAL JOBS</b></MudText></MudTh>
+                                        <MudTh><MudText Typo="Typo.caption"><b>BACKLOG</b></MudText></MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Name</MudTd>
+                                        <MudTd><b>@context.TotalJobs</b></MudTd>
+                                        <MudTd>@context.Backlog</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+
+            </MudGrid>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+<style>
+    /* Styling for the Financial Year Chip */
+    .financial-year-chip {
+        display: inline-flex;
+        align-items: center;
+        background-color: #FFF3E0;
+        color: #EF6C00;
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    /* Custom Gradient for Progress Bars */
+    .custom-gradient-bar .mud-progressbar-linear-bar {
+        background: linear-gradient(90deg, #d32f2f 0%, #ff9800 100%) !important;
+    }
+
+    .custom-gradient-bar {
+        background-color: #eeeeee !important;
+        height: 12px !important;
+    }
+</style>
+
+@code {
+    private int overallJobs = 55;
+    private int overallBacklog = 16;
+    private string selectedField = "Eastern Field";
+
+    // Chart Data (ensure T="double" matches these lists)
+    private string[] Labels = { "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar" };
+    private List<ChartSeries<double>> Series = new() {
+        new ChartSeries<double>() { Name = "Eastern Field", Data = new double[] { 22, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+        new ChartSeries<double>() { Name = "Western Field", Data = new double[] { 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
+    };
+
+    // Summary Data
+    private List<FieldKpi> FieldStats = new() {
+        new() { Name = "Eastern Field", TotalJobs = 22, Backlog = 3 },
+        new() { Name = "Western Field", TotalJobs = 33, Backlog = 13 },
+        new() { Name = "Other Installations", TotalJobs = 0, Backlog = 0 }
+    };
+
+    // Table Data
+    private List<InstallItem> InstallationData = new() {
+        new() { Name = "Makum OCS", TotalJobs = 5, Backlog = 1 },
+        new() { Name = "Langkasi OCS", TotalJobs = 3, Backlog = 1 },
+        new() { Name = "NKF QPS", TotalJobs = 3, Backlog = 1 },
+        new() { Name = "Baghjan EPS", TotalJobs = 2, Backlog = 0 },
+        new() { Name = "Hapjan GCS", TotalJobs = 2, Backlog = 0 },
+        new() { Name = "Ushapur GCS", TotalJobs = 2, Backlog = 0 },
+        new() { Name = "Barekuri QPS", TotalJobs = 1, Backlog = 0 }
+    };
+
+    private double CalculatePercent(int val)
+    {
+        var max = InstallationData.Any() ? InstallationData.Max(x => x.TotalJobs) : 1;
+        return ((double)val / max) * 100;
+    }
+
+    private async Task RefreshData()
+    {
+        // Logic to trigger Supabase fetch
+    }
+
+    public class FieldKpi
+    {
+        public string Name { get; set; }
+        public int TotalJobs { get; set; }
+        public int Backlog { get; set; }
+    }
+    
+    public class InstallItem
+    {
+        public string Name { get; set; }
+        public int TotalJobs { get; set; }
+        public int Backlog { get; set; }
+    }
+}

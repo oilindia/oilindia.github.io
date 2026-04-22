@@ -1,0 +1,71 @@
+﻿@* ChatBotComponent.razor *@
+
+@page "/chatbot"
+
+@using MudBlazor
+@using OIL.Shared.Services
+@inject GeminiService AiService
+
+<MudPaper Elevation="4" Class="pa-4" Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
+    <MudText Typo="Typo.h6" Class="mb-4">Engineer Assistant (@LocationCode)</MudText>
+    
+    <div style="flex-grow: 1; overflow-y: auto;" id="chat-container">
+        @foreach (var msg in Messages)
+        {
+            <MudAlert Severity="@(msg.Role == "user" ? Severity.Info : Severity.Normal)"
+                      Variant="Variant.Filled" Class="mb-2 rounded-xl"
+                      Style="@(msg.Role == "user" ? "margin-left: 20%;" : "margin-right: 20%;")">
+                @msg.Text
+            </MudAlert>
+        }
+        @if (IsLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+    </div>
+
+    @if (ShowTicketButton)
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                   OnClick="LogTicket" StartIcon="@Icons.Material.Filled.Assignment">
+            Log Maintenance Ticket for @LocationCode
+        </MudButton>
+    }
+
+    <MudTextField @bind-Value="UserInput" Placeholder="e.g., Pump P-101 vibration is high..."
+                  Variant="Variant.Outlined" Class="mt-4"
+                  OnKeyDown="@(e => e.Key == "Enter" ? SendMessage() : null)"
+                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Send"
+                  OnAdornmentClick="SendMessage" />
+</MudPaper>
+
+@code {
+    [Parameter] public string LocationCode { get; set; } = "GCS";
+    [Parameter] public string[] SiteAssets { get; set; } = new[] { "Compressor", "Scrubber" };
+    
+    private List<ChatMessage> Messages = new();
+    private string UserInput;
+    private bool IsLoading;
+    private bool ShowTicketButton;
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(UserInput)) return;
+        Messages.Add(new ChatMessage("user", UserInput));
+        IsLoading = true;
+        
+        var response = await AiService.Chat(Messages, LocationCode, SiteAssets);
+        
+        if (response.Contains("SIGNAL_TICKET_LOG"))
+        {
+            ShowTicketButton = true;
+            response = response.Replace("SIGNAL_TICKET_LOG", "I recommend logging a ticket for the mechanical team.");
+        }
+
+        Messages.Add(new ChatMessage("model", response));
+        UserInput = "";
+        IsLoading = false;
+    }
+
+    private void LogTicket() { /* Call Supabase RPC to insert ticket */ }
+}

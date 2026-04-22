@@ -1,0 +1,39 @@
+﻿@page "/pmentry"
+
+<MudText Typo="Typo.h4" Class="mb-4">PM Execution</MudText>
+
+<MudPaper Class="pa-6" Elevation="3">
+    <MudAutocomplete T="string" Label="Search Instrument Tag" @bind-Value="selectedTag"
+                     SearchFunc="@SearchTags" ResetValueOnEmptyText="true"
+                     AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+
+    @if (!string.IsNullOrEmpty(selectedTag))
+    {
+        <div class="mt-6">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">Recording PM for: @selectedTag</MudAlert>
+            
+            <MudCheckBox T="bool" Color="Color.Success">Inspect physical wiring and mounting</MudCheckBox>
+            <MudCheckBox T="bool" Color="Color.Success">Cleaned sensor face/junction box</MudCheckBox>
+            <MudCheckBox T="bool" Color="Color.Success">Verified signal loop (4-20mA)</MudCheckBox>
+            
+            <MudTextField T="string" Label="Technician Observations" Variant="Variant.Outlined"
+                          Lines="3" Class="mt-4" Placeholder="Note any wear or issues..." />
+
+            <div class="d-flex justify-end mt-6">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save">Submit PM Report</MudButton>
+            </div>
+        </div>
+    }
+</MudPaper>
+
+@code {
+    private string selectedTag;
+    private string[] tags = { "PT-101", "FT-202", "TT-303", "LT-404" };
+
+    private async Task<IEnumerable<string>> SearchTags(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token); // Simulate API
+        if (string.IsNullOrEmpty(value)) return tags;
+        return tags.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+}
