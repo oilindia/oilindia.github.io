@@ -3,15 +3,11 @@
 @using Supabase
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
-
+@using System.Text.RegularExpressions
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
-
-
 @inject Supabase.Client SupabaseClient
-@inject ISnackbar Snackbar
-@inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
     <MudText Typo="Typo.h4" Class="mb-6" Color="Color.Primary" Style="font-weight: bold;">
@@ -25,101 +21,115 @@
             
             <MudPaper Class="pa-4 mb-4 bg-light shadow-none border">
                 <MudGrid Spacing="2">
+                    @* Location Dropdown - Fetched from 'locations' table *@
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" Label="Location / Site" @bind-Value="_searchSite" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                            @foreach (var s in _documents.Select(x => x.Site).Distinct())
-                            { <MudSelectItem Value="@s">@s</MudSelectItem> }
+                        <MudSelect T="string" Label="Installation" @bind-Value="_searchSite" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            <MudSelectItem Value="@((string)null)">All Installations</MudSelectItem>
+                            @foreach (var loc in _locationsList)
+                            {
+                                <MudSelectItem Value="@loc.InstallationName">@loc.InstallationName</MudSelectItem>
+                            }
                         </MudSelect>
                     </MudItem>
+
+                    @* Area Dropdown with "All" *@
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" Label="Area" @bind-Value="_searchArea" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                            @foreach (var a in _documents.Select(x => x.Area).Distinct())
-                            { <MudSelectItem Value="@a">@a</MudSelectItem> }
+                        <MudSelect T="string" Label="Area / Section" @bind-Value="_searchArea" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="@("All")">All Areas</MudSelectItem>
+                            @foreach (var a in _documents.Select(x => x.Area).Distinct().Where(x => !string.IsNullOrEmpty(x)))
+                            {
+                                <MudSelectItem Value="@a">@a</MudSelectItem>
+                            }
                         </MudSelect>
                     </MudItem>
+
+                    @* Category Dropdown (Electrical, Mechanical, etc.) *@
                     <MudItem xs="12" sm="3">
-                        <MudTextField @bind-Value="_searchTag" Placeholder="Search Tag..." Label="Instrument Tag" 
-                                     Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" 
-                                     AdornmentIcon="@Icons.Material.Filled.Search" />
+                        <MudSelect T="string" Label="Category" @bind-Value="_searchCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            <MudSelectItem Value="@((string)null)">All Categories</MudSelectItem>
+                            <MudSelectItem Value="@("Electrical")" />
+                            <MudSelectItem Value="@("Mechanical")" />
+                            <MudSelectItem Value="@("PLC/SCADA")" />
+                            <MudSelectItem Value="@("Instrumentation")" />
+                        </MudSelect>
                     </MudItem>
+
                     <MudItem xs="12" sm="3" Class="d-flex align-center">
-                         <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Color="Color.Default">Refresh</MudButton>
+                         <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">Refresh Data</MudButton>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
 
             <MudTable Items="@FilteredDocuments" Hover="true" Loading="@_loading" Dense="true" FixedHeader="true" Height="500px">
                 <HeaderContent>
-                    <MudTh>Instrument Tag</MudTh>
+                    <MudTh>Category</MudTh>
                     <MudTh>Location</MudTh>
                     <MudTh>Type</MudTh>
                     <MudTh>File Name</MudTh>
                     <MudTh Style="text-align:right">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="doc">
-                    <MudTd DataLabel="Tag"><b>@doc.InstrumentTag</b></MudTd>
+                    <MudTd DataLabel="Category"><b>@doc.Category</b></MudTd>
                     <MudTd DataLabel="Location">@doc.Site / @doc.Area</MudTd>
                     <MudTd DataLabel="Type">
                         <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@doc.DocType</MudChip>
                     </MudTd>
                     <MudTd DataLabel="File">@doc.FileName</MudTd>
                     <MudTd DataLabel="Actions" Style="text-align:right">
-                        <MudTooltip Text="View PDF">
-                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" OnClick="@(() => ViewDoc(doc))" />
-                        </MudTooltip>
-                        <MudTooltip Text="Download">
-                            <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Secondary" OnClick="@(() => DownloadDoc(doc))" />
-                        </MudTooltip>
-                        <MudTooltip Text="Delete">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(doc))" />
-                        </MudTooltip>
+                        @* <MudTooltip Text="View PDF"><MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" OnClick="@(() => ViewDoc(doc))" /></MudTooltip> *@
+                        <MudTooltip Text="Download"><MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Secondary" OnClick="@(() => DownloadDoc(doc))" /></MudTooltip>
+                        <MudTooltip Text="Delete"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(doc))" /></MudTooltip>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudTabPanel>
 
         @* --- UPLOAD SECTION --- *@
-        <MudTabPanel Text="Upload New" Icon="@Icons.Material.Filled.CloudUpload">
+        <MudTabPanel Text="Upload New Document" Icon="@Icons.Material.Filled.CloudUpload">
             <MudGrid Justify="Justify.Center">
                 <MudItem xs="12" md="8">
-                    <MudPaper Class="pa-8" Elevation="3">
-                        <MudText Typo="Typo.h6" Class="mb-4">Upload Technical Document</MudText>
+                    <MudPaper Class="pa-8 mt-4" Elevation="3">
+                        <MudText Typo="Typo.h6" Class="mb-4">Upload to 'technical-docs' Bucket</MudText>
                         <MudGrid Spacing="3">
                             <MudItem xs="12" sm="6">
-                                <MudTextField @bind-Value="_uploadModel.InstrumentTag" Label="Tag Number (e.g. 10-PT-101)" Required="true" Variant="Variant.Outlined" />
-                            </MudItem>
-                            <MudItem xs="12" sm="6">
-                                <MudSelect T="string" Label="Document Type" @bind-Value="_uploadModel.DocType" Variant="Variant.Outlined">
-                                    <MudSelectItem Value="@("Manual")" />
-                                    <MudSelectItem Value="@("Drawing")" />
-                                    <MudSelectItem Value="@("Datasheet")" />
-                                    <MudSelectItem Value="@("P&ID")" />
+                                <MudSelect T="string" Label="Target Installation" @bind-Value="_uploadModel.Site" Variant="Variant.Outlined" Required="true">
+                                    @foreach (var loc in _locationsList)
+                                    {
+                                        <MudSelectItem Value="@loc.InstallationName">@loc.InstallationName</MudSelectItem>
+                                    }
                                 </MudSelect>
                             </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudTextField @bind-Value="_uploadModel.Site" Label="Site/Location" Variant="Variant.Outlined" />
+                                <MudSelect T="string" Label="System Category" @bind-Value="_uploadModel.Category" Variant="Variant.Outlined" Required="true">
+                                    <MudSelectItem Value="@("Electrical")" />
+                                    <MudSelectItem Value="@("Mechanical")" />
+                                    <MudSelectItem Value="@("PLC/SCADA")" />
+                                    <MudSelectItem Value="@("Instrumentation")" />
+                                </MudSelect>
                             </MudItem>
                             <MudItem xs="12" sm="6">
-                                <MudTextField @bind-Value="_uploadModel.Area" Label="Area/Section" Variant="Variant.Outlined" />
+                                <MudTextField @bind-Value="_uploadModel.Area" Label="Specific Area (e.g. Compressor Room)" Variant="Variant.Outlined" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect T="string" Label="Doc Type" @bind-Value="_uploadModel.DocType" Variant="Variant.Outlined">
+                                    <MudSelectItem Value="@("Manual")" />
+                                    <MudSelectItem Value="@("Drawing")" />
+                                    <MudSelectItem Value="@("Datasheet")" />
+                                </MudSelect>
                             </MudItem>
                             <MudItem xs="12">
                                 <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf">
                                     <ActivatorContent>
                                         <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" StartIcon="@Icons.Material.Filled.AttachFile" Class="py-3">
-                                            @(_selectedFile == null ? "Select PDF Document" : _selectedFile.Name)
+                                            @(_selectedFile == null ? "Select PDF File" : _selectedFile.Name)
                                         </MudButton>
                                     </ActivatorContent>
                                 </MudFileUpload>
-                                @if(_selectedFile != null)
-                                {
-                                    <MudText Typo="Typo.caption" Class="mt-2">Size: @((_selectedFile.Size / 1024.0 / 1024.0).ToString("0.##")) MB</MudText>
-                                }
                             </MudItem>
                             <MudItem xs="12" Class="d-flex justify-end mt-4">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" 
-                                           OnClick="ProcessUpload" Disabled="@(_selectedFile == null || _isUploading)">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="ProcessUpload" Disabled="@(_selectedFile == null || _isUploading)">
                                     @if (_isUploading) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/> }
-                                    Start Upload & Register
+                                    Confirm Upload
                                 </MudButton>
                             </MudItem>
                         </MudGrid>
@@ -130,30 +140,19 @@
     </MudTabs>
 </MudContainer>
 
-@* --- PDF VIEWER DIALOG --- *@
+@* --- PDF VIEWER --- *@
 <MudDialog @bind-IsVisible="_viewerOpen" Options="_dialogOptions">
     <TitleContent>
         <div class="d-flex align-center justify-space-between w-100">
-            <div class="d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Class="mr-2"/>
-                <MudText Typo="Typo.h6">@_viewingDocName</MudText>
-            </div>
+            <MudText Typo="Typo.h6">@_viewingDocName</MudText>
             <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _viewerOpen = false" />
         </div>
     </TitleContent>
     <DialogContent>
-        <div style="height: 75vh; width: 100%; border-radius: 8px; overflow: hidden; background-color: #525659;">
+        <div style="height: 75vh; width: 100%;">
             @if (!string.IsNullOrEmpty(_viewingUrl))
             {
-                <object data="@_viewingUrl" type="application/pdf" width="100%" height="100%">
-                    <iframe src="@_viewingUrl" width="100%" height="100%" style="border:none;"></iframe>
-                </object>
-            }
-            else
-            {
-                <div class="d-flex align-center justify-center h-100">
-                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                </div>
+                <iframe src="@_viewingUrl" width="100%" height="100%" style="border:none;"></iframe>
             }
         </div>
     </DialogContent>
@@ -163,121 +162,149 @@
     private bool _loading = true;
     private bool _isUploading = false;
     private List<TechnicalDoc> _documents = new();
+    private List<LocationTable> _locationsList = new();
     private IBrowserFile? _selectedFile;
-    private TechnicalDoc _uploadModel = new();
+    private TechnicalDoc _uploadModel = new() { Category = "Instrumentation", Area = "General" };
     
     private string? _searchSite;
-    private string? _searchArea;
-    private string? _searchTag;
+    private string _searchArea = "All";
+    private string? _searchCategory;
 
     private bool _viewerOpen;
     private string _viewingUrl = "";
     private string _viewingDocName = "";
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true, NoHeader = true };
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Large, FullWidth = true };
 
     [Table("technical_documents")]
-    public class TechnicalDoc : BaseModel
-    {
-        [PrimaryKey("id", false)] public Guid id { get; set; }
-        [Column("instrument_tag")] public string InstrumentTag { get; set; } = "";
+    public class TechnicalDoc : BaseModel {
+        [PrimaryKey("id", false)] public long id { get; set; }
+        [Column("category")] public string Category { get; set; } = "";
         [Column("site")] public string Site { get; set; } = "";
         [Column("area")] public string Area { get; set; } = "";
         [Column("doc_type")] public string DocType { get; set; } = "Manual";
         [Column("file_name")] public string FileName { get; set; } = "";
         [Column("storage_path")] public string StoragePath { get; set; } = "";
         
-        // Helper to generate the URL (Replace with your project ref)
-        public string GetPublicUrl(string projectRef) => 
-            $"https://{projectRef}.supabase.co/storage/v1/object/public/technical-docs/{StoragePath}";
+        // Ensure this matches your Project URL
+        public string GetPublicUrl() => $"https://pmwutokmedbbphpwxafo.supabase.co/storage/v1/object/public/technical-docs/{StoragePath}";
+    }
+
+    [Table("locations")]
+    public class LocationTable : BaseModel {
+        [Column("installation_name")] public string InstallationName { get; set; } = "";
     }
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
-    private async Task LoadData()
-    {
-        try
-        {
+    private async Task LoadData() {
+        try {
             _loading = true;
-            var response = await SupabaseClient.From<TechnicalDoc>().Get();
-            _documents = response.Models;
+            // Fetch DB Data
+            var docRes = await SupabaseClient.From<TechnicalDoc>().Get();
+            _documents = docRes.Models;
+
+            // Fetch Installations from locations table
+            var locRes = await SupabaseClient.From<LocationTable>().Select("installation_name").Get();
+            _locationsList = locRes.Models;
         }
-        catch (Exception ex) { Snackbar.Add($"Fetch Error: {ex.Message}", Severity.Error); }
+        catch (Exception ex) { Snackbar.Add($"Sync Error: {ex.Message}", Severity.Error); }
         finally { _loading = false; }
     }
 
     private IEnumerable<TechnicalDoc> FilteredDocuments => _documents
         .Where(x => (string.IsNullOrEmpty(_searchSite) || x.Site == _searchSite) &&
-                    (string.IsNullOrEmpty(_searchArea) || x.Area == _searchArea) &&
-                    (string.IsNullOrEmpty(_searchTag) || x.InstrumentTag.Contains(_searchTag, StringComparison.OrdinalIgnoreCase)));
+                    (_searchArea == "All" || x.Area == _searchArea) &&
+                    (string.IsNullOrEmpty(_searchCategory) || x.Category == _searchCategory));
 
     private void OnFileSelected(IBrowserFile file) => _selectedFile = file;
 
     private async Task ProcessUpload()
     {
-        if (_selectedFile == null) return;
+        if (_selectedFile == null || string.IsNullOrEmpty(_uploadModel.Site)) return;
         _isUploading = true;
 
         try
         {
-            // 1. Upload file to Storage Bucket
-            var fileName = $"{Guid.NewGuid()}_{_selectedFile.Name}";
-            var storagePath = $"{_uploadModel.Site}/{fileName}";
+            // 1. Scrub the filename of problematic characters like &, (, ), and spaces
+            string safeFileName = Regex.Replace(_selectedFile.Name, @"[^a-zA-Z0-9\._-]", "_");
+        
+            // 2. Create a truly unique name to avoid bucket collisions
+            string uniqueName = $"{Guid.NewGuid()}_{safeFileName}";
 
-            using var stream = _selectedFile.OpenReadStream(maxAllowedSize: 15 * 1024 * 1024);
+            // 3. Ensure the folders also don't have spaces
+            string siteFolder = _uploadModel.Site.Replace(" ", "_");
+            string catFolder = _uploadModel.Category.Replace(" ", "_");
+
+            var destination = $"{siteFolder}/{catFolder}/{uniqueName}";
+
             var memoryStream = new MemoryStream();
-            await stream.CopyToAsync(memoryStream);
-            
-            await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), storagePath);
+            await _selectedFile.OpenReadStream(20 * 1024 * 1024).CopyToAsync(memoryStream);
+        
+            await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), destination);
 
-            // 2. Save Metadata to DB
-            _uploadModel.FileName = _selectedFile.Name;
-            _uploadModel.StoragePath = storagePath;
+            // 4. Save metadata
+            //_uploadModel.id = Guid.NewGuid();
+            _uploadModel.FileName = _selectedFile.Name; // Keep original name for display
+            _uploadModel.StoragePath = destination;     // Use safe path for loading
+        
             await SupabaseClient.From<TechnicalDoc>().Insert(_uploadModel);
 
-            Snackbar.Add("Document Successfully Registered", Severity.Success);
-            _uploadModel = new TechnicalDoc(); // Reset form
-            _selectedFile = null;
+            Snackbar.Add("Uploaded Successfully", Severity.Success);
             await LoadData();
         }
-        catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
         finally { _isUploading = false; }
     }
 
-    private async Task ViewDoc(TechnicalDoc doc)
-    {
-        _viewingUrl = ""; // Reset
-        _viewerOpen = true;
+    // private async Task ProcessUpload() {
+    //     if (_selectedFile == null || string.IsNullOrEmpty(_uploadModel.Site)) return;
+    //     _isUploading = true;
+
+    //     try {
+    //         // Clean paths (remove spaces for URL compatibility)
+    //         string siteFolder = _uploadModel.Site.Replace(" ", "_");
+    //         string catFolder = _uploadModel.Category.Replace(" ", "_");
+    //         string cleanFileName = $"{Guid.NewGuid()}_{_selectedFile.Name.Replace(" ", "_")}";
+
+    //         // DESTINATION: Installation/Category/File
+    //         var destination = $"{siteFolder}/{catFolder}/{cleanFileName}";
+
+    //         var memoryStream = new MemoryStream();
+    //         await _selectedFile.OpenReadStream(20 * 1024 * 1024).CopyToAsync(memoryStream);
+            
+    //         // Upload to 'technical-docs'
+    //         await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), destination);
+
+    //         // Save Reference
+    //         _uploadModel.id = Guid.NewGuid();
+    //         _uploadModel.FileName = _selectedFile.Name;
+    //         _uploadModel.StoragePath = destination;
+            
+    //         await SupabaseClient.From<TechnicalDoc>().Insert(_uploadModel);
+
+    //         Snackbar.Add("Document Stored in technical-docs", Severity.Success);
+    //         _selectedFile = null;
+    //         await LoadData();
+    //     }
+    //     catch (Exception ex) { Snackbar.Add($"Storage Error: {ex.Message}", Severity.Error); }
+    //     finally { _isUploading = false; }
+    // }
+
+    private async Task ViewDoc(TechnicalDoc doc) {
+        _viewingUrl = doc.GetPublicUrl();
         _viewingDocName = doc.FileName;
-        StateHasChanged();
-
-        await Task.Delay(150); // Important: Allows DOM to clear previous viewer
-        _viewingUrl = doc.GetPublicUrl("YOUR_PROJECT_REF"); // <-- CHANGE THIS
-        StateHasChanged();
+        _viewerOpen = true;
     }
 
-    private async Task DownloadDoc(TechnicalDoc doc)
-    {
-        await JS.InvokeVoidAsync("open", doc.GetPublicUrl("YOUR_PROJECT_REF"), "_blank");
-    }
+    private async Task DownloadDoc(TechnicalDoc doc) => await JS.InvokeVoidAsync("open", doc.GetPublicUrl(), "_blank");
 
-
-
-
-    private async Task ConfirmDelete(TechnicalDoc doc)
-    {
-        var result = await DialogService.ShowMessageBoxAsync("Delete Document", 
-            $"Permanent removal of {doc.FileName}?", yesText: "Delete", cancelText: "Cancel");
-
-        if (result == true)
-        {
-            try
-            {
-                await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
-                await SupabaseClient.From<TechnicalDoc>().Where(x => x.id == doc.id).Delete();
-                Snackbar.Add("Deleted from Cloud", Severity.Warning);
-                await LoadData();
-            }
-            catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    private async Task ConfirmDelete(TechnicalDoc doc) {
+        bool? result = await DialogService.ShowMessageBoxAsync("Delete", $"Permanently remove {doc.FileName}?", yesText:"Delete", cancelText:"Cancel");
+        if (result == true) {
+            await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
+            await SupabaseClient.From<TechnicalDoc>().Where(x => x.id == doc.id).Delete();
+            await LoadData();
+            Snackbar.Add("Removed from Cloud Storage", Severity.Warning);
         }
     }
 }

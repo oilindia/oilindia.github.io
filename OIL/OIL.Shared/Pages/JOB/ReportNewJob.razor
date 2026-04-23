@@ -1,57 +1,90 @@
 ﻿@page "/reportnewjob"
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @using OIL.Shared.Models
 @using Supabase
-@attribute [Authorize]
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+
+@using System.IO
 @inject Client SupabaseClient
 @inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject IDialogService DialogService
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-10">
     <MudGrid>
-        @* --- TOP: REPORTING FORM --- *@
+        @* --- SECTION 1: JOB REPORTING FORM --- *@
         <MudItem xs="12">
-            <MudPaper Elevation="4" Class="pa-6" Style="border-left: 8px solid var(--mud-palette-primary);">
-                <MudText Typo="Typo.h5" GutterBottom="true"><b>Report New Instrumentation Problem</b></MudText>
+            <MudPaper Elevation="4" Class="pa-6" Style="border-left: 8px solid var(--mud-palette-primary); border-radius: 12px;">
+                <MudText Typo="Typo.h5" Class="mb-4"><b>Report New Instrumentation Job</b></MudText>
                 
                 <MudForm @ref="_form" @bind-IsValid="@_success">
-                    <MudGrid>
+                    <MudGrid Spacing="3">
                         <MudItem xs="12" md="6">
-                            <MudTextField T="string" Label="Job/Problem Title" Required="true"
+                            <MudTextField T="string" Label="Job/Problem Title" Required="true" 
                                           @bind-Value="_newJob.JobName" Variant="Variant.Outlined" />
                         </MudItem>
+
                         <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="Location" @bind-Value="_newJob.Location" Variant="Variant.Outlined" Required="true">
-                                <MudSelectItem Value="@("Eastern Field")" />
-                                <MudSelectItem Value="@("Western Field")" />
-                                <MudSelectItem Value="@("Central Plant")" />
+                            <MudSelect T="LocationTable" Label="Installation Location" 
+                                       Value="@_selectedLocation" 
+                                       ValueChanged="OnLocationChanged"
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true">
+                                @foreach (var loc in _locations)
+                                {
+                                    <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
+                                }
                             </MudSelect>
                         </MudItem>
+
                         <MudItem xs="12" md="3">
-                            <MudSelect T="string" Label="Priority" @bind-Value="_newJob.Priority" Variant="Variant.Outlined">
+                            <MudSelect T="string" Label="Job Type" @bind-Value="_newJob.JobType" Variant="Variant.Outlined" Required="true">
+                                <MudSelectItem Value="@("breakdown")">Breakdown</MudSelectItem>
+                                <MudSelectItem Value="@("preventive")">Preventive</MudSelectItem>
+                                <MudSelectItem Value="@("project")">Project Work</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="string" Label="Priority Level" @bind-Value="_newJob.Priority" Variant="Variant.Outlined">
                                 <MudSelectItem Value="@("Low")" />
                                 <MudSelectItem Value="@("Normal")" />
                                 <MudSelectItem Value="@("High")" />
                                 <MudSelectItem Value="@("Emergency")" />
                             </MudSelect>
                         </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField T="string" Label="Detailed Description" Lines="3"
+
+                        <MudItem xs="12" md="8">
+                            <MudTextField T="string" Label="Detailed Description" Lines="2" 
                                           @bind-Value="_newJob.Description" Variant="Variant.Outlined" />
                         </MudItem>
-                        <MudItem xs="12" Class="d-flex justify-end">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       Disabled="@(!_success || _isProcessing)" OnClick="SubmitJob">
-                                @if (_isProcessing)
-                                {
-                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                                }
-                                else
-                                {
 
-                                    <MudText>Submit & Notify Desk</MudText>
-                                }
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Photos (@(_tempFiles.Count))</MudText>
+                            <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnFilesSelected" Multiple Accept=".jpg,.jpeg,.png">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.PhotoCamera">Add Photos</MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                            
+                            @if (_tempFiles.Any())
+                            {
+                                <div class="mt-3">
+                                    @foreach (var file in _tempFiles)
+                                    {
+                                        <MudChip T="IBrowserFile" OnClose="@(() => _tempFiles.Remove(file))" Color="Color.Primary">@file.Name</MudChip>
+                                    }
+                                </div>
+                            }
+                        </MudItem>
+
+                        <MudItem xs="12" Class="d-flex justify-end pt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
+                                       Disabled="@(!_success || _isProcessing)" OnClick="SubmitJob">
+                                @if (_isProcessing) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                                Submit & Log Job
                             </MudButton>
                         </MudItem>
                     </MudGrid>
@@ -59,108 +92,280 @@
             </MudPaper>
         </MudItem>
 
-        @* --- BOTTOM: LAST 50 JOBS TABLE --- *@
-        <MudItem xs="12" Class="mt-4">
-            <MudTable Items="@_lastJobs" Hover="true" Breakpoint="Breakpoint.Sm"
-                      Loading="@_loadingTable" LoadingProgressColor="Color.Info"
-                      Elevation="4" Dense="true" FixedHeader="true" Height="400px">
-                <ToolBarContent>
-                    <MudText Typo="Typo.h6">Recent Reported Jobs (Last 50)</MudText>
-                    <MudSpacer />
-                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" OnClick="LoadRecentJobs" />
-                </ToolBarContent>
+        @* --- SECTION 2: SEARCH & HISTORY --- *@
+        <MudItem xs="12" Class="mt-6">
+            <MudPaper Class="pa-4 mb-4">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="3">
+                        <MudTextField @bind-Value="_searchQuery" Label="Search Title" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="long?" Label="Location" @bind-Value="_filterLocId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var loc in _locations) { <MudSelectItem T="long?" Value="@loc.Id">@loc.InstallationName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudDateRangePicker Label="Date Range" @bind-DateRange="_dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2" Class="d-flex align-end">
+                        <MudButton FullWidth Variant="Variant.Filled" Color="Color.Info" OnClick="LoadData">Filter</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudTable Items="@_displayJobs" Hover Dense Loading="@_loadingTable" T="JobModel">
                 <HeaderContent>
-                    <MudTh>ID</MudTh>
-                    <MudTh>Title</MudTh>
+                    <MudTh>Date</MudTh>
+                    <MudTh>Job Title</MudTh>
                     <MudTh>Location</MudTh>
                     <MudTh>Priority</MudTh>
                     <MudTh>Status</MudTh>
-                    <MudTh>Reporter</MudTh>
+                    <MudTh Style="text-align:right">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="ID">@context.Id</MudTd>
-                    <MudTd DataLabel="Title"><b>@context.JobName</b></MudTd>
-                    <MudTd DataLabel="Location">@context.Location</MudTd>
-                    <MudTd DataLabel="Priority">
-                        <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">@context.Priority</MudChip>
+                    <MudTd>@context.CreatedAt?.ToLocalTime().ToString("dd/MM/yy HH:mm")</MudTd>
+                    <MudTd><b>@context.JobName</b></MudTd>
+                    <MudTd>@GetLocationName(context.LocationId)</MudTd>
+                    <MudTd><MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)">@context.Priority</MudChip></MudTd>
+                    <MudTd><MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">@context.Status</MudChip></MudTd>
+                    <MudTd Style="text-align:right">
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="@(() => OpenDetails(context, false))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenDetails(context, true))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" />
                     </MudTd>
-                    <MudTd DataLabel="Status">
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Status</MudChip>
-                    </MudTd>
-                    <MudTd DataLabel="Reporter">@context.ReportedByEmail</MudTd>
                 </RowTemplate>
+                <PagerContent><MudTablePager /></PagerContent>
             </MudTable>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
+@* --- CUSTOM MODAL OVERLAY (TAKEN FROM YOUR REFERENCE) --- *@
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;">
+        <MudPaper Style="width: 700px; max-width: 95%; max-height: 90vh; overflow-y: auto; padding: 24px; border-top: 6px solid var(--mud-palette-primary);" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">@(_isEditMode ? "Edit Job Details" : "View Job Details")</MudText>
+            
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Job Title" @bind-Value="_selectedJob.JobName" ReadOnly="!_isEditMode" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="long?" Label="Location" @bind-Value="_selectedJob.LocationId" ReadOnly="!_isEditMode" Variant="Variant.Outlined">
+                         @foreach (var loc in _locations) { <MudSelectItem T="long?" Value="@loc.Id">@loc.InstallationName</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Status" @bind-Value="_selectedJob.Status" ReadOnly="!_isEditMode" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("pending")" />
+                        <MudSelectItem Value="@("in-progress")" />
+                        <MudSelectItem Value="@("completed")" />
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Priority" @bind-Value="_selectedJob.Priority" ReadOnly="!_isEditMode" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("Low")" /><MudSelectItem Value="@("Normal")" /><MudSelectItem Value="@("High")" /><MudSelectItem Value="@("Emergency")" />
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Description" @bind-Value="_selectedJob.Description" ReadOnly="!_isEditMode" Lines="3" Variant="Variant.Outlined" />
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Stored Photos</MudText>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (_loadingPhotos) { <MudProgressCircular Indeterminate="true" Size="Size.Small" /> }
+                        else if (!_jobPhotos.Any()) { <MudText Typo="Typo.caption">No photos found.</MudText> }
+                        else {
+                            @foreach (var p in _jobPhotos) {
+                                <img src="@p" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #ddd;" @onclick="@(() => JS.InvokeVoidAsync("open", p, "_blank"))" />
+                            }
+                        }
+                    </div>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2 mt-6">
+                <MudButton OnClick="() => _isModalOpen = false" Variant="Variant.Text">Close</MudButton>
+                @if (_isEditMode)
+                {
+                    <MudButton OnClick="UpdateJob" Variant="Variant.Filled" Color="Color.Primary">Update Job</MudButton>
+                }
+            </div>
+        </MudPaper>
+    </div>
+}
+
 @code {
-    private MudForm _form;
-    private bool _success;
-    private bool _isProcessing = false;
-    private bool _loadingTable = true;
-    private JobModel _newJob = new JobModel { Priority = "Normal", Status = "Reported" };
-    private List<JobModel> _lastJobs = new();
+    private MudForm _form = null!;
+    private bool _success, _isProcessing, _loadingTable, _loadingPhotos, _isModalOpen, _isEditMode;
+    private string _searchQuery = "";
+    private long? _filterLocId;
+    private DateRange _dateRange = new DateRange(DateTime.Now.AddDays(-7), DateTime.Now);
+    private LocationTable? _selectedLocation;
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadRecentJobs();
+    private JobModel _newJob = new() { Priority = "Normal", Status = "pending", JobType = "breakdown" };
+    private JobModel _selectedJob = new();
+
+    private List<JobModel> _displayJobs = new();
+    private List<LocationTable> _locations = new();
+    private List<IBrowserFile> _tempFiles = new();
+    private List<string> _jobPhotos = new();
+
+    [Table("jobs")] public class JobModel : BaseModel {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("location_id")] public long? LocationId { get; set; } 
+        [Column("priority")] public string Priority { get; set; } = "Normal";
+        [Column("status")] public string Status { get; set; } = "pending";
+        [Column("description")] public string Description { get; set; } = "";
+        [Column("reported_by_email")] public string ReportedByEmail { get; set; } = "";
+        [Column("reported_by_id")] public Guid? ReportedById { get; set; }
+        [Column("job_type")] public string JobType { get; set; } = "breakdown";
     }
 
-    private async Task LoadRecentJobs()
-    {
+    [Table("job_photos")] public class JobPhotoModel : BaseModel {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("storage_path")] public string StoragePath { get; set; } = "";
+    }
+
+    [Table("locations")] public class LocationTable : BaseModel {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private void OnLocationChanged(LocationTable loc) { _selectedLocation = loc; _newJob.LocationId = loc?.Id; }
+    private string GetLocationName(long? id) => _locations.FirstOrDefault(l => l.Id == id)?.InstallationName ?? "Unknown";
+
+    private async Task LoadData() {
         _loadingTable = true;
-        try
-        {
-            var result = await SupabaseClient.From<JobModel>()
-                .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Descending)
-                .Limit(50)
-                .Get();
-            
-            _lastJobs = result.Models;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Could not load recent jobs: " + ex.Message, Severity.Error);
-        }
-        finally
-        {
-            _loadingTable = false;
-        }
-    }
-
-    private async Task SubmitJob()
-    {
-        _isProcessing = true;
-        try
-        {
+        try {
             var authState = await AuthProvider.GetAuthenticationStateAsync();
-            _newJob.ReportedByEmail = authState.User.Identity?.Name;
+            var userEmail = authState.User.Identity?.Name;
+            bool isAdmin = authState.User.IsInRole("Admin") || authState.User.IsInRole("Manager");
 
-            await SupabaseClient.From<JobModel>().Insert(_newJob);
+            _locations = (await SupabaseClient.From<LocationTable>().Get()).Models;
+            var request = SupabaseClient.From<JobModel>();
+
+            if (!isAdmin && !string.IsNullOrEmpty(userEmail)) 
+                request.Filter("reported_by_email", Supabase.Postgrest.Constants.Operator.Equals, userEmail);
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery)) 
+                request.Filter("job_name", Supabase.Postgrest.Constants.Operator.ILike, $"%{_searchQuery}%");
+
+            if (_filterLocId.HasValue) 
+                request.Filter("location_id", Supabase.Postgrest.Constants.Operator.Equals, _filterLocId.Value.ToString());
+
+            if (_dateRange.Start.HasValue) 
+                request.Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _dateRange.Start.Value.ToString("yyyy-MM-dd"));
             
-            Snackbar.Add("Job reported successfully!", Severity.Success);
+            if (_dateRange.End.HasValue) 
+                request.Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _dateRange.End.Value.AddDays(1).ToString("yyyy-MM-dd"));
+
+            var result = await request.Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending).Get();
+            _displayJobs = result.Models;
+        } catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        finally { _loadingTable = false; StateHasChanged(); }
+    }
+
+    private async Task SubmitJob() {
+        if (_isProcessing) return;
+        _isProcessing = true;
+        try {
+            var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
+            _newJob.Id = Guid.NewGuid();
+            _newJob.CreatedAt = DateTime.UtcNow;
+            _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
             
-            // Clear form and refresh table
-            _newJob = new JobModel { Priority = "Normal", Status = "Reported" };
-            await _form.ResetAsync();
-            await LoadRecentJobs();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Error: " + ex.Message, Severity.Error);
-        }
-        finally
-        {
-            _isProcessing = false;
+            var sub = user.FindFirst(c => c.Type == "sub")?.Value;
+            if (Guid.TryParse(sub, out var userId)) _newJob.ReportedById = userId;
+
+            var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
+            var confirmed = jobRes.Models.FirstOrDefault();
+            
+            if (confirmed != null && _tempFiles.Any()) {
+                foreach (var file in _tempFiles) {
+                    var path = $"{confirmed.Id}/{Guid.NewGuid()}_{file.Name}";
+                    using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+                    await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel { Id = Guid.NewGuid(), JobId = confirmed.Id, StoragePath = path });
+                }
+            }
+            Snackbar.Add("Job Logged!", Severity.Success);
+            _tempFiles.Clear();
+            _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown" };
+            await LoadData();
+        } catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+        finally { _isProcessing = false; StateHasChanged(); }
+    }
+
+    private async Task OpenDetails(JobModel job, bool edit) {
+        // Create a copy to avoid binding directly to the table row until saved
+        _selectedJob = new JobModel {
+            Id = job.Id,
+            JobName = job.JobName,
+            LocationId = job.LocationId,
+            Status = job.Status,
+            Priority = job.Priority,
+            Description = job.Description,
+            CreatedAt = job.CreatedAt,
+            ReportedByEmail = job.ReportedByEmail
+        };
+        
+        _isEditMode = edit;
+        _isModalOpen = true;
+        _loadingPhotos = true;
+        _jobPhotos.Clear();
+        StateHasChanged();
+
+        try {
+            var res = await SupabaseClient.From<JobPhotoModel>().Where(x => x.JobId == job.Id).Get();
+            foreach (var p in res.Models) {
+                _jobPhotos.Add(SupabaseClient.Storage.From("job-photos").GetPublicUrl(p.StoragePath));
+            }
+        } catch {} finally { _loadingPhotos = false; StateHasChanged(); }
+    }
+
+    private async Task UpdateJob() {
+        try {
+            await SupabaseClient.From<JobModel>().Update(_selectedJob);
+            _isModalOpen = false;
+            await LoadData();
+            Snackbar.Add("Job Updated", Severity.Success);
+        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    }
+
+    private async Task ConfirmDelete(JobModel job) {
+        var result = await DialogService.ShowMessageBoxAsync("Delete Job", 
+            "Are you sure? This will delete the job, all database records, and stored photos.", 
+            "Delete Everything", "Cancel");
+
+        if (result == true) {
+            try {
+                // 1. Get and delete photos
+                var photos = await SupabaseClient.From<JobPhotoModel>().Where(x => x.JobId == job.Id).Get();
+                var paths = photos.Models.Select(p => p.StoragePath).ToList();
+                
+                await SupabaseClient.From<JobPhotoModel>().Where(x => x.JobId == job.Id).Delete();
+                if (paths.Any()) await SupabaseClient.Storage.From("job-photos").Remove(paths);
+                
+                // 2. Delete Job
+                await SupabaseClient.From<JobModel>().Where(x => x.Id == job.Id).Delete();
+                
+                Snackbar.Add("Job deleted successfully", Severity.Info);
+                await LoadData();
+            } catch (Exception ex) { Snackbar.Add("Delete Error: " + ex.Message, Severity.Error); }
         }
     }
 
-    private Color GetPriorityColor(string priority) => priority switch
-    {
-        "Emergency" => Color.Error,
-        "High" => Color.Warning,
-        "Normal" => Color.Info,
-        _ => Color.Default
-    };
+    private void OnFilesSelected(IReadOnlyList<IBrowserFile> files) { if (files != null) _tempFiles.AddRange(files); }
+    private Color GetPriorityColor(string p) => p switch { "Emergency" => Color.Error, "High" => Color.Warning, "Normal" => Color.Info, _ => Color.Default };
+    private Color GetStatusColor(string s) => s?.ToLower() switch { "pending" => Color.Warning, "in-progress" => Color.Info, "completed" => Color.Success, _ => Color.Default };
 }

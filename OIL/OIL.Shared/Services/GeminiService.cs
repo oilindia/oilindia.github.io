@@ -12,8 +12,10 @@ namespace OIL.Shared.Services
         private readonly string gkey;
 
         // 2. This is the Constructor. It "injects" the config into the service.
-        public GeminiService(IConfiguration config)
+        // COMBINE BOTH HERE:
+        public GeminiService(HttpClient http, IConfiguration config)
         {
+            _http = http;
             gkey = config["Gemini:ApiKey"] ?? "";
         }
 
@@ -30,7 +32,7 @@ namespace OIL.Shared.Services
         //private readonly string gkey = config["Gemini:ApiKey"] ?? "";
 
 
-        public GeminiService(HttpClient http) => _http = http;
+        //public GeminiService(HttpClient http) => _http = http;
 
         public async Task<string> Chat(List<ChatMessage> history, string locationCode, string[] assets)
         {

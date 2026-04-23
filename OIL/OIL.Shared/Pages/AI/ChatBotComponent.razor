@@ -5,6 +5,7 @@
 @using MudBlazor
 @using OIL.Shared.Services
 @inject GeminiService AiService
+@inject NavigationManager NavManager
 
 <MudPaper Elevation="4" Class="pa-4" Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
     <MudText Typo="Typo.h6" Class="mb-4">Engineer Assistant (@LocationCode)</MudText>
@@ -67,5 +68,7 @@
         IsLoading = false;
     }
 
-    private void LogTicket() { /* Call Supabase RPC to insert ticket */ }
+    private void LogTicket() { /* Call Supabase RPC to insert ticket */
+        NavManager.NavigateTo("/reportnewjob");
+    }
 }

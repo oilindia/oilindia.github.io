@@ -167,35 +167,127 @@
         await RefreshMarkers();
     }
 
+
+    // FIX 1: Use Match with the correct type (long instead of string if possible)
+    // and ensure the list is cleared before reloading to avoid UI ghosts.
     private async Task RefreshMarkers()
     {
         if (_currentLocation == null) return;
-        var res = await SupabaseClient.From<Marker>().Match(new Dictionary<string, string> { { "location_id", _currentLocation.Id.ToString() } }).Get();
-        _markers = res.Models;
-        StateHasChanged();
+        
+        try
+        {
+            // Using a simpler filter approach to ensure it matches the ID correctly
+            var res = await SupabaseClient
+                .From<Marker>()
+                .Where(x => x.LocationId == _currentLocation.Id)
+                .Get();
+
+            _markers = res.Models ?? new List<Marker>();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
+        }
     }
 
     private async Task HandleImageClick(MouseEventArgs e)
     {
         if (!_isMappingMode) return;
+
+        // FIX 2: Check for nulls and ensure dimensions are captured correctly
         var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+        if (dims.Width <= 0 || dims.Height <= 0) return;
+
         _selectedMarker = new Marker
         {
             LocationId = _currentLocation.Id,
             CoordX = (e.OffsetX / dims.Width) * 100,
             CoordY = (e.OffsetY / dims.Height) * 100,
-            TagNumber = "TAG-" + (_markers.Count + 1)
+            TagNumber = "NEW-TAG",
+            InstrumentType = "",
+            MakeModelType = "",
+            Range = ""
         };
+        
         _drawerOpen = true;
     }
 
     private async Task SaveMarker()
     {
-        await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
-        _drawerOpen = false;
-        await RefreshMarkers();
-        Snackbar.Add("Updated Successfully", Severity.Success);
+        if (_selectedMarker == null) return;
+
+        try
+        {
+            // FIX 3: Ensure ID is handled correctly for Upsert
+            // If it's a new marker, ID is 0, Supabase will generate a new one.
+            var response = await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
+            
+            _drawerOpen = false;
+            
+            // Re-fetch everything from DB to ensure the UI is in sync with truth
+            await RefreshMarkers();
+            
+            Snackbar.Add("Marker Saved Successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Save Failed: " + ex.Message, Severity.Error);
+        }
     }
+
+    private async Task DeleteMarker(Marker m)
+    {
+        try
+        {
+            // FIX 4: Explicitly delete by ID to ensure RLS doesn't block it
+            await SupabaseClient.From<Marker>().Where(x => x.Id == m.Id).Delete();
+            
+            // Refresh to ensure it's gone from view
+            await RefreshMarkers();
+            Snackbar.Add("Marker Removed", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Delete Failed: " + ex.Message, Severity.Error);
+        }
+    }
+
+
+
+
+
+
+
+    // private async Task RefreshMarkers()
+    // {
+    //     if (_currentLocation == null) return;
+    //     var res = await SupabaseClient.From<Marker>().Match(new Dictionary<string, string> { { "location_id", _currentLocation.Id.ToString() } }).Get();
+    //     _markers = res.Models;
+    //     StateHasChanged();
+    // }
+
+    // private async Task HandleImageClick(MouseEventArgs e)
+    // {
+    //     if (!_isMappingMode) return;
+    //     var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+    //     _selectedMarker = new Marker
+    //     {
+    //         LocationId = _currentLocation.Id,
+    //         CoordX = (e.OffsetX / dims.Width) * 100,
+    //         CoordY = (e.OffsetY / dims.Height) * 100,
+    //         TagNumber = "TAG-" + (_markers.Count + 1)
+    //     };
+    //     _drawerOpen = true;
+    // }
+
+    // private async Task SaveMarker()
+    // {
+    //     await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
+    //     _drawerOpen = false;
+    //     await RefreshMarkers();
+    //     Snackbar.Add("Updated Successfully", Severity.Success);
+    // }
 
     private async Task LocateMarker(Marker m)
     {
@@ -206,12 +298,12 @@
         await JS.InvokeVoidAsync("scrollToMarker", "pid-map-container", m.CoordX.Value, m.CoordY.Value);
     }
 
-    private async Task DeleteMarker(Marker m)
-    {
-        await SupabaseClient.From<Marker>().Delete(m);
-        _markers.Remove(m);
-        Snackbar.Add("Deleted", Severity.Warning);
-    }
+    // private async Task DeleteMarker(Marker m)
+    // {
+    //     await SupabaseClient.From<Marker>().Delete(m);
+    //     _markers.Remove(m);
+    //     Snackbar.Add("Deleted", Severity.Warning);
+    // }
 
     private void OpenEdit(Marker m) { _selectedMarker = m; _drawerOpen = true; }
     private string GetZoomStyle() => $"position: relative; display: inline-block; width: {(_zoomLevel * 100)}%; transition: width 0.2s ease; transform-origin: top left;";
