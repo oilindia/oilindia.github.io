@@ -1,0 +1,663 @@
+﻿<h3>CostStatic</h3>
+@inject IJSRuntime JS
+
+@page "/coststatic"
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-16">
+    <MudGrid Spacing="6">
+
+        @* --- LEFT COLUMN: Hero Section --- *@
+        <MudItem xs="12" md="6" Class="d-flex flex-column justify-center">
+            <MudChip T="string" Color="Color.Error" Variant="Variant.Text" Size="Size.Small"
+                     Style="background-color: #fef2f2; width: fit-content;" Class="mb-4 fw-bold">
+                
+            </MudChip>
+
+            <MudPaper Elevation="0" Class="pa-8 mb-8 d-flex align-center justify-center"
+                      Style="border-radius: 32px; background-color: #f8fafc; height: 300px; width: 300px;">
+                @* Replace with your actual Logo component or img tag *@
+                <MudImage Src="_content/OIL.Shared/imgs/oil.png"
+                          Alt="Oil India Limited Logo"
+                          Fluid="true"
+                          />
+            </MudPaper>
+
+            <MudText Typo="Typo.h2" Style="font-weight: 850; color: #0f172a;">
+                Cost Optimization <span style="color: #ef4444;">Roadmap</span>
+            </MudText>
+
+            <MudText Typo="Typo.h5" Class="mt-6" Style="color: #475569; font-weight: 400; line-height: 1.4;">
+                A structured roadmap for achieving a sustainable reduction in operational expenditure while maintaining zero instrumentation-driven downtime.
+            </MudText>
+
+            <MudDivider Class="my-8" Style="border-style: dashed; border-color: #cbd5e1;" />
+
+            <MudText Typo="Typo.caption" Style="color: #64748b; letter-spacing: 0.05rem;">
+                Reporting period used: Q1 & Q2 compared with Q3 & Q4 of FY 2025-26.
+            </MudText>
+        </MudItem>
+
+        @* --- RIGHT COLUMN: Objectives & Target --- *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-10" Style="border-radius: 32px; background-color: #ffffff; height: 100%;">
+
+                <MudChip T="string" Color="Color.Error" Variant="Variant.Text" Size="Size.Small"
+                         Style="background-color: #fef2f2;" Class="mb-6 fw-bold">
+                    STRATEGIC OBJECTIVE
+                </MudChip>
+
+                <MudText Typo="Typo.body1" Class="mb-8" Style="color: #334155; line-height: 1.8;">
+                    Achieve a sustainable reduction in operational expenditure without compromising <b>safety, reliability or production continuity</b>. The roadmap was planned and implemented from <b>Q3 of the financial year 2025-26</b>, covering strategic actions across <b>Maintenance, Manpower, Transportation and Technology</b>, with clear KPIs and timelines.
+                </MudText>
+
+                <MudGrid Class="mb-10">
+                    <MudItem xs="6">
+                        <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 20px; height: 100%;">
+                            <MudText Typo="Typo.h5" Class="fw-bold mb-2">Coverage</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #64748b;">
+                                70+ production installations under FHQ, along with water injection stations, boiler battery units and mobile steam generators.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 20px; height: 100%;">
+                            <MudText Typo="Typo.h5" Class="fw-bold mb-2">Result</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #64748b;">
+                                Cost reduction was achieved without compromise on safety, reliability or production continuity.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                @* --- The Dark Quote Box --- *@
+                <MudPaper Elevation="0" Class="pa-8" Style="background-color: #0f172a; border-radius: 24px;">
+                    <MudText Typo="Typo.h5" Style="color: #ffffff; font-weight: 700; line-height: 1.4;">
+                        “Our target is to maintain <span style="color: #fca5a5;">100% availability of Instrumentation services in installations</span> in order to achieve Company’s overall targets”
+                    </MudText>
+                </MudPaper>
+
+            </MudPaper>
+        </MudItem>
+
+    </MudGrid>
+
+
+    <MudPaper Elevation="0" Class="pa-6" Style="background-color: #fcfcfd; border: 1px solid #e0e0e0; border-radius: 12px;">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: OPERATIONAL SCOPE --- *@
+            <MudItem xs="12" md="5">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">OVERVIEW</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Operational scope at a glance</MudText>
+                </div>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="6">
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">INSTALLATIONS COVERED</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1565c0;">70+</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">OCS, GCS, EPS, QPS, WHS and allied facilities under FHQ</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">WATER INJECTION STATIONS</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #263238;">10</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">Support for field Instruments Maintenance</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">BOILER BATTERY UNITS</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #263238;">5</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">Legacy Instrumentation and control systems</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">MOBILE STEAM GENERATORS</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #263238;">11</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">Demand flexible control and field support</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                <div class="mt-auto pt-10">
+                    <MudDivider Class="mb-4" DividerType="DividerType.Middle" />
+                    <MudText Typo="Typo.body2" Style="color: #546e7a; font-weight: 700;">
+                        Manpower: 33 total, including 5 executives and 28 workpersons.
+                    </MudText>
+                </div>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: WHAT WAS ACHIEVED --- *@
+            <MudItem xs="12" md="7">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">KEY OUTCOME</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">What was achieved</MudText>
+                </div>
+
+                <MudStack Spacing="3">
+                    <MudStack Row="true" Spacing="3">
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; flex: 2;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700; line-height: 1.2;">TOTAL COST SAVED IN TWO QUARTERS</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 900; color: #2e7d32;">₹1.74 Cr</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">About 16.8% lower than the prior two-quarter period</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; flex: 1;">
+                            <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">DOWNTIME INCIDENTS</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 900; color: #d32f2f;">0</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">Instrumentation-driven downtime remained at zero</MudText>
+                        </MudPaper>
+                    </MudStack>
+
+                    <MudPaper Elevation="0" Class="pa-4" Style="background-color: #f8f9fa; border-radius: 12px;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Achievement</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Savings were achieved through coordinated planning, tighter execution and targeted system improvement.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="0" Class="pa-4" Style="border: 1px solid #e0e0e0; border-radius: 12px;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Target</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Reduce operating cost in a sustainable manner while maintaining safety, reliability and production continuity.</MudText>
+                    </MudPaper>
+
+                    <MudStack Row="true" Spacing="2">
+                        <MudPaper Elevation="1" Class="pa-3" Style="flex: 1; border-radius: 8px;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">MAINTENANCE</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 800;">₹162L</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px; color: #90a4ae;">Largest source of savings</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="1" Class="pa-3" Style="flex: 1; border-radius: 8px;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">OVERTIME</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 800;">₹10.08L</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px; color: #90a4ae;">Through roster discipline</MudText>
+                        </MudPaper>
+                        <MudPaper Elevation="1" Class="pa-3" Style="flex: 1; border-radius: 8px;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">TRANSPORT</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 800;">₹2.21L</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px; color: #90a4ae;">By reducing unnecessary trips</MudText>
+                        </MudPaper>
+                    </MudStack>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+
+    <MudPaper Elevation="0" Class="pa-6" Style="background-color: #fcfcfd; border: 1px solid #e0e0e0; border-radius: 12px;">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: COST COMPARISON TABLE --- *@
+            <MudItem xs="12" md="7">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">PERFORMANCE TABLE</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Cost comparison: before and after action</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #78909c;">Comparison of Q1 & Q2 versus Q3 & Q4 based on the figures provided in the source file.</MudText>
+                </div>
+
+                <MudSimpleTable Style="border-radius: 12px; overflow: hidden;" Hover="true" Dense="true">
+                    <thead>
+                        <tr style="background-color: #122c4f;">
+                            <th style="color: white; font-weight: 700;">Parameter</th>
+                            <th style="color: white; font-weight: 700;">Q1 & Q2</th>
+                            <th style="color: white; font-weight: 700;">Q3 & Q4</th>
+                            <th style="color: white; font-weight: 700;">Savings</th>
+                            <th style="color: white; font-weight: 700;">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Maintenance cost</td>
+                            <td>₹9.52 Cr</td>
+                            <td>₹7.90 Cr</td>
+                            <td style="color: #2e7d32; font-weight: 800;">₹1.62 Cr</td>
+                            <td style="color: #2e7d32; font-weight: 800;">-17.0%</td>
+                        </tr>
+                        <tr>
+                            <td>Employee overtime</td>
+                            <td>₹27.98 L</td>
+                            <td>₹17.90 L</td>
+                            <td style="color: #2e7d32; font-weight: 800;">₹10.08 L</td>
+                            <td style="color: #2e7d32; font-weight: 800;">-36.9%</td>
+                        </tr>
+                        <tr>
+                            <td>Field transport</td>
+                            <td>₹54.75 L</td>
+                            <td>₹52.54 L</td>
+                            <td style="color: #2e7d32; font-weight: 800;">₹2.21 L</td>
+                            <td style="color: #2e7d32; font-weight: 800;">-4.0%</td>
+                        </tr>
+                        <tr style="background-color: #f5f5f5;">
+                            <td style="font-weight: 900;">Total</td>
+                            <td style="font-weight: 900;">₹10.35 Cr</td>
+                            <td style="font-weight: 900;">₹8.60 Cr</td>
+                            <td style="color: #2e7d32; font-weight: 900;">₹1.74 Cr</td>
+                            <td style="color: #2e7d32; font-weight: 900;">-16.8%</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+
+                <div class="mt-12">
+                    <MudDivider Class="mb-4" DividerType="DividerType.Middle" />
+                    <MudText Typo="Typo.body2" Style="color: #546e7a; font-weight: 700;">
+                        Note: figures are captured up to 20 March of FY 2025-26, with proportionate OT data adjustment for March 2026.
+                    </MudText>
+                </div>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: ANALYSIS --- *@
+            <MudItem xs="12" md="5">
+                <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mb-4">Analysis</MudText>
+
+                <MudStack Spacing="3">
+                    <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; background-color: #f1f8fe; border: 1px solid #e3f2fd;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">1. Maintenance Cost improvement</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Main saving lever. Proactive preventive maintenance reduced high-cost breakdown activity.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; background-color: #f7faf9; border: 1px solid #e8f5e9;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">2. Overtime fell sharply</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Overtime cost reduced sharply, reflecting better manpower planning and tighter shift discipline.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; background-color: #fffefb; border: 1px solid #fff3e0;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">3. Field Transportation savings</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Transport cost reduced through tighter field movement planning and vehicle allotment.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 12px; background-color: white;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Overall</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">The section has moved to more planned and disciplined operations.</MudText>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+        </MudGrid>
+    </MudPaper>
+
+
+
+    <MudGrid>
+        @* Bar Chart Section *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-6" Style="border-radius: 16px; height: 450px;">
+                <MudChip T="string" Size="Size.Small" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900;">ANALYTICS</MudChip>
+                <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight: 800; color: #1a237e;">Cost comparison by category</MudText>
+                <MudText Typo="Typo.caption" Style="color: #90a4ae;">Q1 & Q2 versus Q3 & Q4 | Values shown in ₹ Lakhs</MudText>
+
+                <div style="height: 300px; width: 100%;" class="mt-4">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        @* Donut Chart Section *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-6" Style="border-radius: 16px; height: 450px;">
+                <MudText Typo="Typo.caption" Style="color: #78909c; font-weight: 700;">Analytics</MudText>
+                <MudText Typo="Typo.h5" Class="mt-1" Style="font-weight: 800; color: #1a237e;">Where the savings came from</MudText>
+                <MudText Typo="Typo.caption" Style="color: #90a4ae;">Share of total savings by category</MudText>
+
+                <div style="height: 300px; width: 100%;" class="mt-4">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+
+
+
+    <MudGrid Spacing="6" Class="mt-6">
+
+        @* --- LEFT SIDE: REDUCTION CHART --- *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-6" Style="border-radius: 16px; height: 480px;">
+                <MudText Typo="Typo.caption" Style="color: #78909c; font-weight: 700;">Analytics</MudText>
+                <MudText Typo="Typo.h5" Class="mt-1" Style="font-weight: 800; color: #1a237e;">Reduction achieved in each category</MudText>
+                <MudText Typo="Typo.caption" Style="color: #90a4ae;">The chart shows % Cost Reduction Achieved per Category.</MudText>
+
+                <div style="height: 330px; width: 100%;" class="mt-8">
+                    <canvas id="reductionChart"></canvas>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        @* --- RIGHT SIDE: OVERTIME HOURS CHART --- *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="1" Class="pa-6" Style="border-radius: 16px; height: 480px;">
+                <MudText Typo="Typo.caption" Style="color: #78909c; font-weight: 700;">Analytics</MudText>
+                <MudText Typo="Typo.h5" Class="mt-1" Style="font-weight: 800; color: #1a237e;">Overtime hours</MudText>
+                <MudText Typo="Typo.caption" Style="color: #90a4ae;">The chart shows OT hours reduced in two quarters.</MudText>
+
+                <div style="height: 330px; width: 100%;" class="mt-8">
+                    <canvas id="otHoursChart"></canvas>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+    </MudGrid>
+
+
+
+    @* --- ROADMAP AND IMPACT SECTION --- *@
+    <div class="mt-10 mb-8">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: ROADMAP --- *@
+            <MudItem xs="12" md="6">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">ROADMAP</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Implemented roadmap</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #78909c;">The Cost optimization roadmap was planned as immediate, medium and long-horizon action.</MudText>
+                </div>
+
+                <MudStack Spacing="3">
+                    @* 0-3 Months *@
+                    <MudPaper Elevation="1" Class="pa-4 d-flex align-center" Style="border-radius: 12px; border: 1px solid #e0e0e0;">
+                        <MudChip T="string" Size="Size.Small" Style="background-color: #ffebee; color: #d32f2f; font-weight: 700; min-width: 90px;" Class="mr-4">0-3 Months</MudChip>
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Immediate impact actions</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #546e7a;">Structured preventive maintenance schedule and shift roster changes to reduce unnecessary overtime.</MudText>
+                        </div>
+                    </MudPaper>
+
+                    @* 3-12 Months *@
+                    <MudPaper Elevation="1" Class="pa-4 d-flex align-center" Style="border-radius: 12px; border: 1px solid #e0e0e0;">
+                        <MudChip T="string" Size="Size.Small" Style="background-color: #e3f2fd; color: #1976d2; font-weight: 700; min-width: 90px;" Class="mr-4">3-12 Months</MudChip>
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Process and infrastructure improvement</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #546e7a;">UPS power supply to process monitoring systems, spares and inventory rationalization and better vehicle utilization for field jobs.</MudText>
+                        </div>
+                    </MudPaper>
+
+                    @* 12+ Months *@
+                    <MudPaper Elevation="1" Class="pa-4 d-flex align-center" Style="border-radius: 12px; border: 1px solid #e0e0e0;">
+                        <MudChip T="string" Size="Size.Small" Style="background-color: #fff8e1; color: #f57f17; font-weight: 700; min-width: 90px;" Class="mr-4">12+ Months</MudChip>
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Technology-led sustainability</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #546e7a;">Proactive maintenance, instrument air compressors and movement toward electro-pneumatic digital systems.</MudText>
+                        </div>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: IMPACT --- *@
+            <MudItem xs="12" md="6">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">IMPACT</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Impact from each horizon</MudText>
+                </div>
+
+                <MudStack Spacing="3">
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #fcf8f8;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Short term</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Fewer breakdowns, immediate OT control and lower spare consumption.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #f1f8fe;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Medium term</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Fewer emergency calls, better spare utilization, lower transport cost and faster turnaround.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #fdfdf5;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Long term</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Sustained cost reduction, better reliability and lower dependency on obsolete OEM support.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: white; border: 1px dashed #bdbdbd;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Takeaway</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Initial actions delivered fast savings. The next actions are aimed at sustaining these gains over the long term.</MudText>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+        </MudGrid>
+    </div>
+
+    <MudPaper Elevation="0" Class="pa-6 mt-6" Style="background-color: #fcfcfd; border: 1px solid #e0e0e0; border-radius: 12px;">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: SAVINGS MIX CHART --- *@
+            <MudItem xs="12" md="7">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">SAVINGS MIX</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Contribution to total savings</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #78909c;">% share of each verticals.</MudText>
+                </div>
+
+                <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 450px; border: 1px solid #eceff1;">
+                    <div style="height: 380px; width: 100%;">
+                        <canvas id="savingsMixChart"></canvas>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: INTERPRETATION --- *@
+            <MudItem xs="12" md="5">
+                <MudText Typo="Typo.caption" Style="color: #78909c; font-weight: 700;">Meaning</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mb-6">Savings interpretation</MudText>
+
+                <ul style="list-style-type: none; padding-left: 0;">
+                    <li class="mb-4">
+                        <MudText Typo="Typo.body1" Style="color: #263238;">
+                            <span style="font-weight: 800; color: #1a237e;">• Proactive Preventive maintenance</span> are the most powerful value drivers.
+                        </MudText>
+                    </li>
+                    <li class="mb-4">
+                        <MudText Typo="Typo.body1" Style="color: #263238;">
+                            <span style="font-weight: 800; color: #1a237e;">• Technology improvement</span> has meaningful impact on cost optimization when linked to reliability.
+                        </MudText>
+                    </li>
+                    <li class="mb-4">
+                        <MudText Typo="Typo.body1" Style="color: #263238;">
+                            <span style="font-weight: 800; color: #1a237e;">• Overtime control</span> adds discipline and supports cost stability.
+                        </MudText>
+                    </li>
+                    <li class="mb-6">
+                        <MudText Typo="Typo.body1" Style="color: #263238;">
+                            <span style="font-weight: 800; color: #1a237e;">• Transport efficiency</span> is a smaller contributor, but still useful as part of a full control culture.
+                        </MudText>
+                    </li>
+                </ul>
+
+                <MudPaper Elevation="0" Class="pa-5" Style="background-color: #f1f8fe; border-radius: 12px; border: 1px solid #e3f2fd;">
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Key focus</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #546e7a;">The next phase will continue to focus on maintenance quality, system reliability and practical technology upgrades.</MudText>
+                </MudPaper>
+            </MudItem>
+
+        </MudGrid>
+    </MudPaper>
+
+
+    @* --- TECHNOLOGY ACTIONS AND ROLLOUT PROGRESS --- *@
+    <div class="mt-10 mb-8">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: TECHNOLOGY ACTIONS --- *@
+            <MudItem xs="12" md="6">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">TECHNOLOGY</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Technology actions creating value</MudText>
+                </div>
+
+                <MudStack Spacing="3">
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #f8f9fa;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">UPS-backed power for process monitoring systems</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;" Class="mt-1">
+                            Using existing SCADA RTU UPS power helps controllers avoid power-fluctuation resets during outages and DG changeovers. This reduces emergency calls, controller stress and replacement cost.
+                        </MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #fffefb; border: 1px solid #fff3e0;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">PLC-based upgradation of older controls</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;" Class="mt-1">
+                            Replacing old relay and sequence-based control arrangements in older boiler and MSG systems makes troubleshooting faster and reduces dependence on obsolete OEM spares.
+                        </MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: white;">
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: #1a237e;">Value delivered</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;" Class="mt-1">
+                            Stable power and maintainable controls reduce repeat failures and improve response time.
+                        </MudText>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: ROLLOUT PROGRESS --- *@
+            <MudItem xs="12" md="6">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">ROLLOUT STATUS</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">UPS rollout progress</MudText>
+                </div>
+
+                <MudPaper Elevation="1" Class="pa-6" Style="border-radius: 12px;">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">SCADA UPS power to PMS completed</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight: 900; color: #2e7d32;">9 / 21</MudText>
+                    </MudStack>
+
+                    <MudProgressLinear Color="Color.Success" Value="43" Size="Size.Large" SecondaryColor="Color.Default" Class="rounded-lg my-4" Style="height: 20px;" />
+
+                    <MudText Typo="Typo.body2" Style="color: #546e7a;">
+                        About 43% of the rollout is complete. The remaining 12 sites form a clear medium-term action pool.
+                    </MudText>
+                </MudPaper>
+
+                <MudGrid Spacing="2" Class="mt-4">
+                    <MudItem xs="4">
+                        <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">COMPLETE</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 900; color: #2e7d32;">43%</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px;">Current progress level</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">REMAINING</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 900; color: #f57f17;">12</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px;">Sites still pending</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudPaper Elevation="1" Class="pa-4 text-center" Style="border-radius: 12px; height: 100%;">
+                            <MudText Typo="Typo.overline" Style="font-weight: 700; color: #78909c;">NEXT VALUE</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 900; color: #1565c0;">Lower</MudText>
+                            <MudText Typo="Typo.caption" Style="font-size: 10px;">Emergency calls from power issues</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+
+        </MudGrid>
+    </div>
+
+
+    @* --- FINAL SECTION: PRIORITY FOCUS AND WAY FORWARD --- *@
+    <div class="mt-10 mb-12">
+        <MudGrid Spacing="6">
+
+            @* --- LEFT COLUMN: PRIORITY FOCUS --- *@
+            <MudItem xs="12" md="7">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">PRIORITY ACTIONS</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Priority focus for the next phase</MudText>
+                </div>
+
+                <MudGrid Spacing="3">
+                    @* High Priority *@
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 16px; height: 100%; border-top: 4px solid #d32f2f;">
+                            <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">High priority</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #263238;" Class="mt-2">
+                                <span style="font-weight: 800;">Servo gas to instrument air transition</span> through air compressors to reduce breakdown-related cost, improve standardization and reduce fugitive gas issues.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    @* Medium Priority *@
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 16px; height: 100%;">
+                            <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Medium priority</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #263238;" Class="mt-2">
+                                <span style="font-weight: 800;">Complete UPS power hookup</span> for the remaining sites to reduce avoidable controller and monitoring interruptions.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    @* Ongoing Control *@
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 16px; height: 100%;">
+                            <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Ongoing control</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #263238;" Class="mt-2">
+                                <span style="font-weight: 800;">Continue OT monitoring</span> through roster discipline and field deployment planning.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    @* Sustained Discipline *@
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 16px; height: 100%;">
+                            <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Sustained discipline</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #263238;" Class="mt-2">
+                                <span style="font-weight: 800;">Maintain preventive maintenance excellence</span> and track compliance at a monthly level.
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+
+            @* --- RIGHT COLUMN: WAY FORWARD --- *@
+            <MudItem xs="12" md="5">
+                <div class="mb-4">
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900; font-size: 10px;">CONCLUSION</MudChip>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800; color: #1a237e;" Class="mt-2">Way Forward</MudText>
+                </div>
+
+                <MudStack Spacing="3">
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #f1f8fe;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">What has been proven</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Cost optimization has been achieved through disciplined maintenance, practical field control and targeted technology improvement.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #f7faf9;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Road ahead</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">The next cycle should sustain current gains and pursue further optimization through modernization of legacy systems, proactive maintenance and continued control of manpower and support activity.</MudText>
+                    </MudPaper>
+
+                    <MudPaper Elevation="1" Class="pa-5" Style="border-radius: 12px; background-color: #fffefb; border: 1px solid #fff3e0;">
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #1a237e;">Planned direction for FY 2026-27</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #546e7a;">Complete power stabilization, instrument air system infrastructure, modernize older instrumentation arrangements and keep maintenance practices disciplined and measurable.</MudText>
+                    </MudPaper>
+                </MudStack>
+            </MudItem>
+
+        </MudGrid>
+    </div>
+
+
+
+
+
+
+
+</MudContainer>
+
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("setupCharts");
+            // Trigger the new JS function to draw the charts
+            await JS.InvokeVoidAsync("setupReductionCharts");
+
+            await JS.InvokeVoidAsync("setupSavingsMixChart");
+        }
+    }
+}

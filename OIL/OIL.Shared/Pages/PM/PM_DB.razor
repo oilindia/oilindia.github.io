@@ -1,0 +1,650 @@
+﻿@page "/pmdb"
+
+<style>
+    /* Fix for Line Chart styling (replaces LineStrokeWidth) */
+    .mud-chart-line {
+        stroke-width: 3px !important;
+    }
+
+    /* Fix for Dot styling on Trend Lines */
+    .mud-chart-line-dot {
+        r: 6px !important;
+    }
+
+    /* Ensure the grid lines look subtle like the provided images */
+    .mud-charts-grid-line {
+        stroke: #f1f5f9 !important;
+        stroke-width: 1px;
+    }
+
+    /* Styling for the KPI cards title (uppercase look) */
+    .mud-overline {
+        letter-spacing: 0.1rem;
+        font-weight: 700;
+        color: #64748b;
+    }
+
+
+    /* Makes the Donut chart thinner to match the UI spec */
+    .mud-chart-donut-ring {
+        stroke-width: 12 !important;
+    }
+
+    /* Optional: Style the overtime bars to be slightly rounded if your version supports it */
+    .mud-chart-bar {
+        rx: 6px;
+    }
+
+
+    /* Ensure lines are straight and thick */
+    .mud-chart-line {
+        stroke-width: 3px !important;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    /* Style the markers (dots) on the trend lines */
+    .mud-chart-line-dot {
+        r: 5px !important;
+        stroke-width: 2px;
+    }
+
+    /* Adjust Donut thickness */
+    .mud-chart-donut-ring {
+        stroke-width: 10 !important;
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    
+    <MudPaper Elevation="0" Class="pa-8" Style="background-color: #122c4f; border-radius: 0px; min-height: 300px; color: white;">
+
+        @* Badge / Category Top Left *@
+        <div style="border: 1.5px solid #ffa726; border-radius: 50px; width: fit-content;" class="px-4 py-1 mb-6">
+            <MudText Typo="Typo.caption" Style="color: #ffa726; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">
+                Instrumentation Field Maintenance
+            </MudText>
+        </div>
+
+        @* Main Titles *@
+        <MudText Typo="Typo.h3" Style="font-weight: 700;" Class="mb-1">
+            Preventive Maintenance Dashboard
+        </MudText>
+
+        <MudText Typo="Typo.h3" Style="color: #ffcc80; font-weight: 700;" Class="mb-6">
+            FY 2025-26
+        </MudText>
+
+        @* Description *@
+        <MudText Typo="Typo.body1" Style="color: #b0bec5; max-width: 800px;" Class="mb-8">
+            Dashboard summarising preventive maintenance performance, field coverage, maintenance trends and
+            operational benefits achieved through a stronger PM programme.
+        </MudText>
+
+        @* Metadata Footer *@
+        <MudStack Row="true" Spacing="6" AlignItems="AlignItems.Center">
+
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Style="color: #90a4ae;" Class="mr-2" />
+                <MudText Typo="Typo.body2" Style="color: #cfd8dc;">
+                    <b>Reporting Period:</b> FY 2025-26
+                </MudText>
+            </div>
+
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Style="color: #90a4ae;" Class="mr-2" />
+                <MudText Typo="Typo.body2" Style="color: #cfd8dc;">
+                    <b>Scope:</b> Preventive Maintenance Activities
+                </MudText>
+            </div>
+
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.CheckBox" Size="Size.Small" Style="color: #90a4ae;" Class="mr-2" />
+                <MudText Typo="Typo.body2" Style="color: #cfd8dc;">
+                    <b>Focus:</b> Reliability, Coverage and Traceability
+                </MudText>
+            </div>
+
+        </MudStack>
+    </MudPaper>
+
+
+
+    @* --- Summary Section --- *@
+    <SummarySection />
+
+    @* --- SUMMARY SECTION --- *@
+    <div class="mt-8 mb-4">
+        <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Upgrade" Color="Color.Error" Size="Size.Medium" />
+                <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">Summary</MudText>
+            </MudStack>
+            <MudText Typo="Typo.caption" Style="color: #78909c;">Definition, purpose and overall programme context</MudText>
+        </div>
+
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-4" Style="background-color: #fffde7; border-color: #ffe082;">
+            <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;">About Preventive Maintenance</MudText>
+            <MudText Typo="Typo.body2" Class="mt-1" Style="color: #455a64; line-height: 1.6;">
+                Preventive maintenance (PM) is a planned maintenance strategy in which predetermined maintenance actions are executed at scheduled intervals...
+            </MudText>
+        </MudAlert>
+
+        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Style="background-color: #f1f8e9; border-color: #c5e1a5;">
+            <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;">Dashboard Objective</MudText>
+            <MudText Typo="Typo.body2" Class="mt-1" Style="color: #455a64; line-height: 1.6;">
+                This dashboard presents the year-wise preventive maintenance trend, PM share of total jobs, field-wise PM distribution...
+            </MudText>
+        </MudAlert>
+    </div>
+
+    @* --- KPI SNAPSHOT SECTION --- *@
+    <div class="mt-10">
+        <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="Color.Primary" Size="Size.Medium" />
+                <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">KPI Snapshot</MudText>
+            </MudStack>
+            <MudText Typo="Typo.caption" Style="color: #78909c;">Key numbers at a glance for FY 2025-26</MudText>
+        </div>
+
+        <MudGrid Spacing="3">
+            @* Card 1 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #90a4ae; position: relative; height: 180px;">
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; color: #546e7a;">PM JOBS (INSTALLATION WISE)</MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; color: #263238;" Class="my-2">79</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #78909c;">Preventive maintenance jobs completed in FY 2025-26</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Work" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
+                </MudPaper>
+            </MudItem>
+
+            @* Card 2 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #ffb74d; position: relative; height: 180px;">
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; color: #546e7a;">PM SHARE OF TOTAL JOBS</MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; color: #263238;" Class="my-2">10%</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #78909c;">Highest PM share in the three-year trend</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
+                </MudPaper>
+            </MudItem>
+
+            @* Card 3 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #4caf50; position: relative; height: 180px;">
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; color: #546e7a;">NON-PM JOBS</MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; color: #263238;" Class="my-2">2,458</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #78909c;">Breakdown Maintenance Jobs</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Build" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
+                </MudPaper>
+            </MudItem>
+
+            @* Card 4 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #ef5350; position: relative; height: 180px;">
+                    <MudText Typo="Typo.overline" Style="font-weight: 800; color: #546e7a;">TOTAL MAN DAYS IN PM JOBS</MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; color: #263238;" Class="my-2">258</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #78909c;">Total effort deployed for PM work during FY 2025-26</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+
+
+
+    @* --- POLICY AND CHANGES SECTION --- *@
+    <div class="mt-10">
+        <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Info" Size="Size.Medium" />
+                <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">PM Policy and Effective Changes During FY 2025-26</MudText>
+            </MudStack>
+            <MudText Typo="Typo.caption" Style="color: #78909c;">Structured process improvements introduced in the PM Programme</MudText>
+        </div>
+
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="1" Class="pa-6" Style="height: 100%; border-radius: 12px;">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                        <div style="height: 10px; width: 10px; background-color: #1976d2; border-radius: 50%;"></div>
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 700; color: #1a237e;">Policy Improvements</MudText>
+                    </MudStack>
+
+                    <MudStack Spacing="4">
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Info" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">A strengthened and proactive preventive maintenance approach was adopted by the Field Maintenance section.</MudText>
+                        </div>
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Default" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">Maintenance checklists were revised to improve traceability from field work to final reporting.</MudText>
+                        </div>
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Default" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">The scope was expanded beyond routine flapper-nozzle servicing to include process calibration and setting of controllers.</MudText>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="1" Class="pa-6" Style="height: 100%; border-radius: 12px;">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                        <div style="height: 10px; width: 10px; background-color: #1976d2; border-radius: 50%;"></div>
+                        <MudText Typo="Typo.subtitle1" Style="font-weight: 700; color: #1a237e;">Frequency and Execution Changes</MudText>
+                    </MudStack>
+
+                    <MudStack Spacing="4">
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.Update" Color="Color.Info" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">Earlier, no proper schedule was maintained for PM activities.</MudText>
+                        </div>
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Color="Color.Default" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">During FY 2025-26, focused efforts were made to conduct PM activities twice per installation.</MudText>
+                        </div>
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.Folder" Color="Color.Warning" Class="mr-3" />
+                            <MudText Typo="Typo.body2" Style="color: #455a64;">Documentation quality was improved so that calibration findings could be retained for future use.</MudText>
+                        </div>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    @* --- WHAT WE ACHIEVED SECTION --- *@
+    <div class="mt-10">
+        <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CheckBox" Color="Color.Success" Size="Size.Medium" />
+                <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">What We Achieved</MudText>
+            </MudStack>
+            <MudText Typo="Typo.caption" Style="color: #78909c;">Benefits realised through increased preventive maintenance activities</MudText>
+        </div>
+
+        <MudGrid Spacing="2">
+            @* Achievement Card 1 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #4caf50; border-radius: 12px; height: 100%;">
+                    <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Success" Size="Size.Large" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;" Class="mb-2">Zero Downtime Due to Instrument Maintenance Failure</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #607d8b;">Early detection of degradation, calibration drift, and corrosion helped prevent failures.</MudText>
+                </MudPaper>
+            </MudItem>
+
+            @* Achievement Card 2 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #ff9800; border-radius: 12px; height: 100%;">
+                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Default" Size="Size.Large" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;" Class="mb-2">Reduction in Employee Overtime</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #607d8b;">Lower emergency maintenance frequency reduced the need for unplanned overtime.</MudText>
+                </MudPaper>
+            </MudItem>
+
+            @* Achievement Card 3 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #2196f3; border-radius: 12px; height: 100%;">
+                    <MudIcon Icon="@Icons.Material.Filled.MenuBook" Color="Color.Default" Size="Size.Large" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;" Class="mb-2">Comprehensive Field Data</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #607d8b;">A more complete database of set points and operating ranges was developed.</MudText>
+                </MudPaper>
+            </MudItem>
+
+            @* Achievement Card 4 *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #f44336; border-radius: 12px; height: 100%;">
+                    <MudIcon Icon="@Icons.Material.Filled.Mail" Color="Color.Default" Size="Size.Large" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1a237e;" Class="mb-2">Fewer Breakdown Reports</MudText>
+                    <MudText Typo="Typo.caption" Style="color: #607d8b;">Improved equipment reliability resulted in fewer complaints from field installations.</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    @* --- OPERATIONAL SIGNIFICANCE FOOTER --- *@
+    <MudPaper Elevation="0" Class="pa-4 mt-10" Style="background-color: #e3f2fd; border-radius: 8px;">
+        <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #0d47a1;" Class="mb-1">Operational Significance</MudText>
+        <MudText Typo="Typo.body2" Style="color: #455a64; line-height: 1.5;">
+            In oil and gas operations, a single component failure can trigger wider process disruption. By preserving instrument accuracy and control reliability,
+            preventive maintenance reduces the possibility of cascading failures and emergency shutdown situations.
+        </MudText>
+    </MudPaper>
+
+
+    @* --- 2nd Code Block --- *@
+
+
+    @* --- Header remains same --- *@
+    <div class="d-flex align-center mb-1">
+        <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
+        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">PM Trends & Growth</MudText>
+    </div>
+    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
+        Three-year PM trend, PM percentage trend and year-on-year growth
+    </MudText>
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" md="4">
+            <ChartCard Title="Year-wise PM Jobs (In Days)">
+                @* Add T="double" here *@
+                <MudChart T="double" 
+                          ChartType="ChartType.Line" 
+                          ChartSeries="@_pmDaysSeries" 
+                          XAxisLabels="@_years" 
+                          Width="100%" Height="250px"
+                          ChartOptions="@_lineOptions" />
+            </ChartCard>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <ChartCard Title="Total Number of PM Jobs (Installation Wise)">
+                <MudChart T="double" 
+                          ChartType="ChartType.Bar" 
+                          ChartSeries="@_pmCountSeries" 
+                          XAxisLabels="@_yearsPi" 
+                          Width="100%" Height="250px" />
+            </ChartCard>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <ChartCard Title="PM % of Total Jobs">
+                <MudChart T="double" 
+                          ChartType="ChartType.Line" 
+                          ChartSeries="@_pmPercentSeries" 
+                          XAxisLabels="@_yearsPi" 
+                          Width="100%" Height="250px"
+                          ChartOptions="@_percentOptions" />
+            </ChartCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <ChartCard Title="YoY Growth in PM Activities">
+                <MudChart T="double" 
+                          ChartType="ChartType.Bar" 
+                          ChartSeries="@_yoySeries" 
+                          XAxisLabels="@_yoyYears" 
+                          Width="100%" Height="250px" />
+                <MudText Typo="Typo.caption" Align="Align.Center" Class="d-block mt-2" Style="color: #94a3b8;">
+                    2023-24 considered as base year for comparison
+                </MudText>
+            </ChartCard>
+        </MudItem>
+    </MudGrid>
+
+
+    @* --- Field-wise Distribution Section --- *@
+    <div class="d-flex align-center mb-1">
+        <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
+        <MudIcon Icon="@Icons.Material.Filled.PieChart" Class="mr-2" />
+        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Field-wise Distribution</MudText>
+    </div>
+    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
+        Distribution of PM activities across major field groupings in FY 2025-26
+    </MudText>
+
+    <MudGrid Class="mb-10">
+        @* 1. Pie Chart: Field-wise PM Share *@
+        @* <MudItem xs="12" md="6">
+            <ChartContainer Title="Field-wise PM Share">
+                
+                <MudChart T="double" ChartType="ChartType.Pie" 
+                          InputData="@_shareData" 
+                          InputLabels="@_shareLabels" 
+                          Width="300px" Height="300px"
+                          ChartOptions="@_pieOptions"
+                          LegendPosition="Position.Bottom" />
+            </ChartContainer>
+        </MudItem> *@
+
+        @* 2. Bar Chart: Field-wise PM Jobs *@
+        <MudItem xs="12" md="6">
+            <ChartContainer Title="Field-wise PM Jobs">
+                <MudChart T="double" ChartType="ChartType.Bar" 
+                          ChartSeries="@_pmCountSeriesFW" 
+                          XAxisLabels="@_shareLabels" 
+                          Width="100%" Height="300px"
+                          LegendPosition="Position.Bottom"
+                          ChartOptions="@_barOptions" />
+            </ChartContainer>
+        </MudItem>
+    </MudGrid>
+
+    @* --- Comparative Analysis Section --- *@
+    <div class="d-flex align-center mt-10 mb-1">
+        <div style="width: 4px; height: 24px; background-color: #3b82f6; margin-right: 12px;"></div>
+        <MudIcon Icon="@Icons.Material.Filled.BarChart" Class="mr-2" />
+        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Comparative Analysis</MudText>
+    </div>
+    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
+        Comparison of PM and non-PM jobs across the last three financial years
+    </MudText>
+
+    <MudGrid>
+        @* 3. Grouped Bar: PM vs Non-PM Jobs *@
+        <MudItem xs="12" md="6">
+            <ChartContainer Title="PM vs Non-PM Jobs">
+                <MudChart T="double" ChartType="ChartType.Bar" 
+                          ChartSeries="@_compSeriesGrouped" 
+                          XAxisLabels="@_yearsPi" 
+                          Width="100%" Height="300px"
+                          LegendPosition="Position.Bottom" />
+            </ChartContainer>
+        </MudItem>
+
+        @* 4. Stacked Bar: Stacked Job Mix *@
+        <MudItem xs="12" md="6">
+            <ChartContainer Title="Stacked Job Mix">
+                @* Use ChartOptions to configure stacking *@
+                <MudChart T="double" ChartType="ChartType.StackedBar" 
+                          ChartSeries="@_compSeriesStacked" 
+                          XAxisLabels="@_yearsPi" 
+                          Width="100%" Height="300px"
+                          LegendPosition="Position.Bottom"
+                          ChartOptions="@_stackedBarOptions" />
+            </ChartContainer>
+        </MudItem>
+    </MudGrid>
+
+
+
+    @* --- 3rd Code Block --- *@
+
+
+    @* --- Header --- *@
+    <div class="d-flex align-center mb-1">
+        <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
+        <MudIcon Icon="@Icons.Material.Filled.Search" Class="mr-2" />
+        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Additional Insights</MudText>
+    </div>
+    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
+        Maintenance trends and PM job distribution by production field grouping
+    </MudText>
+
+    <MudGrid>
+        @* 1. Dual Axis Chart: Maintenance Trends with PM % *@
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
+                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">Maintenance Trends with PM %</MudText>
+                <MudChart T="double" ChartType="ChartType.Line"
+                          ChartSeries="@_trendSeries"
+                          XAxisLabels="@_years"
+                          Width="100%" Height="300px"
+                          ChartOptions="@_trendOptions" />
+            </MudPaper>
+        </MudItem>
+
+        @* 2. Donut Chart: PM Jobs in CF, WF and EF *@
+        @* <MudItem xs="12" md="4">
+            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
+                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">PM Jobs in CF, WF and EF (2025-26)</MudText>
+                <MudChart T="double" ChartType="ChartType.Donut"
+                          InputData="@_fieldData"
+                          InputLabels="@_fieldLabels"
+                          Width="250px" Height="250px"
+                          LegendPosition="Position.Bottom"
+                          ChartOptions="@_donutOptions" />
+            </MudPaper>
+        </MudItem> *@
+
+        @* 3. Bar Chart: Total OverTime (OT) *@
+        <MudItem xs="12" md="4">
+            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
+                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">Total OverTime (OT)</MudText>
+                <MudChart T="double" ChartType="ChartType.Bar"
+                          ChartSeries="@_otSeries"
+                          XAxisLabels="@_otYears"
+                          Width="100%" Height="300px"
+                          ChartOptions="@_otOptions" />
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+</MudContainer>
+
+
+
+
+
+
+
+
+@code {
+    private string[] _years = { "2023-2024", "2024-2025", "2025-2026" };
+    private string[] _yoyYears = { "2024-2025", "2025-2026" };
+
+    // Explicitly define ChartSeries<double>
+    private List<ChartSeries<double>> _pmDaysSeries = new()
+    {
+        new ChartSeries<double> { Name = "PM Jobs", Data = new double[] { 70, 152, 258 } }
+    };
+
+    private List<ChartSeries<double>> _pmCountSeries = new()
+    {
+        new ChartSeries<double> { Name = "Jobs Count", Data = new double[] { 32, 49, 79 } }
+    } ;
+
+    private List<ChartSeries<double>> _pmPercentSeries = new()
+    {
+        new ChartSeries<double> { Name = "PM % of Total Jobs", Data = new double[] { 2.6, 5.1, 10 } }
+    };
+
+    private List<ChartSeries<double>> _yoySeries = new()
+    {
+        new ChartSeries<double> { Name = "YoY Growth %", Data = new double[] { 53, 146 } }
+    };
+
+    // Fix for property errors: Use the correct ChartOptions properties
+    private ChartOptions _lineOptions = new ChartOptions 
+    { 
+        // LineStrokeWidth = 3,
+        // // YAxisLines property is used instead of YAxisTicks for grid control
+        // YAxisLines = 6 
+    };
+
+    private ChartOptions _percentOptions = new ChartOptions 
+    { 
+        // Note: Formatting might vary based on your specific MudBlazor version
+        // Standard MudBlazor ChartOptions usually supports YAxisTicks but not always YAxisFormat directly in older/standard options.
+    };
+
+
+
+}
+
+
+
+@code {
+    private string[] _shareLabels = { "OCS/EPS/QPS/FGGS/WHS", "GCS", "WI" };
+    private string[] _yearsPi = { "2023-2024", "2024-2025", "2025-2026" };
+
+    // --- Chart Data Setups ---
+
+    // Pie Data
+    private double[] _shareData = { 62.9, 25.8, 11.3 };
+
+    // Bar Data for PM Counts
+    private List<ChartSeries<double>> _pmCountSeriesFW = new()
+    {
+        new ChartSeries<double> { Name = "PM Activities", Data = new double[] { 39, 16, 7 } }
+    };
+
+    // Grouped and Stacked comparison data
+    private List<ChartSeries<double>> _compSeriesGrouped = new()
+    {
+        new ChartSeries<double> { Name = "PM Jobs", Data = new double[] { 90, 160, 260 } },
+        new ChartSeries<double> { Name = "Non-PM Jobs", Data = new double[] { 2700, 2900, 2500 } }
+    };
+
+    // Same data but used for stacking
+    private List<ChartSeries<double>> _compSeriesStacked = new()
+    {
+        new ChartSeries<double> { Name = "PM Jobs", Data = new double[] { 90, 160, 260 } },
+        new ChartSeries<double> { Name = "Non-PM Jobs", Data = new double[] { 2700, 2900, 2500 } }
+    };
+
+    // --- Chart Options Configurations ---
+
+    private ChartOptions _pieOptions = new ChartOptions
+    {
+        // Custom colors matching the image theme (Blue, Orange, Green)
+        ChartPalette = new[] { "#0284c7", "#f59e0b", "#22c55e" }
+    };
+
+    private ChartOptions _barOptions = new ChartOptions
+    {
+        // Bar charts often use separate palettes or shared colors
+        ChartPalette = new[] { "#0284c7", "#f59e0b", "#22c55e" }
+    };
+
+    private ChartOptions _stackedBarOptions = new ChartOptions
+    {
+        // For stacked bar charts, we use a single palette where the first two colors map to the series
+        ChartPalette = new[] { "#22c55e", "#a7d7f8" }, // Green for PM, Light Blue for Non-PM
+        //YAxisLines = 7
+    };
+}
+
+
+
+@code {
+    private string[] _yearsAI = { "2023-2024", "2024-2025", "2025-2026" };
+    private string[] _otYears = { "2024-2025", "2025-2026" };
+    private string[] _fieldLabels = { "Number of PM jobs in CF", "Number of PM jobs in WF", "Number of PM jobs in EF" };
+
+    // Trend Chart Data
+    private List<ChartSeries<double>> _trendSeries = new()
+    {
+        new ChartSeries<double> { Name = "PM Jobs", Data = new double[] { 120, 210, 300 } },
+        new ChartSeries<double> { Name = "Non-PM Jobs", Data = new double[] { 2600, 2800, 2458 } },
+        new ChartSeries<double> { Name = "PM %", Data = new double[] { 2.5, 5.1, 10.0 } }
+    };
+
+    // Donut Data
+    private double[] _fieldData = { 57.8, 25.0, 17.2 };
+
+    // Overtime Bar Data
+    private List<ChartSeries<double>> _otSeries = new()
+    {
+        new ChartSeries<double> { Name = "OT Hours", Data = new double[] { 9000, 7700 } }
+    };
+
+    // Chart Options
+    private ChartOptions _trendOptions = new ChartOptions
+    {
+        ChartPalette = new[] { "#0284c7", "#f59e0b", "#22c55e" }
+    };
+
+    private ChartOptions _donutOptions = new ChartOptions
+    {
+        ChartPalette = new[] { "#0284c7", "#f59e0b", "#94a3b8" }
+    };
+
+    private ChartOptions _otOptions = new ChartOptions
+    {
+        ChartPalette = new[] { "#5b89ba" }
+    };
+}

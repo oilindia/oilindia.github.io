@@ -8,15 +8,16 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-10">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 mb-10 no-print">
     <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true"><b>OIL Resource Dispatch Mapper</b></MudText>
 
-    @* --- SECTION 1: FORM --- *@
-    <MudGrid Justify="Justify.Center" Class="align-center mt-4">
+    @* --- SECTION 1: UPPER PANEL --- *@
+    <MudGrid Justify="Justify.Center" Class="align-center mt-6">
         <MudItem xs="12" md="3">
-            <MudPaper Elevation="4" Class="pa-3" Style="border-top: 4px solid var(--mud-palette-primary);">
-                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>1. Driver / Vehicle</b></MudText>
-                <MudSelect T="Driver" Label="Select Driver" Variant="Variant.Outlined" @bind-Value="_selectedDriver" Dense="true">
+            <MudPaper Elevation="4" Class="pa-8" Style="border-top: 6px solid var(--mud-palette-primary); min-height: 220px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Driver / Vehicle</b></MudText>
+                <MudSelect T="Driver" Label="Select Driver" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
+                           ToStringFunc="@(d => d?.FullName)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var d in _dbDrivers)
                     {
                         <MudSelectItem T="Driver" Value="@d">@d.FullName</MudSelectItem>
@@ -26,11 +27,10 @@
         </MudItem>
 
         <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-3" Style="border-top: 4px solid var(--mud-palette-info);">
-                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>2. Jobs Assigned</b></MudText>
-                <MudSelect T="Job" Label="Select Jobs" MultiSelection="true"
-                           @bind-SelectedValues="_selectedJobs"
-                           Variant="Variant.Outlined" Dense="true">
+            <MudPaper Elevation="4" Class="pa-8" Style="border-top: 6px solid var(--mud-palette-info); min-height: 220px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>2. Jobs Assigned</b></MudText>
+                <MudSelect T="Job" Label="Select Jobs" MultiSelection="true" @bind-SelectedValues="_selectedJobs"
+                           Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var j in _dbJobs)
                     {
                         <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
@@ -40,11 +40,10 @@
         </MudItem>
 
         <MudItem xs="12" md="3">
-            <MudPaper Elevation="4" Class="pa-3" Style="border-top: 4px solid var(--mud-palette-secondary);">
-                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>3. Personnel</b></MudText>
-                <MudSelect T="Engineer" Label="Select Team" MultiSelection="true"
-                           @bind-SelectedValues="_selectedEngineers"
-                           Variant="Variant.Outlined" Dense="true">
+            <MudPaper Elevation="4" Class="pa-8" Style="border-top: 6px solid var(--mud-palette-secondary); min-height: 220px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>3. Personnel</b></MudText>
+                <MudSelect T="Engineer" Label="Select Team" MultiSelection="true" @bind-SelectedValues="_selectedEngineers"
+                           Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var p in _dbEngineers)
                     {
                         <MudSelectItem T="Engineer" Value="@p">@p.FullName</MudSelectItem>
@@ -53,149 +52,381 @@
             </MudPaper>
         </MudItem>
 
-        <MudItem xs="12" md="1">
-            <MudFab Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="SaveAssignment" />
+        <MudItem xs="12" md="1" Class="d-flex align-center justify-center">
+            <MudFab Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="SaveAssignment" Label="Plot" Size="Size.Large" />
         </MudItem>
     </MudGrid>
 
-    @* --- SECTION 2: TABLE --- *@
-    <MudTable Items="@_assignments" Class="mt-8" Dense="true" Hover="true" Elevation="4">
+    <MudDivider Class="my-10" />
+
+    @* --- SECTION 2: DISPATCH TABLE --- *@
+    <MudTable Items="@_assignments" Hover="true" Elevation="4" Loading="@_loading" Dense="true" Class="mx-2">
         <HeaderContent>
             <MudTh>Date</MudTh>
             <MudTh>Doc No</MudTh>
             <MudTh>Driver</MudTh>
+            <MudTh>Jobs</MudTh>
+            <MudTh>Personnel</MudTh>
             <MudTh Style="text-align:right">Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.PrintableDate</MudTd>
             <MudTd><b>@context.DocNumber</b></MudTd>
             <MudTd>@GetDriverName(context.DriverId)</MudTd>
+            <MudTd>
+                @foreach (var id in context.JobIds)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@GetJobName(id)</MudChip>
+                }
+            </MudTd>
+            <MudTd><small>@string.Join(", ", context.PersonnelIds.Select(GetEngineerName))</small></MudTd>
             <MudTd Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Info" OnClick="@(() => OpenPrintCard(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Info" OnClick="@(() => PrepareJobCard(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEditModal(context))" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteAssignment(context.Id))" />
             </MudTd>
         </RowTemplate>
     </MudTable>
 </MudContainer>
 
-@* --- SECTION 3: JOB CARD PRINT --- *@
-@if (_isPrintModalOpen)
+@* --- SECTION 3: EDIT MODAL --- *@
+@if (_isEditModalOpen)
 {
-    <div class="oil-print-overlay">
-        <div id="print-area" class="oil-card">
-            <div class="card-header">
-                <div class="header-box"><b>OIL INDIA LIMITED</b><br /><small>Instrumentation Dept</small></div>
-                <div class="header-box"><b>JOB CARD</b><br /><small>@_printItem.DocNumber</small></div>
-                <div class="header-box text-right"><b>Date:</b><br />@_printItem.PrintableDate</div>
+    <div class="oil-edit-overlay no-print">
+        <MudPaper Class="pa-8 oil-edit-card" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">Edit Job Card: @_editingItem.DocNumber</MudText>
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudSelect T="Driver" Label="Driver" @bind-Value="_editDriver" Variant="Variant.Outlined" ToStringFunc="@(d => d?.FullName)">
+                        @foreach (var d in _dbDrivers)
+                        {
+                            <MudSelectItem T="Driver" Value="@d">@d.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="Job" Label="Jobs" MultiSelection="true" @bind-SelectedValues="_editJobs" Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)">
+                        @foreach (var j in _dbJobs)
+                        {
+                            <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="Engineer" Label="Personnel" MultiSelection="true" @bind-SelectedValues="_editEngineers" Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)">
+                        @foreach (var p in _dbEngineers)
+                        {
+                            <MudSelectItem T="Engineer" Value="@p">@p.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <div class="d-flex justify-end mt-6 gap-2">
+                <MudButton OnClick="() => _isEditModalOpen = false">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateAssignment">Save Changes</MudButton>
             </div>
-            <div class="card-body">
-                <div><b>Jobs:</b><br />@foreach(var id in _printItem.JobIds) {
-                    <div>• @GetJobName(id)</div>
-                }
-            </div>
-            <div><b>Team:</b> @string.Join(", ", _printItem.PersonnelIds.Select(GetEngineerName))</div>
-            <div><b>Driver:</b> @GetDriverName(_printItem.DriverId)</div>
+        </MudPaper>
+    </div>
+}
+
+@* --- SECTION 4: PRINT PREVIEW (ONLY THIS PRINTS) --- *@
+@if (_isPreviewOpen)
+{
+    <div class="print-overlay">
+        <div class="print-actions no-print pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="() => _isPreviewOpen = false" Class="mr-2">Exit Preview</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintNow" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Job Card</MudButton>
         </div>
-        <div class="no-print mt-4 d-flex justify-center gap-2">
-            <MudButton Variant="Variant.Outlined" OnClick="() => _isPrintModalOpen = false">Close</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="PrintNow">Print</MudButton>
+
+        <div id="job-card-to-print" class="job-card-main">
+            <div class="header-grid">
+                <div class="logo-box d-flex align-center pa-2">
+                    @* REPLACED ICON WITH RCL LOGO *@
+                    <div class="logo-container">
+                        <img src="_content/OIL.Shared/imgs/oil.svg" alt="Oil India Logo" style="height: 45px; width: auto;" />
+                    </div>
+                    <div class="ml-2">
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">ऑयल इंडिया लिमिटेड</MudText><br />
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">Oil India Limited</MudText><br />
+                        <MudText Style="font-size: 8px;">(A Govt. of India Enterprise)</MudText>
+                    </div>
+                </div>
+                <div class="dept-box pa-1 text-center">
+                    <MudText Style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: bold;">Instrumentation Department, Field Headquarter, Duliajan</MudText>
+                    <MudText Style="font-size: 11px;">कार्य आवंटन पर्ची</MudText>
+                    <MudText Typo="Typo.button" Style="font-weight: bold; letter-spacing: 2px;">JOB CARD</MudText>
+                </div>
+                <div class="doc-box pa-1">
+                    <MudText Style="font-size: 10px;">Doc No: <b>@ActiveJobData.DocNumber</b></MudText>
+                    <div class="mt-1" style="border-top: 1px solid black;">
+                        <MudText Style="font-size: 10px;">Date: <b>@ActiveJobData.Date.ToString("dd/MM/yy")</b></MudText>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row-flex border-top">
+                <div class="col-30 pa-1 border-right">Job Assigned by:</div>
+                <div class="col-70 pa-1 font-handwriting">Instrumentation Supervisor</div>
+            </div>
+
+            <div class="row-flex border-top" style="min-height: 380px;">
+                <div class="col-30 pa-2 border-right font-handwriting">Oil Field Headquarter / Duliajan</div>
+                <div class="col-70 pa-2 font-handwriting">
+                    @foreach (var task in ActiveJobData.Tasks)
+                    {
+                        <div class="mb-2">→ @task.Description</div>
+                    }
+                </div>
+            </div>
+
+            <div class="pa-1 border-top bg-light"><b>Details of Personnel and Vehicle Assigned :</b></div>
+            <div class="row-flex border-top">
+                <div class="col-50 border-right pa-2 font-handwriting" style="min-height: 80px;">
+                    @string.Join(", ", ActiveJobData.Personnel)
+                </div>
+                <div class="col-50 pa-2">
+                    <div class="font-handwriting">@ActiveJobData.Vehicle</div>
+                    <div class="d-flex mt-2 border-top-dotted">
+                        <MudText Style="font-size: 9px;" Class="mr-4">Opening KMS: ______</MudText>
+                        <MudText Style="font-size: 9px;">Closing KMS: ______</MudText>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pa-2 border-top bg-light"><b>Tool Box Talk Record :</b></div>
+            <div class="pa-2 border-top" style="font-size: 10px; line-height: 1.4;">
+                <div class="row-flex">
+                    <div class="col-50">1. Job Specific PPE worn.</div>
+                    <div class="col-50">2. Appropriate permit taken.</div>
+                </div>
+                <div class="row-flex">
+                    <div class="col-50">3. Operator informed.</div>
+                    <div class="col-50">4. Safety meeting conducted.</div>
+                </div>
+            </div>
+
+            <div class="pa-6 border-top text-center">
+                <div style="border-top: 1px solid black; width: 250px; margin: auto;">
+                    <MudText Style="font-size: 10px;">Signature of Attendees</MudText>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 }
 
 <style>
-    .oil-print-overlay {
+    /* --- CSS FOR PRINT ISOLATION --- */
+    @@media print {
+        /* Hide everything by default */
+        body * {
+            visibility: hidden;
+        }
+        /* Only show the job card and its content */
+        #job-card-to-print, #job-card-to-print * {
+            visibility: visible;
+        }
+        /* Position the card at the top left of the physical paper */
+        #job-card-to-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: 1px solid black; /* Ensure border shows in print */
+        }
+        /* Hide UI overlays and buttons */
+        .no-print, .print-actions, .mud-snackbar-container {
+            display: none !important;
+        }
+        /* Ensure no background colors are stripped by browsers */
+        .bg-light {
+            background-color: #f0f0f0 !important;
+            -webkit-print-color-adjust: exact;
+        }
+    }
+
+    /* Screen Styles */
+    .print-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: white;
-        z-index: 9999;
+        background: #555;
+        z-index: 9000;
         overflow-y: auto;
-        padding: 20px;
+        padding: 40px;
     }
 
-    .oil-card {
+    .job-card-main {
         width: 210mm;
+        min-height: 297mm;
         margin: auto;
         border: 2px solid black;
-        padding: 15mm;
+        background: white;
         color: black;
+        padding: 0;
     }
 
-    .card-header {
+    .header-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 2fr 1fr;
+        border-bottom: 1px solid black;
+    }
+
+    .logo-box, .dept-box {
+        border-right: 1px solid black;
+    }
+
+    .row-flex {
         display: flex;
-        justify-content: space-between;
-        border-bottom: 2px solid black;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+        width: 100%;
     }
 
-    .card-body div {
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        padding: 10px;
+    .col-30 {
+        width: 30%;
     }
 
-    @@media print {
-        body * {
-            visibility: hidden;
-        }
+    .col-50 {
+        width: 50%;
+    }
 
-        #print-area, #print-area * {
-            visibility: visible;
-        }
+    .col-70 {
+        width: 70%;
+    }
 
-        #print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-        }
+    .border-top {
+        border-top: 1px solid black;
+    }
 
-        .no-print {
-            display: none !important;
-        }
+    .border-right {
+        border-right: 1px solid black;
+    }
+
+    .bg-light {
+        background-color: #f0f0f0;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .font-handwriting {
+        font-family: 'Comic Sans MS', cursive;
+        color: #1a237e;
+        font-size: 1rem;
+    }
+
+    .oil-edit-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .oil-edit-card {
+        width: 500px;
     }
 </style>
 
 @code {
-    private bool _loading = true, _isPrintModalOpen;
-
-    // TYPE FIX: MudBlazor MultiSelection binds best to IReadOnlyCollection for the EventCallback
-    private Driver? _selectedDriver;
+    private bool _loading = true, _isPreviewOpen, _isEditModalOpen;
+    private Driver? _selectedDriver, _editDriver;
     private IReadOnlyCollection<Job> _selectedJobs { get; set; } = new List<Job>();
     private IReadOnlyCollection<Engineer> _selectedEngineers { get; set; } = new List<Engineer>();
+    private IReadOnlyCollection<Job> _editJobs { get; set; } = new List<Job>();
+    private IReadOnlyCollection<Engineer> _editEngineers { get; set; } = new List<Engineer>();
 
     private List<Driver> _dbDrivers = new();
     private List<Job> _dbJobs = new();
     private List<Engineer> _dbEngineers = new();
     private List<Assignment> _assignments = new();
-    private Assignment _printItem = new();
+    private Assignment _editingItem = new();
 
-    // MODEL FIX: Inherit from BaseModel and add Table Attributes
-    [Table("drivers")]
-    public class Driver : BaseModel
+    public JobCardModel ActiveJobData { get; set; } = new();
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
     {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("full_name")] public string FullName { get; set; } = "";
+        _loading = true;
+        try
+        {
+            _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
+            _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
+            _dbEngineers = (await SupabaseClient.From<Engineer>().Get()).Models;
+            _assignments = (await SupabaseClient.From<Assignment>().Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending).Get()).Models;
+        }
+        finally { _loading = false; StateHasChanged(); }
     }
 
-    [Table("jobs")]
-    public class Job : BaseModel
+    private void PrepareJobCard(Assignment item)
     {
-        [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("job_name")] public string JobName { get; set; } = "";
+        ActiveJobData = new JobCardModel
+        {
+            DocNumber = item.DocNumber,
+            Date = item.CreatedAt ?? DateTime.Now,
+            Vehicle = GetDriverName(item.DriverId),
+            Personnel = item.PersonnelIds.Select(GetEngineerName).ToList(),
+            Tasks = item.JobIds.Select(id => new JobTask { Description = GetJobName(id) }).ToList()
+        };
+        _isPreviewOpen = true;
     }
 
-    [Table("employees_engineers")]
-    public class Engineer : BaseModel
+    private async Task SaveAssignment()
     {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("full_name")] public string FullName { get; set; } = "";
+        if (_selectedDriver == null || !_selectedJobs.Any()) return;
+        var item = new Assignment
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            DriverId = _selectedDriver.Id,
+            JobIds = _selectedJobs.Select(x => x.Id).ToList(),
+            PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
+            DocNumber = $"OIL-{DateTime.Now:ddMMyy-HHmm}"
+        };
+        await SupabaseClient.From<Assignment>().Insert(item);
+        await LoadData();
+        _selectedDriver = null; _selectedJobs = new List<Job>(); _selectedEngineers = new List<Engineer>();
+        Snackbar.Add("Job Plotted", Severity.Success);
     }
 
+    private void OpenEditModal(Assignment item)
+    {
+        _editingItem = item;
+        _editDriver = _dbDrivers.FirstOrDefault(x => x.Id == item.DriverId);
+        _editJobs = _dbJobs.Where(x => item.JobIds.Contains(x.Id)).ToList();
+        _editEngineers = _dbEngineers.Where(x => item.PersonnelIds.Contains(x.Id)).ToList();
+        _isEditModalOpen = true;
+    }
+
+    private async Task UpdateAssignment()
+    {
+        _editingItem.DriverId = _editDriver?.Id;
+        _editingItem.JobIds = _editJobs.Select(x => x.Id).ToList();
+        _editingItem.PersonnelIds = _editEngineers.Select(x => x.Id).ToList();
+        await SupabaseClient.From<Assignment>().Update(_editingItem);
+        _isEditModalOpen = false;
+        await LoadData();
+        Snackbar.Add("Entry Updated", Severity.Info);
+    }
+
+    private async Task PrintNow() => await JS.InvokeVoidAsync("window.print");
+    private async Task DeleteAssignment(Guid id) { await SupabaseClient.From<Assignment>().Where(x => x.Id == id).Delete(); await LoadData(); }
+    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
+    private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
+    private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
+
+    public class JobCardModel { public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; }
+    public class JobTask { public string Description { get; set; } = ""; }
+
+    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; }
+    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {
@@ -205,57 +436,6 @@
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("doc_number")] public string DocNumber { get; set; } = "";
-        public string PrintableDate => CreatedAt?.ToLocalTime().ToString("dd/MM/yy HH:mm") ?? "";
+        [JsonIgnore] public string PrintableDate => CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "";
     }
-
-    protected override async Task OnInitializedAsync() => await LoadData();
-
-    private async Task LoadData()
-    {
-        try
-        {
-            _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
-            _dbEngineers = (await SupabaseClient.From<Engineer>().Get()).Models;
-            _assignments = (await SupabaseClient.From<Assignment>().Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending).Get()).Models;
-        }
-        catch { Snackbar.Add("Error loading data", Severity.Error); }
-        finally { _loading = false; StateHasChanged(); }
-    }
-
-    private async Task SaveAssignment()
-    {
-        if (_selectedDriver == null || !_selectedJobs.Any()) return;
-
-        try
-        {
-            var item = new Assignment
-            {
-                Id = Guid.NewGuid(),
-                CreatedAt = DateTime.UtcNow,
-                DriverId = _selectedDriver.Id,
-                JobIds = _selectedJobs.Select(x => x.Id).ToList(),
-                PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
-                DocNumber = $"OIL-{DateTime.Now:ddMMyy-HHmm}"
-            };
-
-            await SupabaseClient.From<Assignment>().Insert(item);
-            await LoadData();
-
-            // Clear selections
-            _selectedDriver = null;
-            _selectedJobs = new List<Job>();
-            _selectedEngineers = new List<Engineer>();
-
-            Snackbar.Add("Job Card Created", Severity.Success);
-        }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-    }
-
-    private void OpenPrintCard(Assignment item) { _printItem = item; _isPrintModalOpen = true; }
-    private async Task DeleteAssignment(Guid id) { await SupabaseClient.From<Assignment>().Where(x => x.Id == id).Delete(); await LoadData(); }
-    private async Task PrintNow() => await JS.InvokeVoidAsync("window.print");
-    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
-    private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
-    private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
 }

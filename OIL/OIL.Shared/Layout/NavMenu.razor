@@ -14,21 +14,32 @@
             <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
             <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink>
 
+
+          @*   <MudNavGroup Title="AI Assistance" Icon="@Icons.Material.Filled.Computer">
+                <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">Field Maintenance Assistance ChatBot</MudNavLink>
+               
+            </MudNavGroup> *@
+
+            
+
+
+
+
             @* --- ADMIN & MANAGER SECTION --- *@
             @if (context.User.IsInRole("Admin") || context.User.IsInRole("Manager"))
             {
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.caption" Class="px-4">ADMIN & MANAGEMENT</MudText>
 
-                <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+               @*  <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
                 
-                <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+                <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink> *@
                 
                 <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Analytics">
                     <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
                     <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
                     <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
-                    <MudNavLink Href="/jobcard">Job Card</MudNavLink>
+                    @* <MudNavLink Href="/jobcard">Job Card</MudNavLink> *@
                 </MudNavGroup>
 
                 <MudNavGroup Title="Portal Data" Icon="@Icons.Material.Filled.Storage">
@@ -38,12 +49,12 @@
                     <MudNavLink Href="/managelocations">Manage Locations</MudNavLink>
                 </MudNavGroup>
 
-                <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
-                <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+               @*  <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
+                <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink> *@
 
 
 
-                <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">Field Maintenance Assistance ChatBot</MudNavLink>
+                
             }
 
             @* --- COST DASHBOARDS (GM & Manager Only) --- *@
@@ -52,9 +63,11 @@
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.caption" Class="px-4">FINANCIALS</MudText>
                 <MudNavGroup Title="Cost Monitoring" Icon="@Icons.Material.Filled.MonetizationOn">
+                    <MudNavLink Href="/coststatic">FY26 Cost</MudNavLink>
+                    
                     <MudNavLink Href="/fmcost">Dept. Cost Portal</MudNavLink>
-                    <MudNavLink Href="/productivity">Employee Productivity</MudNavLink>
-                    <MudNavLink Href="/jobcosts">Job Cost Analysis</MudNavLink>
+                   
+                    @* <MudNavLink Href="/jobcosts">Job Cost Analysis</MudNavLink> *@
                 </MudNavGroup>
             }
 
@@ -64,6 +77,8 @@
             
             @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
+                <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
+
                 @* PM Planning for Managers *@
                 <MudNavLink Href="pmschedule" Icon="@Icons.Material.Filled.CalendarMonth">PM Scheduling</MudNavLink>
             }
