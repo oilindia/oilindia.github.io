@@ -77,17 +77,25 @@
             
             @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
-                <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
+
+                <MudNavGroup Title="PM" Icon="@Icons.Material.Filled.Storage">
+                    <MudNavLink Href="/PmDB">PM Dashboard</MudNavLink>
+                    <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
+                    <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
+                    <MudNavLink Href="/pmreports">PM Reports</MudNavLink>
+                </MudNavGroup>
+
+                @* <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
 
                 @* PM Planning for Managers *@
-                <MudNavLink Href="pmschedule" Icon="@Icons.Material.Filled.CalendarMonth">PM Scheduling</MudNavLink>
+                @* <MudNavLink Href="/pmschedule" Icon="@Icons.Material.Filled.CalendarMonth">PM Scheduling</MudNavLink>  *@
             }
 
             @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
                 @* Execution for Engineers and Managers *@
-                <MudNavLink Href="pmentry" Icon="@Icons.Material.Filled.AssignmentTurnedIn">PM Execution</MudNavLink>
-                <MudNavLink Href="/pmreports" Icon="@Icons.Material.Filled.Assessment">PM Reports</MudNavLink>
+                @* <MudNavLink Href="/pmexecution" Icon="@Icons.Material.Filled.AssignmentTurnedIn">PM Execution</MudNavLink>
+                <MudNavLink Href="/pmreports" Icon="@Icons.Material.Filled.Assessment">PM Reports</MudNavLink> *@
             }
 
         </Authorized>

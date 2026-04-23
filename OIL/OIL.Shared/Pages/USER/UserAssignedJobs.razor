@@ -1,31 +1,40 @@
 ﻿@page "/userassignedjobs"
 @using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
 @using Microsoft.AspNetCore.Components.Forms
-@inject IDialogService DialogService
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
-    @if (!_isEditing)
+    @if (!_isExecuting)
     {
-        <MudText Typo="Typo.h5" GutterBottom="true" Class="fw-bold">My Pending Assignments</MudText>
-        
-        <MudTable Items="@_pendingJobs" Context="JobRow" Hover="true" Elevation="4" Class="rounded-lg">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5" Class="fw-bold">My Pending Assignments</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" OnClick="LoadInitialData">Refresh</MudButton>
+        </MudStack>
+
+        <MudTable Items="@_pendingJobs" Hover="true" Elevation="4" Class="rounded-lg" Loading="@_loading">
             <HeaderContent>
-                <MudTh>Job ID</MudTh>
-                <MudTh>Description</MudTh>
-                <MudTh>Assigned Date</MudTh>
+                <MudTh>Job Name</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Location</MudTh>
                 <MudTh>Action</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Job ID">@JobRow.JobId</MudTd>
-                <MudTd DataLabel="Description">@JobRow.Description</MudTd>
-                <MudTd DataLabel="Assigned Date">@JobRow.AssignedDate.ToString("dd-MMM-yyyy")</MudTd>
-                <MudTd DataLabel="Action">
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary" 
-                               StartIcon="@Icons.Material.Filled.EditNote"
-                               OnClick="@(() => StartEdit(JobRow))">
-                        Update Job
-                    </MudButton>
+                <MudTd>@context.JobName</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.JobType == "preventive" ? Color.Info : Color.Warning)" Size="Size.Small">
+                        @context.JobType.ToUpper()
+                    </MudChip>
+                </MudTd>
+                <MudTd>@context.LocationId</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartJobExecution(context))">Execute</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -34,157 +43,170 @@
     {
         <MudPaper Class="pa-6" Elevation="4">
             <div class="d-flex align-center mb-4">
-                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CancelEdit" />
-                <MudText Typo="Typo.h6" Class="ml-2">Updating Job: @_selectedJob?.JobId</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CancelExecution" />
+                <MudText Typo="Typo.h6" Class="ml-2">Executing: @_selectedJob?.JobName</MudText>
             </div>
 
-            <MudGrid>
-                <MudItem xs="12">
-                    <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" 
-                                  Lines="3" @bind-Value="_workDone" Required="true" />
-                </MudItem>
-
-                <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">Evidence / Photos</MudText>
-                    <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileUpload" Accept="image/*" id="job-photo-upload" capture="camera">
-                        <ButtonTemplate>
-                            <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Info" 
-                                       StartIcon="@Icons.Material.Filled.PhotoCamera" for="job-photo-upload">
-                                Take Photo or Upload
-                            </MudButton>
-                        </ButtonTemplate>
-                    </MudFileUpload>
-                    
-                    @if (_uploadedFiles.Any())
-                    {
-                        <div class="mt-2">
-                            @foreach (var file in _uploadedFiles)
-                            {
-                                <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip>
-                            }
-                        </div>
-                    }
-                </MudItem>
-
-                <MudItem xs="12" sm="6" Class="d-flex align-center">
-                    @* Manual event handling to force UI refresh *@
-                    <MudSwitch T="bool" 
-                               Value="@_partReplaced" 
-                               ValueChanged="@OnPartReplacedChanged"
-                               Color="Color.Secondary" 
-                               Label="Was any part replaced?" />
-                </MudItem>
-
-                @* This section uses a manual check to ensure it renders *@
-                @if (_partReplaced)
+            @if (_selectedJob?.JobType == "preventive")
+            {
+                @* --- PREVENTIVE UI --- *@
+                <MudAlert Severity="Severity.Info" Class="mb-4">Checklist: <b>@_detectedType</b></MudAlert>
+                @foreach (var item in _filteredChecklist)
                 {
-                    <MudItem xs="12">
-                        <MudPaper Class="pa-4 grey lighten-5" Outlined="true">
-                            <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Replacement Details</b></MudText>
-                            <MudGrid>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Location" @bind-Value="_location" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Instrument" @bind-Value="_instrument" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Type" @bind-Value="_partType" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Make" @bind-Value="_partMake" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Model" @bind-Value="_partModel" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField T="string" Label="Range" @bind-Value="_partRange" Variant="Variant.Outlined" />
-                                </MudItem>
-                            </MudGrid>
-                        </MudPaper>
-                    </MudItem>
+                    <MudPaper Outlined="true" Class="pa-3 my-2">
+                        <MudGrid AlignItems="Center">
+                            <MudItem xs="1"><MudCheckBox T="bool" @bind-Value="item.IsCompleted" Color="Color.Primary" /></MudItem>
+                            <MudItem xs="5"><MudText>@item.TaskDescription</MudText></MudItem>
+                            <MudItem xs="6"><MudTextField T="string" @bind-Value="item.ItemObservation" Label="Remarks" Variant="Variant.Text" /></MudItem>
+                        </MudGrid>
+                    </MudPaper>
                 }
+            }
+            else
+            {
+                @* --- BREAKDOWN UI --- *@
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" Lines="3" @bind-Value="_workDone" Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileUpload" Accept="image/*" capture="camera" id="photo-up">
+                            <ButtonTemplate>
+                                <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PhotoCamera" for="photo-up">Capture Photo</MudButton>
+                            </ButtonTemplate>
+                        </MudFileUpload>
+                        @foreach (var file in _uploadedFiles) { <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip> }
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSwitch T="bool" Value="@_partReplaced" ValueChanged="@((v) => { _partReplaced = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any part replaced?" />
+                    </MudItem>
+                    @if (_partReplaced)
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Class="pa-4 grey lighten-5" Outlined="true">
+                                <MudTextField T="string" Label="Spare Parts / Instrument Details" @bind-Value="_spareDetails" Variant="Variant.Outlined" Placeholder="Model, Make, Serial..." />
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
 
-                <MudItem xs="12" Class="d-flex flex-wrap gap-4 mt-4">
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="() => SubmitJob(false)">
-                        Mark Still Pending
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="() => SubmitJob(true)">
-                        Mark as Completed
-                    </MudButton>
-                    <MudButton Variant="Variant.Text" OnClick="CancelEdit">Cancel</MudButton>
-                </MudItem>
-            </MudGrid>
+            <MudDivider Class="my-6" />
+            <div class="d-flex gap-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitJob" StartIcon="@Icons.Material.Filled.CheckCircle">Finalize & Submit</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="CancelExecution">Cancel</MudButton>
+            </div>
         </MudPaper>
     }
 </MudContainer>
 
-@code {
-    public class JobAssignment
-    {
-        public string JobId { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public DateTime AssignedDate { get; set; }
+    @code {
+    [Table("jobs")]
+    public class Job : BaseModel {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("job_type")] public string JobType { get; set; } = "";
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("status")] public string Status { get; set; } = "pending";
     }
 
-    private bool _isEditing = false;
-    private JobAssignment? _selectedJob;
-    private List<JobAssignment> _pendingJobs = new();
-    
+    [Table("job_assignments")]
+    public class JobAssignment : BaseModel {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_ids")] public List<Guid>? JobIds { get; set; }
+        [Column("job_action")] public string? JobAction { get; set; }
+        [Column("job_action_time")] public DateTime? JobActionTime { get; set; }
+        [Column("job_action_by")] public string? JobActionBy { get; set; }
+        [Column("job_action_remarks")] public string? JobActionRemarks { get; set; }
+        [Column("spare_replace")] public string? SpareReplace { get; set; }
+    }
+
+    [Table("pm_reports")]
+    public class PmReport : BaseModel {
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("checklist_data")] public string ChecklistJson { get; set; } = "";
+        [Column("observations")] public string Observations { get; set; } = "";
+    }
+
+    [Table("pm_master_checklist")]
+    public class ChecklistItem : BaseModel {
+        [Column("task_description")] public string TaskDescription { get; set; } = "";
+        [Column("installation_type")] public string InstallationType { get; set; } = "";
+        [IgnoreDataMember] public bool IsCompleted { get; set; }
+        [IgnoreDataMember] public string ItemObservation { get; set; } = "";
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("installation_type")] public string? InstallationType { get; set; }
+    }
+
+    private List<Job> _pendingJobs = new();
+    private List<ChecklistItem> _allMasterTasks = new();
+    private List<ChecklistItem> _filteredChecklist = new();
+    private Job? _selectedJob;
+    private bool _loading = true;
+    private bool _isExecuting = false;
+    private string _detectedType = "";
     private string _workDone = "";
     private bool _partReplaced = false;
-    private string _location = ""; 
-    private string _instrument = ""; 
-    private string _partType = "";
-    private string _partMake = ""; 
-    private string _partModel = ""; 
-    private string _partRange = "";
+    private string _spareDetails = "";
     private List<IBrowserFile> _uploadedFiles = new();
 
-    protected override void OnInitialized()
-    {
-        _pendingJobs = new List<JobAssignment>
-        {
-            new() { JobId = "INST-001", Description = "Flow Control Valve Repair", AssignedDate = DateTime.Now.AddDays(-2) },
-            new() { JobId = "INST-002", Description = "Temp Gauge Calibration", AssignedDate = DateTime.Now.AddDays(-1) }
-        };
+    protected override async Task OnInitializedAsync() => await LoadInitialData();
+
+    private async Task LoadInitialData() {
+        try {
+            _loading = true;
+            var res = await SupabaseClient.From<Job>().Where(x => x.Status == "pending").Get();
+            _pendingJobs = res.Models;
+            var master = await SupabaseClient.From<ChecklistItem>().Get();
+            _allMasterTasks = master.Models;
+        } finally { _loading = false; }
     }
 
-    private void StartEdit(JobAssignment job)
-    {
+    private async Task StartJobExecution(Job job) {
         _selectedJob = job;
-        _isEditing = true;
-        ResetForm();
-    }
-
-    private void OnPartReplacedChanged(bool value)
-    {
-        _partReplaced = value;
-        // This forces the Blazor renderer to check the @if (_partReplaced) block
-        StateHasChanged(); 
-    }
-
-    private void ResetForm()
-    {
-        _workDone = ""; _partReplaced = false;
-        _location = ""; _instrument = ""; _partType = "";
-        _partMake = ""; _partModel = ""; _partRange = "";
-        _uploadedFiles.Clear();
-    }
-
-    private void CancelEdit() => _isEditing = false;
-
-    private void HandleFileUpload(IBrowserFile file)
-    {
-        if (file != null) _uploadedFiles.Add(file);
-    }
-
-    private void SubmitJob(bool isComplete)
-    {
-        if (isComplete && _selectedJob != null)
-        {
-            _pendingJobs.Remove(_selectedJob);
+        _isExecuting = true;
+        if (job.JobType == "preventive" && job.LocationId.HasValue) {
+            var loc = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId.Value).Get();
+            _detectedType = loc.Models.FirstOrDefault()?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+            _filteredChecklist = _allMasterTasks.Where(x => x.InstallationType.ToUpper() == _detectedType)
+                .Select(x => new ChecklistItem { TaskDescription = x.TaskDescription }).ToList();
         }
-        _isEditing = false;
+    }
+
+    private void HandleFileUpload(IBrowserFile file) { if (file != null) _uploadedFiles.Add(file); }
+    private void CancelExecution() => _isExecuting = false;
+
+    private async Task SubmitJob() {
+        try {
+            if (_selectedJob!.JobType == "preventive") {
+                // --- SUBMIT PM REPORT ---
+                var json = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
+                await SupabaseClient.From<PmReport>().Insert(new PmReport { 
+                    JobId = _selectedJob.Id, ChecklistJson = json 
+                });
+            } else {
+                // --- UPDATE JOB ASSIGNMENTS TABLE ---
+                // Find the assignment record that contains this specific Job ID in its array
+                await SupabaseClient.From<JobAssignment>()
+                    .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
+                    .Set(x => x.JobAction, "Completed")
+                    .Set(x => x.JobActionBy, "Technician") // Replace with actual user if available
+                    .Set(x => x.JobActionTime, DateTime.Now)
+                    .Set(x => x.JobActionRemarks, _workDone)
+                    .Set(x => x.SpareReplace, _partReplaced ? _spareDetails : "None")
+                    .Update();
+            }
+
+            // Mark job as completed
+            await SupabaseClient.From<Job>().Where(x => x.Id == _selectedJob.Id).Set(x => x.Status, "completed").Update();
+            
+            Snackbar.Add("Job Submitted Successfully", Severity.Success);
+            _isExecuting = false;
+            await LoadInitialData();
+        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
 }

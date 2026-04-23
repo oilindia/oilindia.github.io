@@ -1,39 +1,259 @@
-﻿@page "/pmentry"
+﻿@page "/pmexecution"
 
-<MudText Typo="Typo.h4" Class="mb-4">PM Execution</MudText>
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
-<MudPaper Class="pa-6" Elevation="3">
-    <MudAutocomplete T="string" Label="Search Instrument Tag" @bind-Value="selectedTag"
-                     SearchFunc="@SearchTags" ResetValueOnEmptyText="true"
-                     AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6">
+    <MudPaper Class="pa-6" Elevation="3">
+        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.BuildCircle" Class="mr-2" />
+            PM Execution Portal
+        </MudText>
 
-    @if (!string.IsNullOrEmpty(selectedTag))
-    {
-        <div class="mt-6">
-            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">Recording PM for: @selectedTag</MudAlert>
-            
-            <MudCheckBox T="bool" Color="Color.Success">Inspect physical wiring and mounting</MudCheckBox>
-            <MudCheckBox T="bool" Color="Color.Success">Cleaned sensor face/junction box</MudCheckBox>
-            <MudCheckBox T="bool" Color="Color.Success">Verified signal loop (4-20mA)</MudCheckBox>
-            
-            <MudTextField T="string" Label="Technician Observations" Variant="Variant.Outlined"
-                          Lines="3" Class="mt-4" Placeholder="Note any wear or issues..." />
+        @* --- STEP 1: JOB SELECTION --- *@
+        <MudSelect T="Job" Label="Select Pending PM Job"
+                   Value="_selectedJob"
+                   ValueChanged="OnJobChanged"
+                   ToStringFunc="@(j => j == null ? "" : $"{j.JobName}")"
+                   Variant="Variant.Outlined"
+                   Placeholder="Choose a job..."
+                   Class="mb-6">
+            @foreach (var job in _pendingJobs)
+            {
+                <MudSelectItem Value="@job" />
+            }
+        </MudSelect>
 
-            <div class="d-flex justify-end mt-6">
-                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save">Submit PM Report</MudButton>
+        @if (_isSearching)
+        {
+            <div class="d-flex flex-column align-center my-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.caption" Class="mt-2">Processing Checklist Data...</MudText>
             </div>
-        </div>
-    }
-</MudPaper>
+        }
+        else if (_filteredChecklist.Any())
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
+                Location identified as: <b>@_detectedType</b>
+            </MudAlert>
+
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Tasks to Complete:</MudText>
+            @foreach (var item in _filteredChecklist.OrderBy(x => x.SortOrder))
+            {
+                <MudPaper Outlined="true" Class="pa-4 my-2">
+                    <MudGrid>
+                        <MudItem xs="12" sm="1" Class="d-flex align-center">
+                            <MudCheckBox T="bool" @bind-Value="item.IsCompleted" Color="Color.Primary" />
+                        </MudItem>
+                        <MudItem xs="12" sm="5" Class="d-flex align-center">
+                            <div>
+                                <MudText Typo="Typo.body1">@item.TaskDescription</MudText>
+                                @if (item.IsMandatory)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">* Mandatory Task</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" @bind-Value="item.ItemObservation"
+                                          Label="Item Remarks/Value"
+                                          Variant="Variant.Text"
+                                          Margin="Margin.Dense"
+                                          Placeholder="Enter reading or condition..." />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+
+            <MudTextField T="string" @bind-Value="_generalObservations"
+                          Label="Final General Observations"
+                          Lines="3"
+                          Variant="Variant.Outlined"
+                          Class="mt-6"
+                          Placeholder="Overall summary of the PM..." />
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       OnClick="SubmitFinalReport"
+                       Class="mt-6 py-3"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.CheckCircle">
+                Submit PM Report
+            </MudButton>
+        }
+    </MudPaper>
+</MudContainer>
 
 @code {
-    private string selectedTag;
-    private string[] tags = { "PT-101", "FT-202", "TT-303", "LT-404" };
-
-    private async Task<IEnumerable<string>> SearchTags(string value, CancellationToken token)
+    // --- MODELS ---
+    [Table("locations")]
+    public class Location : BaseModel
     {
-        await Task.Delay(5, token); // Simulate API
-        if (string.IsNullOrEmpty(value)) return tags;
-        return tags.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("installation_type")] public string? InstallationType { get; set; }
+    }
+
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("status")] public string Status { get; set; } = "pending";
+        [Column("job_type")] public string JobType { get; set; } = "preventive";
+    }
+
+    [Table("pm_master_checklist")]
+    public class ChecklistItem : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("task_description")] public string TaskDescription { get; set; } = "";
+        [Column("installation_type")] public string InstallationType { get; set; } = "";
+        [Column("is_mandatory")] public bool IsMandatory { get; set; }
+        [Column("sort_order")] public int? SortOrder { get; set; }
+
+        [IgnoreDataMember] public bool IsCompleted { get; set; }
+        [IgnoreDataMember] public string ItemObservation { get; set; } = ""; // Per-item text box
+    }
+
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
+    {
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("observations")] public string Observations { get; set; } = "";
+        [Column("checklist_data")] public string ChecklistJson { get; set; } = "";
+        [Column("completion_date")] public DateTime CompletionDate { get; set; } = DateTime.UtcNow;
+    }
+
+    // --- STATE ---
+    private List<Job> _pendingJobs = new();
+    private List<ChecklistItem> _allMasterTasks = new();
+    private List<ChecklistItem> _filteredChecklist = new();
+    private Job? _selectedJob;
+    private string _generalObservations = "";
+    private string _detectedType = "";
+    private bool _isSearching = false;
+
+    protected override async Task OnInitializedAsync() => await LoadInitialData();
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            var jobRes = await SupabaseClient.From<Job>()
+                .Where(x => x.Status == "pending" && x.JobType == "preventive")
+                .Get();
+            _pendingJobs = jobRes.Models;
+
+            var checkRes = await SupabaseClient.From<ChecklistItem>().Get();
+            _allMasterTasks = checkRes.Models;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Startup Error: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task OnJobChanged(Job job)
+    {
+        if (job == null) return;
+        _selectedJob = job;
+        _isSearching = true;
+        _filteredChecklist.Clear();
+        StateHasChanged();
+
+        try
+        {
+            if (_selectedJob.LocationId.HasValue)
+            {
+                var locResponse = await SupabaseClient.From<Location>()
+                    .Where(x => x.Id == _selectedJob.LocationId.Value)
+                    .Get();
+
+                var location = locResponse.Models.FirstOrDefault();
+                _detectedType = (location?.InstallationType?.Trim().ToUpper() == "GCS") ? "GCS" : "OCS";
+
+                _filteredChecklist = _allMasterTasks
+                    .Where(x => x.InstallationType.Trim().ToUpper() == _detectedType)
+                    .Select(x => new ChecklistItem
+                    {
+                        Id = x.Id,
+                        TaskDescription = x.TaskDescription,
+                        InstallationType = x.InstallationType,
+                        IsMandatory = x.IsMandatory,
+                        SortOrder = x.SortOrder,
+                        IsCompleted = false,
+                        ItemObservation = ""
+                    }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Selection Error: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isSearching = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SubmitFinalReport()
+    {
+        if (_filteredChecklist.Any(x => x.IsMandatory && !x.IsCompleted))
+        {
+            Snackbar.Add("Mandatory tasks are incomplete!", Severity.Warning);
+            return;
+        }
+
+        bool? result = await DialogService.ShowMessageBoxAsync("Submit Report", "Confirm PM completion?", "Submit", "Cancel");
+        if (result == true)
+        {
+            try
+            {
+                // Now includes both Status AND Observation for every single line item
+                var checklistSummary = _filteredChecklist.Select(x => new
+                {
+                    Task = x.TaskDescription,
+                    Done = x.IsCompleted,
+                    Notes = x.ItemObservation
+                });
+
+                var json = System.Text.Json.JsonSerializer.Serialize(checklistSummary);
+
+                var report = new PmReport
+                {
+                    JobId = _selectedJob!.Id,
+                    LocationId = _selectedJob.LocationId,
+                    Observations = _generalObservations,
+                    ChecklistJson = json
+                };
+
+                await SupabaseClient.From<PmReport>().Insert(report);
+
+                await SupabaseClient.From<Job>()
+                    .Where(x => x.Id == _selectedJob.Id)
+                    .Set(x => x.Status, "completed")
+                    .Update();
+
+                Snackbar.Add("PM Report and Jobs updated successfully!", Severity.Success);
+
+                _selectedJob = null;
+                _filteredChecklist.Clear();
+                _generalObservations = "";
+                await LoadInitialData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
+            }
+        }
     }
 }

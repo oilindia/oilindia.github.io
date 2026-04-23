@@ -1,47 +1,248 @@
 ﻿@page "/pmreports"
 
-<MudText Typo="Typo.h4" Class="mb-4">Compliance Dashboard</MudText>
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Text.Json
+@using System.Runtime.Serialization
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IDialogService DialogService
 
-<MudGrid>
-    <MudItem xs="12" sm="6" md="4">
-        <MudPaper Class="pa-4 d-flex flex-column align-center" Elevation="3">
-            <MudText Typo="Typo.h6">Compliance Rate</MudText>
-            <MudChart T="double" ChartType="ChartType.Donut" InputData="@(new double[] { 85, 15 })"
-                      InputLabels="@(new string[] { "Completed", "Pending" })" 
-                      Width="150px" Height="150px" />
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-4">
+        @* --- HEADER --- *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">PM Completion Reports</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData">
+                Refresh Data
+            </MudButton>
+        </MudStack>
+
+        @* --- FILTERS --- *@
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="3">
+                <MudDateRangePicker Label="Completion Date Range" @bind-DateRange="_dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="long?" Label="Filter Location" @bind-Value="_selectedLocationId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    @foreach (var loc in _locations)
+                    {
+                        <MudSelectItem T="long?" Value="@loc.Id">@loc.InstallationName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_searchString" Label="Search Observations" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="LoadData">Apply Filters</MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @* --- DATA GRID --- *@
+        <MudDataGrid T="ReportView" Items="@_filteredReports" Loading="@_loading" Dense="true" Hover="true" Bordered="true" Striped="true">
+            <Columns>
+                <TemplateColumn Title="Action" HeaderStyle="width: 50px;">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="@(() => OpenViewModal(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.CompletionDateLocal" Title="Date" />
+                <PropertyColumn Property="x => x.LocationName" Title="Location" />
+                <PropertyColumn Property="x => x.Observations" Title="General Observation" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@* --- DETAILED VIEW MODAL OVERLAY --- *@
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+        <MudPaper Style="width: 800px; max-width: 95%; max-height: 90vh; padding: 24px; overflow-y: auto;" Elevation="25">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudText Typo="Typo.h6">PM Report Detail</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" />
+            </MudStack>
+
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Location</MudText>
+                    <MudText Typo="Typo.body1">@_viewingReport.LocationName</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Completion Date</MudText>
+                    <MudText Typo="Typo.body1">@_viewingReport.CompletionDateLocal</MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Checklist Items:</b></MudText>
+                    <div style="border: 1px solid #e0e0e0; border-radius: 4px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="background-color: #f5f5f5;">
+                                <tr>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Status</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Task</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Technician Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in _viewingChecklist)
+                                {
+                                    <tr>
+                                        <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                                            @if (item.Done)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                            }
+                                            else
+                                            {
+
+                                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                            }
+                                        </td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #eee;">@item.Task</td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #eee;"><i>@item.Notes</i></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </MudItem>
+
+                <MudItem xs="12" Class="mt-4">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">General Summary</MudText>
+                    <MudPaper Outlined="true" Class="pa-3" Style="background: #fafafa">
+                        <MudText Typo="Typo.body2">@_viewingReport.Observations</MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end mt-6">
+                <MudButton OnClick="() => _isModalOpen = false" Variant="Variant.Filled" Color="Color.Primary">Close Report</MudButton>
+            </div>
         </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="8">
-        <MudTable Items="@RecentActivity" Elevation="3" Dense="true" Hover="true">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Recent Activity</MudText>
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh>Date</MudTh>
-                <MudTh>Tag</MudTh>
-                <MudTh>Result</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Date</MudTd>
-                <MudTd>@context.Tag</MudTd>
-                <MudTd>
-                    <MudChip T="string" Color="@(context.Pass ? Color.Success : Color.Error)" Size="Size.Small">
-                        @(context.Pass ? "Passed" : "Failed")
-                    </MudChip>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudItem>
-</MudGrid>
+    </div>
+}
 
 @code {
-    private List<LogEntry> RecentActivity = new()
+    // --- MODELS ---
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
     {
-        new LogEntry { Date = "2026-04-10", Tag = "PT-101", Pass = true },
-        new LogEntry { Date = "2026-04-11", Tag = "FT-202", Pass = false },
-        new LogEntry { Date = "2026-04-12", Tag = "TT-303", Pass = true }
-    };
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("observations")] public string Observations { get; set; } = "";
+        [Column("checklist_data")] public string ChecklistJson { get; set; } = "";
+        [Column("completion_date")] public DateTime CompletionDate { get; set; }
+    }
 
-    public class LogEntry { public string Date; public string Tag; public bool Pass; }
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    public class ReportView : PmReport
+    {
+        public string LocationName { get; set; } = "N/A";
+        public string CompletionDateLocal => CompletionDate.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    }
+
+    public class ChecklistResult
+    {
+        public string Task { get; set; } = "";
+        public bool Done { get; set; }
+        public string Notes { get; set; } = "";
+    }
+
+    // --- STATE ---
+    private List<ReportView> _reports = new();
+    private List<ReportView> _filteredReports => _reports
+        .Where(r => string.IsNullOrWhiteSpace(_searchString) || r.Observations.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+        .Where(r => !_selectedLocationId.HasValue || r.LocationId == _selectedLocationId)
+        .ToList();
+
+    private List<Location> _locations = new();
+    private ReportView _viewingReport = new();
+    private List<ChecklistResult> _viewingChecklist = new();
+
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+    private string _searchString = "";
+    private DateRange _dateRange = new DateRange(DateTime.Now.AddMonths(-1), DateTime.Now);
+    private long? _selectedLocationId;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+
+            // 1. Load Locations
+            var locRes = await SupabaseClient.From<Location>().Get();
+            _locations = locRes.Models;
+
+            // 2. Load Reports within Date Range
+            var start = _dateRange.Start ?? DateTime.Now.AddMonths(-1);
+            var end = _dateRange.End ?? DateTime.Now;
+
+            var res = await SupabaseClient.From<PmReport>()
+                            .Where(x => x.CompletionDate >= start && x.CompletionDate <= end)
+                            .Get();
+
+            // 3. Map with Location Names
+            _reports = res.Models.Select(r => new ReportView
+            {
+                Id = r.Id,
+                JobId = r.JobId,
+                LocationId = r.LocationId,
+                Observations = r.Observations,
+                ChecklistJson = r.ChecklistJson,
+                CompletionDate = r.CompletionDate,
+                LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "Unknown"
+            }).OrderByDescending(x => x.CompletionDate).ToList();
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenViewModal(ReportView report)
+    {
+        _viewingReport = report;
+        _viewingChecklist = new();
+
+        if (!string.IsNullOrEmpty(report.ChecklistJson))
+        {
+            try
+            {
+                _viewingChecklist = JsonSerializer.Deserialize<List<ChecklistResult>>(report.ChecklistJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+            }
+            catch
+            {
+                Snackbar.Add("Error parsing checklist data", Severity.Warning);
+            }
+        }
+
+        _isModalOpen = true;
+        StateHasChanged();
+    }
 }

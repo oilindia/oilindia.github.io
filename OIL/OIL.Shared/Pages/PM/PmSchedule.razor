@@ -1,83 +1,171 @@
 ﻿@page "/pmschedule"
+
 @using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h4" Class="mb-4">Master PM Schedule</MudText>
-
-<MudGrid>
-    <MudItem xs="12" md="4">
-        <MudPaper Elevation="4" Class="pa-4">
-            <MudText Typo="Typo.h6">Add New Instrument</MudText>
-            <MudTextField @bind-Value="newTask.TagId" Label="Tag ID" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-4" />
-            <MudTextField @bind-Value="newTask.Description" Label="Description" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
-            <MudSelect @bind-Value="newTask.Frequency" T="string" Label="Frequency" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2">
-                <MudSelectItem Value="@("Monthly")" />
-                <MudSelectItem Value="@("Quarterly")" />
-                <MudSelectItem Value="@("Annually")" />
-            </MudSelect>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4" OnClick="AddInstrument">Add to Master List</MudButton>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="12" md="8">
-        <MudTable Items="@Instruments" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="4">
-            <HeaderContent>
-                <MudTh>Tag ID</MudTh>
-                <MudTh>Description</MudTh>
-                <MudTh>Frequency</MudTh>
-                <MudTh>Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Tag ID">@context.TagId</MudTd>
-                <MudTd DataLabel="Description">@context.Description</MudTd>
-                <MudTd DataLabel="Frequency">@context.Frequency</MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => Delete(context))" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudItem>
-</MudGrid>
+<MudPaper Elevation="2" Class="pa-4">
+    <MudTable Items="@_configurations"
+              Loading="@_loading"
+              Hover="true"
+              Dense="true"
+              Striped="true"
+              Breakpoint="Breakpoint.Sm"
+              Filter="new Func<PmConfiguration,bool>(FilterFunc1)"
+              Elevation="0">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6" Color="Color.Primary">
+                <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Class="mr-2" />
+                PM Scheduling Manager
+            </MudText>
+            <MudSpacer />
+            @* --- SEARCH BOX --- *@
+            <MudTextField @bind-Value="_searchString"
+                          Placeholder="Search Installation or Cycle..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Class="mt-0"
+                          Clearable="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh Style="width: 50px;">Force</MudTh>
+            <MudTh>Installation</MudTh>
+            <MudTh>Cycle</MudTh>
+            <MudTh>Freq (Days)</MudTh>
+            <MudTh>Last Generated</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Force">
+                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                               Color="Color.Info"
+                               OnClick="@(() => HandleForcePm(context))"
+                               Title="Force PM for next upcoming jobs" />
+            </MudTd>
+            <MudTd DataLabel="Installation">@context.InstallationName</MudTd>
+            <MudTd DataLabel="Cycle">@context.CyclicityLabel</MudTd>
+            <MudTd DataLabel="Frequency">@context.FrequencyDays</MudTd>
+            <MudTd DataLabel="Last Generated">
+                @(context.LastGeneratedDate?.ToString("yyyy-MM-dd") ?? "N/A")
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            @if (_loading)
+            {
+                <MudText>Fetching configurations...</MudText>
+            }
+            else
+            {
+                <MudText>No matching PM configurations found.</MudText>
+            }
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
 
 @code {
-    private List<MaintenanceTask> Instruments = new();
-    private MaintenanceTask newTask = new();
-
-    private void AddInstrument()
+    // --- Database Models ---
+    [Table("pm_configurations")]
+    public class PmConfiguration : BaseModel
     {
-        if (!string.IsNullOrWhiteSpace(newTask.TagId))
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+        [Column("cyclicity_label")] public string CyclicityLabel { get; set; } = "";
+        [Column("is_active")] public bool IsActive { get; set; }
+        [Column("frequency_days")] public int FrequencyDays { get; set; }
+        [Column("last_generated_date")] public DateTime? LastGeneratedDate { get; set; }
+        [Column("location_id")] public long LocationId { get; set; }
+    }
+
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("status")] public string Status { get; set; } = "pending";
+        [Column("job_type")] public string JobType { get; set; } = "preventive";
+        [Column("priority")] public string Priority { get; set; } = "Normal";
+        [Column("description")] public string? Description { get; set; }
+    }
+
+    // --- Component Logic ---
+    private List<PmConfiguration> _configurations = new();
+    private bool _loading = true;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+    }
+
+    private async Task FetchData()
+    {
+        _loading = true;
+        try
         {
-            Instruments.Add(newTask);
-            newTask = new();
+            var result = await SupabaseClient
+                .From<PmConfiguration>()
+                .Where(x => x.IsActive == true)
+                .Get();
+
+            _configurations = result.Models;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
-    private void Delete(MaintenanceTask item) => Instruments.Remove(item);
-}
-@code {
+    // --- Filter Logic ---
+    private bool FilterFunc1(PmConfiguration element) => FilterFunc(element, _searchString);
 
-    public class MaintenanceTask
+    private bool FilterFunc(PmConfiguration element, string searchString)
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string TagId { get; set; }
-        public string Description { get; set; }
-        public string Frequency { get; set; } = "Monthly";
-        public DateTime NextDueDate { get; set; } = DateTime.Now;
-        public string Status { get; set; } = "Pending";
-        public string TechnicianNotes { get; set; }
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.InstallationName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            return true;
+        if (element.CyclicityLabel.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
     }
 
-
-    private List<MaintenanceTask> ScheduleList = new();
-    private MaintenanceTask currentTask = new();
-
-    void SaveTask()
+    private async Task HandleForcePm(PmConfiguration config)
     {
-        if (!ScheduleList.Any(t => t.Id == currentTask.Id))
-            ScheduleList.Add(currentTask);
-        currentTask = new();
-    }
+        try
+        {
+            var newJob = new Job
+            {
+                JobName = $"PM: {config.InstallationName}",
+                LocationId = config.LocationId,
+                Status = "pending",
+                JobType = "preventive",
+                Description = $"Force generated PM for {config.CyclicityLabel} cycle."
+            };
 
-    void EditTask(MaintenanceTask task) => currentTask = task;
-    void DeleteTask(string id) => ScheduleList.RemoveAll(t => t.Id == id);
+            await SupabaseClient.From<Job>().Insert(newJob);
+
+            config.LastGeneratedDate = DateTime.Now;
+            await SupabaseClient.From<PmConfiguration>()
+                .Where(x => x.Id == config.Id)
+                .Set(x => x.LastGeneratedDate, DateTime.Now)
+                .Update();
+
+            Snackbar.Add($"PM scheduled for upcoming dates for {config.InstallationName}.",
+                Severity.Success,
+                options => { options.Icon = Icons.Material.Filled.NotificationImportant; });
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to schedule PM: {ex.Message}", Severity.Error);
+        }
+    }
 }
