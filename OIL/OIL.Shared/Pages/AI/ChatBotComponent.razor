@@ -111,6 +111,12 @@
                         "SIGNAL_TICKET_LOG",
                         "⚠ I recommend logging a maintenance ticket.");
                 }
+                if (response.Contains("You exceeded your current quota, please check your plan and billing details"))
+                {
+                    ShowTicketButton = true;
+                    Messages.Add(new ChatMessage("model", "AI is taking a breather. Try again in a min. or log a ticket directly"));
+ 
+                }
 
                 // Add AI response
                 Messages.Add(new ChatMessage("model", response));
