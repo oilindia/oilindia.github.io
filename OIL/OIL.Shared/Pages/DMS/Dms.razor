@@ -165,7 +165,7 @@
     private List<LocationTable> _locationsList = new();
     private IBrowserFile? _selectedFile;
     private TechnicalDoc _uploadModel = new() { Category = "Instrumentation", Area = "General" };
-    
+
     private string? _searchSite;
     private string _searchArea = "All";
     private string? _searchCategory;
@@ -177,14 +177,16 @@
 
     [Table("technical_documents")]
     public class TechnicalDoc : BaseModel {
-        [PrimaryKey("id", false)] public long id { get; set; }
+        // Use string to accommodate the UUID format: ff6b2d5d-429c-48a0-b6d7-2d5f98109ad4
+        [PrimaryKey("id", false)]
+        public string Id { get; set; }
         [Column("category")] public string Category { get; set; } = "";
         [Column("site")] public string Site { get; set; } = "";
         [Column("area")] public string Area { get; set; } = "";
         [Column("doc_type")] public string DocType { get; set; } = "Manual";
         [Column("file_name")] public string FileName { get; set; } = "";
         [Column("storage_path")] public string StoragePath { get; set; } = "";
-        
+
         // Ensure this matches your Project URL
         public string GetPublicUrl() => $"https://pmwutokmedbbphpwxafo.supabase.co/storage/v1/object/public/technical-docs/{StoragePath}";
     }
@@ -227,7 +229,7 @@
         {
             // 1. Scrub the filename of problematic characters like &, (, ), and spaces
             string safeFileName = Regex.Replace(_selectedFile.Name, @"[^a-zA-Z0-9\._-]", "_");
-        
+
             // 2. Create a truly unique name to avoid bucket collisions
             string uniqueName = $"{Guid.NewGuid()}_{safeFileName}";
 
@@ -239,14 +241,14 @@
 
             var memoryStream = new MemoryStream();
             await _selectedFile.OpenReadStream(20 * 1024 * 1024).CopyToAsync(memoryStream);
-        
+
             await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), destination);
 
             // 4. Save metadata
             //_uploadModel.id = Guid.NewGuid();
             _uploadModel.FileName = _selectedFile.Name; // Keep original name for display
             _uploadModel.StoragePath = destination;     // Use safe path for loading
-        
+
             await SupabaseClient.From<TechnicalDoc>().Insert(_uploadModel);
 
             Snackbar.Add("Uploaded Successfully", Severity.Success);
@@ -271,7 +273,7 @@
 
     //         var memoryStream = new MemoryStream();
     //         await _selectedFile.OpenReadStream(20 * 1024 * 1024).CopyToAsync(memoryStream);
-            
+
     //         // Upload to 'technical-docs'
     //         await SupabaseClient.Storage.From("technical-docs").Upload(memoryStream.ToArray(), destination);
 
@@ -279,7 +281,7 @@
     //         _uploadModel.id = Guid.NewGuid();
     //         _uploadModel.FileName = _selectedFile.Name;
     //         _uploadModel.StoragePath = destination;
-            
+
     //         await SupabaseClient.From<TechnicalDoc>().Insert(_uploadModel);
 
     //         Snackbar.Add("Document Stored in technical-docs", Severity.Success);
@@ -301,10 +303,18 @@
     private async Task ConfirmDelete(TechnicalDoc doc) {
         bool? result = await DialogService.ShowMessageBoxAsync("Delete", $"Permanently remove {doc.FileName}?", yesText:"Delete", cancelText:"Cancel");
         if (result == true) {
-            await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
-            await SupabaseClient.From<TechnicalDoc>().Where(x => x.id == doc.id).Delete();
-            await LoadData();
-            Snackbar.Add("Removed from Cloud Storage", Severity.Warning);
+            try
+            {
+                
+                await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
+                await SupabaseClient.From<TechnicalDoc>().Where(x => x.Id == doc.Id).Delete();
+                await LoadData();
+                Snackbar.Add("Removed from Cloud Storage", Severity.Warning);
+            }
+            catch(Exception ex){
+                Snackbar.Add("warn : " + ex.Message.ToString(), Severity.Warning);
+            }
+            
         }
     }
 }

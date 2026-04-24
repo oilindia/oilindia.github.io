@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ch1seL.Blazored.LocalStorage.Concurrent" Version="0.0.4" />
     <PackageReference Include="Google.GenAI" Version="1.6.1" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.1" />
     <PackageReference Include="MudBlazor" Version="9.3.0" />

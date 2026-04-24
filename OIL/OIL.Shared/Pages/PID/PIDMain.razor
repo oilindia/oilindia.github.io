@@ -137,7 +137,8 @@
     [Table("pid_markers")]
     public class Marker : BaseModel
     {
-        [Column("id")] public long Id { get; set; }
+        [PrimaryKey("id", false)]
+        public long? Id { get; set; }
         [Column("location_id")] public long LocationId { get; set; }
         [Column("tag_number")] public string TagNumber { get; set; }
         [Column("instrument_type")] public string InstrumentType { get; set; }
@@ -173,16 +174,19 @@
     private async Task RefreshMarkers()
     {
         if (_currentLocation == null) return;
-        
+
         try
         {
-            // Using a simpler filter approach to ensure it matches the ID correctly
+            // Fetch ALL markers associated with this location ID
             var res = await SupabaseClient
-                .From<Marker>()
-                .Where(x => x.LocationId == _currentLocation.Id)
-                .Get();
+            .From<Marker>()
+            .Where(x => x.LocationId == _currentLocation.Id)
+            .Get();
 
+            // Overwrite the old list with the fresh data from the DB
             _markers = res.Models ?? new List<Marker>();
+
+            // Force Blazor to re-render the overlay and the table
             StateHasChanged();
         }
         catch (Exception ex)
@@ -201,6 +205,7 @@
 
         _selectedMarker = new Marker
         {
+            // Forces the 'Insert' logic in Supabase Upsert
             LocationId = _currentLocation.Id,
             CoordX = (e.OffsetX / dims.Width) * 100,
             CoordY = (e.OffsetY / dims.Height) * 100,
@@ -209,7 +214,7 @@
             MakeModelType = "",
             Range = ""
         };
-        
+
         _drawerOpen = true;
     }
 
@@ -221,9 +226,13 @@
         {
             // FIX 3: Ensure ID is handled correctly for Upsert
             // If it's a new marker, ID is 0, Supabase will generate a new one.
-            var response = await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
-            
+            var response = await SupabaseClient.From<Marker>().Insert(_selectedMarker);
+
+           
+
             _drawerOpen = false;
+
+            //Task.Delay(1000);
             
             // Re-fetch everything from DB to ensure the UI is in sync with truth
             await RefreshMarkers();

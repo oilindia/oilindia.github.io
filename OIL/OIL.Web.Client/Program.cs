@@ -1,3 +1,4 @@
+using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -19,6 +20,10 @@ if (string.IsNullOrEmpty(supabaseUrl) || string.IsNullOrEmpty(supabaseKey))
     throw new Exception("Supabase URL or Key is missing in appsettings.json");
 }
 
+
+builder.Services.AddBlazoredLocalStorage();
+
+
 //builder.Services.AddScoped(sp => new Client(supabaseUrl, supabaseKey, new SupabaseOptions
 //{
 //    AutoRefreshToken = true,
@@ -34,7 +39,10 @@ builder.Services.AddSingleton(provider =>
         new SupabaseOptions
         {
             AutoRefreshToken = true,
-            AutoConnectRealtime = true
+            AutoConnectRealtime = true,
+            // This ensures the session stays in LocalStorage
+            SessionHandler = new LocalSessionPersistence(
+            builder.Services.BuildServiceProvider().GetRequiredService<ILocalStorageService>())
             // This ensures the session is saved to a persistent store
             //SessionHandler = new Supabase.Gotrue.Interfaces.DefaultSessionHandler()
             // Removed the IGotrueSessionHandler line entirely
