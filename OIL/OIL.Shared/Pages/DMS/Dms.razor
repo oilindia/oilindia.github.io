@@ -305,11 +305,18 @@
         if (result == true) {
             try
             {
-                
+
                 await SupabaseClient.Storage.From("technical-docs").Remove(new List<string> { doc.StoragePath });
+                await Task.Delay(500);
                 await SupabaseClient.From<TechnicalDoc>().Where(x => x.Id == doc.Id).Delete();
+                await Task.Delay(500);
                 await LoadData();
                 Snackbar.Add("Removed from Cloud Storage", Severity.Warning);
+
+
+                
+
+
             }
             catch(Exception ex){
                 Snackbar.Add("warn : " + ex.Message.ToString(), Severity.Warning);
