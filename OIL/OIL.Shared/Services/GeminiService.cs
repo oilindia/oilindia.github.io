@@ -1,8 +1,12 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using MudBlazor;
+using Supabase;
+using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Net.Http.Json;
-using Microsoft.Extensions.Configuration;
+using System.Text;
+using System.Text.Json;
+
 
 namespace OIL.Shared.Services
 {
@@ -11,53 +15,81 @@ namespace OIL.Shared.Services
     {
         private readonly string gkey;
 
+        private readonly HttpClient _http;
+        private readonly Supabase.Client _supabase;
+
         // 2. This is the Constructor. It "injects" the config into the service.
         // COMBINE BOTH HERE:
-        public GeminiService(HttpClient http, IConfiguration config)
+
+        public GeminiService(Supabase.Client supabase) // Ensure this matches Program.cs registration
         {
-            _http = http;
-            gkey = config["Gemini:ApiKey"] ?? "";
+            _supabase = supabase ?? throw new ArgumentNullException(nameof(supabase));
         }
+
+
+        //public GeminiService(HttpClient http, IConfiguration config)
+        //{
+        //    _http = http;
+        //    //gkey = config["Gemini:ApiKey"] ?? "";
+        //}
 
         // In your GeminiService.cs
         private string _modelName = "gemini-3-flash-preview"; // Try changing this to gemini-2.5-flash if it fails
 
-        private readonly HttpClient _http;
+        //private readonly HttpClient _http;
         //private const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
         private string BaseUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{_modelName}:generateContent";
 
         
 
-        //private readonly string gkey = config["Gemini:ApiKey"] ?? "";
+        
 
 
-        //public GeminiService(HttpClient http) => _http = http;
+
+
 
         public async Task<string> Chat(List<ChatMessage> history, string locationCode, string[] assets)
         {
             try
             {
-                var systemPrompt = $@"You are an Expert Field Engineer at a {locationCode} facility. 
-        Current equipment context: {string.Join(", ", assets)}.
-        1. Ask for error codes or physical symptoms.
-        2. Suggest 3 diagnostics (e.g., check lube oil levels, verify PT-101 reading).
-        3. If unresolved, say: 'SIGNAL_TICKET_LOG'.";
+                // Safety: If the UI sends an empty list, create a default one
+                // Using the constructor: ChatMessage(role, text)
+                var safeHistory = (history != null && history.Any())
+                    ? history
+                    : new List<ChatMessage> { new ChatMessage("user", "Initial engineering query.") };
 
-                var requestBody = new
+                var payloadObj = new
                 {
-                    contents = history.Select(m => new { role = m.Role, parts = new[] { new { text = m.Text } } }),
-                    system_instruction = new { parts = new[] { new { text = systemPrompt } } }
+                    // Map to anonymous object to ensure lowercase keys for the Edge Function
+                    history = safeHistory.Select(m => new {
+                        role = m.Role?.ToLower() ?? "user",
+                        text = m.Text ?? ""
+                    }).ToList(),
+                    locationCode = locationCode ?? "Unknown",
+                    assets = assets ?? new string[] { "None" }
                 };
 
-                var response = await _http.PostAsJsonAsync($"{BaseUrl}?key={gkey}", requestBody);
-                var result = await response.Content.ReadFromJsonAsync<GeminiResponse>();
-                return result?.Candidates?[0].Content.Parts[0].Text ?? "Connection Error";
+                var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                string jsonPayload = JsonSerializer.Serialize(payloadObj, options);
+
+                // Clear headers to avoid 'Invalid Value' JS error
+                var invokeOptions = new Supabase.Functions.Client.InvokeFunctionOptions
+                {
+                    Headers = new Dictionary<string, string>()
+                };
+
+                // LINE 114: The call that was failing
+                var response = await _supabase.Functions.Invoke("gemini-chat", jsonPayload, invokeOptions);
+
+                var result = JsonSerializer.Deserialize<GeminiResponse>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                return result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "No response content.";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error calling Gemini API: {ex.Message}");
-                return "Connection Error";
+                Console.WriteLine($"[OIL.Shared] Critical Error at Line 114: {ex.Message}");
+                throw; // Allow the UI to catch this and show the Snackbar
             }
         }
 

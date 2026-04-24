@@ -6,6 +6,8 @@
 @using OIL.Shared.Services
 @inject GeminiService AiService
 @inject NavigationManager NavManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <MudPaper Elevation="4" Class="pa-4" Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
     <MudText Typo="Typo.h6" Class="mb-4">Engineer Assistant (@LocationCode)</MudText>
@@ -43,7 +45,7 @@
 @code {
     [Parameter] public string LocationCode { get; set; } = "GCS";
     [Parameter] public string[] SiteAssets { get; set; } = new[] { "Compressor", "Scrubber" };
-    
+
     private List<ChatMessage> Messages = new();
     private string UserInput;
     private bool IsLoading;
@@ -54,16 +56,48 @@
         if (string.IsNullOrWhiteSpace(UserInput)) return;
         Messages.Add(new ChatMessage("user", UserInput));
         IsLoading = true;
-        
-        var response = await AiService.Chat(Messages, LocationCode, SiteAssets);
-        
-        if (response.Contains("SIGNAL_TICKET_LOG"))
+
+        try
         {
-            ShowTicketButton = true;
-            response = response.Replace("SIGNAL_TICKET_LOG", "I recommend logging a ticket for the mechanical team.");
+            // Use the constructor to ensure 'role' and 'text' are set immediately
+            var userMessage = new ChatMessage("user", "What is the status of the compressor?");
+
+            // Add it to the history list BEFORE calling the service
+            var history = new List<ChatMessage> { userMessage };
+
+            // Now call the service
+            var response = await AiService.Chat(history, "Duliajan_Station", SiteAssets);
+
+
+            //var response = await AiService.Chat(Messages, LocationCode, SiteAssets);
+
+            if (response.Contains("SIGNAL_TICKET_LOG"))
+            {
+                ShowTicketButton = true;
+                response = response.Replace("SIGNAL_TICKET_LOG", "I recommend logging a ticket for the mechanical team.");
+                Messages.Add(new ChatMessage("model", response));
+            }
+        }
+        catch (Exception ex)
+        {
+            // This will ALWAYS work, even if Snackbar fails
+            Console.WriteLine("--- CRITICAL ERROR ---");
+            Console.WriteLine(ex.ToString());
+            Console.WriteLine("-----------------------");
+            // Inside your catch block:
+            await JSRuntime.InvokeVoidAsync("alert", "DEBUG: " + ex.ToString());
+            //return "Connection Error";
+
+            // ex.Message will now contain the ACTUAL error from the Edge Function
+            // e.g., "GEMINI_API_KEY is not set" instead of "Connection Error"
+            Snackbar.Add($"API Error: {ex.Message}", Severity.Error);
         }
 
-        Messages.Add(new ChatMessage("model", response));
+        
+        
+       
+
+        
         UserInput = "";
         IsLoading = false;
     }
