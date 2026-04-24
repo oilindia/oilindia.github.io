@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using static Supabase.Functions.Client;
 
 
 namespace OIL.Shared.Services
@@ -41,59 +42,46 @@ namespace OIL.Shared.Services
 
         private string BaseUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{_modelName}:generateContent";
 
-        
-
-        
-
-
-
-
-
         public async Task<string> Chat(List<ChatMessage> history, string locationCode, string[] assets)
         {
+            
+
+            List<ChatMessage> updatedHistory = new List<ChatMessage>(history);
+
+
+            //updatedHistory.Add(new ChatMessage("system", systemPrompt)); // Add system prompt to the history
+
+
+
             try
             {
-                // Safety: If the UI sends an empty list, create a default one
-                // Using the constructor: ChatMessage(role, text)
-                var safeHistory = (history != null && history.Any())
-                    ? history
-                    : new List<ChatMessage> { new ChatMessage("user", "Initial engineering query.") };
-
-                var payloadObj = new
+                var payload = new
                 {
-                    // Map to anonymous object to ensure lowercase keys for the Edge Function
-                    history = safeHistory.Select(m => new {
-                        role = m.Role?.ToLower() ?? "user",
-                        text = m.Text ?? ""
-                    }).ToList(),
-                    locationCode = locationCode ?? "Unknown",
-                    assets = assets ?? new string[] { "None" }
+                    message = history // Add system prompt to the history
                 };
 
-                var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-                string jsonPayload = JsonSerializer.Serialize(payloadObj, options);
+                var json = JsonSerializer.Serialize(payload);
 
-                // Clear headers to avoid 'Invalid Value' JS error
-                var invokeOptions = new Supabase.Functions.Client.InvokeFunctionOptions
-                {
-                    Headers = new Dictionary<string, string>()
-                };
+                var response = await _supabase.Functions.Invoke("gemini-chat", json);
 
-                // LINE 114: The call that was failing
-                var response = await _supabase.Functions.Invoke("gemini-chat", jsonPayload, invokeOptions);
+                var result = JsonSerializer.Deserialize<AiResponse>(
+                    response,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
 
-                var result = JsonSerializer.Deserialize<GeminiResponse>(response, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                return result?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "No response content.";
+                return result?.Text ?? "No reply";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OIL.Shared] Critical Error at Line 114: {ex.Message}");
-                throw; // Allow the UI to catch this and show the Snackbar
+                Console.WriteLine(ex.Message);
+                return "Error";
             }
         }
+    }
 
-
+    public class AiResponse
+    {
+        public string Text { get; set; }
     }
 
     public class ChatMessage

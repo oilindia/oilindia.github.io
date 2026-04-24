@@ -1,108 +1,171 @@
 ﻿@* ChatBotComponent.razor *@
-
 @page "/chatbot"
 
 @using MudBlazor
 @using OIL.Shared.Services
+
 @inject GeminiService AiService
 @inject NavigationManager NavManager
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 
-<MudPaper Elevation="4" Class="pa-4" Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
-    <MudText Typo="Typo.h6" Class="mb-4">Engineer Assistant (@LocationCode)</MudText>
-    
-    <div style="flex-grow: 1; overflow-y: auto;" id="chat-container">
+<MudPaper Elevation="4" Class="pa-4"
+          Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
+
+    <!-- HEADER -->
+    <MudText Typo="Typo.h6" Class="mb-2">
+        🤖 AI Assistant
+    </MudText>
+
+    <!-- CHAT AREA -->
+    <div id="chat-container"
+         style="flex-grow: 1; overflow-y: auto; padding-right: 10px;">
+
         @foreach (var msg in Messages)
         {
-            <MudAlert Severity="@(msg.Role == "user" ? Severity.Info : Severity.Normal)"
-                      Variant="Variant.Filled" Class="mb-2 rounded-xl"
-                      Style="@(msg.Role == "user" ? "margin-left: 20%;" : "margin-right: 20%;")">
-                @msg.Text
-            </MudAlert>
+            <div style="display:flex; justify-content:@(msg.Role == "user" ? "flex-end" : "flex-start")">
+
+                <MudPaper Class="pa-2 mb-2"
+                          Style="@GetBubbleStyle(msg)">
+                    @msg.Text
+                </MudPaper>
+
+            </div>
         }
+
         @if (IsLoading)
         {
-            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            <MudProgressLinear Indeterminate="true"
+                               Color="Color.Primary"
+                               Class="mb-2" />
         }
+
     </div>
 
+    <!-- TICKET BUTTON -->
     @if (ShowTicketButton)
     {
-        <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
-                   OnClick="LogTicket" StartIcon="@Icons.Material.Filled.Assignment">
-            Log Maintenance Ticket for @LocationCode
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Error"
+                   FullWidth="true"
+                   Class="mb-2"
+                   OnClick="LogTicket"
+                   StartIcon="@Icons.Material.Filled.Assignment">
+
+            Log Maintenance Ticket
         </MudButton>
     }
 
-    <MudTextField @bind-Value="UserInput" Placeholder="e.g., Pump P-101 vibration is high..."
-                  Variant="Variant.Outlined" Class="mt-4"
-                  OnKeyDown="@(e => e.Key == "Enter" ? SendMessage() : null)"
-                  Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Send"
+    <!-- INPUT -->
+    <MudTextField @bind-Value="UserInput"
+                  Placeholder="Type message..."
+                  Variant="Variant.Outlined"
+                  Class="mt-2"
+                  Immediate="true"
+                  OnKeyDown="HandleKeyDown"
+                  Adornment="Adornment.End"
+                  AdornmentIcon="@Icons.Material.Filled.Send"
                   OnAdornmentClick="SendMessage" />
+
 </MudPaper>
 
 @code {
-    [Parameter] public string LocationCode { get; set; } = "GCS";
-    [Parameter] public string[] SiteAssets { get; set; } = new[] { "Compressor", "Scrubber" };
 
+    // ✅ USE SERVICE MODEL ONLY (NO DUPLICATE CLASS)
     private List<ChatMessage> Messages = new();
-    private string UserInput;
-    private bool IsLoading;
-    private bool ShowTicketButton;
 
+    private string UserInput = "";
+    private bool IsLoading = false;
+    private bool ShowTicketButton = false;
+
+    // ✅ SEND MESSAGE
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(UserInput)) return;
-        Messages.Add(new ChatMessage("user", UserInput));
+        if (string.IsNullOrWhiteSpace(UserInput))
+            return;
+
+        // Add user message
+        var userMsg = new ChatMessage("user", UserInput);
+
+        
+
+
+        //userMsg.Text = userMsg.Text + systemPrompt;
+
+        Messages.Add(userMsg);
+
         IsLoading = true;
+        StateHasChanged();
 
         try
         {
-            // Use the constructor to ensure 'role' and 'text' are set immediately
-            var userMessage = new ChatMessage("user", "What is the status of the compressor?");
+            // Call your Supabase → Gemini API
+            var response = await AiService.Chat(Messages, "", new string[] { });
 
-            // Add it to the history list BEFORE calling the service
-            var history = new List<ChatMessage> { userMessage };
-
-            // Now call the service
-            var response = await AiService.Chat(history, "Duliajan_Station", SiteAssets);
-
-
-            //var response = await AiService.Chat(Messages, LocationCode, SiteAssets);
-
-            if (response.Contains("SIGNAL_TICKET_LOG"))
+            if (!string.IsNullOrWhiteSpace(response))
             {
-                ShowTicketButton = true;
-                response = response.Replace("SIGNAL_TICKET_LOG", "I recommend logging a ticket for the mechanical team.");
+                if (response.Contains("SIGNAL_TICKET_LOG"))
+                {
+                    ShowTicketButton = true;
+                    response = response.Replace(
+                        "SIGNAL_TICKET_LOG",
+                        "⚠ I recommend logging a maintenance ticket.");
+                }
+
+                // Add AI response
                 Messages.Add(new ChatMessage("model", response));
+            }
+            else
+            {
+                Messages.Add(new ChatMessage("model", "No response from AI."));
             }
         }
         catch (Exception ex)
         {
-            // This will ALWAYS work, even if Snackbar fails
-            Console.WriteLine("--- CRITICAL ERROR ---");
-            Console.WriteLine(ex.ToString());
-            Console.WriteLine("-----------------------");
-            // Inside your catch block:
-            await JSRuntime.InvokeVoidAsync("alert", "DEBUG: " + ex.ToString());
-            //return "Connection Error";
-
-            // ex.Message will now contain the ACTUAL error from the Edge Function
-            // e.g., "GEMINI_API_KEY is not set" instead of "Connection Error"
             Snackbar.Add($"API Error: {ex.Message}", Severity.Error);
+            Messages.Add(new ChatMessage("model", "⚠ Error getting response."));
         }
 
-        
-        
-       
-
-        
         UserInput = "";
         IsLoading = false;
+
+        await ScrollToBottom();
+        StateHasChanged();
     }
 
-    private void LogTicket() { /* Call Supabase RPC to insert ticket */
+    // ✅ ENTER KEY SUPPORT
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+
+    // ✅ AUTO SCROLL
+    private async Task ScrollToBottom()
+    {
+        await JSRuntime.InvokeVoidAsync("eval",
+            @"var el = document.getElementById('chat-container');
+              if(el) el.scrollTop = el.scrollHeight;");
+    }
+
+    // ✅ CHAT BUBBLE STYLE FIX (NO INLINE EXPRESSION ERROR)
+    private string GetBubbleStyle(ChatMessage msg)
+    {
+        if (msg.Role == "user")
+        {
+            return "max-width:70%; background:#1976d2; color:white; border-radius:12px;";
+        }
+        else
+        {
+            return "max-width:70%; background:#e0e0e0; color:black; border-radius:12px;";
+        }
+    }
+
+    // ✅ NAVIGATION
+    private void LogTicket()
+    {
         NavManager.NavigateTo("/reportnewjob");
     }
 }
