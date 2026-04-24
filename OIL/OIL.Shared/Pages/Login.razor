@@ -35,7 +35,7 @@
             </div>
 
             @* Change this line *@
-            <MudCheckBox @bind-Value="_isAdminMode" Label="Admin Mode" Color="Color.Secondary" Class="mb-4" />
+            @* <MudCheckBox @bind-Value="_isAdminMode" Label="Admin Mode" Color="Color.Secondary" Class="mb-4" /> *@
 
             <MudTextField @bind-Value="_email"
                           Label="Email"
@@ -130,7 +130,7 @@
             await Task.Delay(2000);
             Nav.NavigateTo("home");
         }
-        if (success == null)
+        else 
         {
             Console.WriteLine("Login failed: Session is null.");
             //return false;
