@@ -51,13 +51,15 @@ namespace OIL.Shared.Services
 
             //updatedHistory.Add(new ChatMessage("system", systemPrompt)); // Add system prompt to the history
 
+            String jsontoAI = JsonSerializer.Serialize(updatedHistory);
 
+            //Console.WriteLine(jsontoAI);
 
             try
             {
                 var payload = new
                 {
-                    message = history // Add system prompt to the history
+                    history = jsontoAI // Add system prompt to the history
                 };
 
                 var json = JsonSerializer.Serialize(payload);

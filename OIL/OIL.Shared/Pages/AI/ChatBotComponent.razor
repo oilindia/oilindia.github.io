@@ -95,7 +95,11 @@
         Messages.Add(userMsg);
 
         IsLoading = true;
+
+        await ScrollToBottom();
+
         StateHasChanged();
+
 
         try
         {
