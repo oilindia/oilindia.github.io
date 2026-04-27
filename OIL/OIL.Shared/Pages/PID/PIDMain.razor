@@ -227,30 +227,43 @@
     {
         try{
 
+
+
+
             if (!_isMappingMode) return;
 
-            // Pass the ElementReference 'myImage' directly
-            var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", myImage);
-            Console.WriteLine($"Width: {dims.Width}");
 
 
-            // FIX 2: Check for nulls and ensure dimensions are captured correctly
-            //var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
-            if (dims.Width <= 0 || dims.Height <= 0) return;
-
-            _selectedMarker = new Marker
+            
+            if (myImage.Id != null)
             {
-                // Forces the 'Insert' logic in Supabase Upsert
-                LocationId = _currentLocation.Id,
-                CoordX = (e.OffsetX / dims.Width) * 100,
-                CoordY = (e.OffsetY / dims.Height) * 100,
-                TagNumber = "NEW-TAG",
-                InstrumentType = "",
-                MakeModelType = "",
-                Range = ""
-            };
+                // Pass the ElementReference 'myImage' directly
+                var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", myImage);
+                Console.WriteLine($"Width: {dims.Width}");
 
-            _drawerOpen = true;
+
+                // FIX 2: Check for nulls and ensure dimensions are captured correctly
+                //var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+                if (dims.Width <= 0 || dims.Height <= 0) return;
+
+                _selectedMarker = new Marker
+                {
+                    // Forces the 'Insert' logic in Supabase Upsert
+                    LocationId = _currentLocation.Id,
+                    CoordX = (e.OffsetX / dims.Width) * 100,
+                    CoordY = (e.OffsetY / dims.Height) * 100,
+                    TagNumber = "NEW-TAG",
+                    InstrumentType = "",
+                    MakeModelType = "",
+                    Range = ""
+                };
+
+                _drawerOpen = true;
+            }
+
+
+
+            
 
 
         }
