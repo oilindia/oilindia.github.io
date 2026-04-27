@@ -1,0 +1,138 @@
+﻿@page "/policies"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject Supabase.Client SupabaseClient
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-6" Color="Color.Primary" Style="font-weight: bold;">
+        Corporate Policy Management
+    </MudText>
+
+    <MudPaper Class="pa-4 mb-4 bg-light shadow-none border">
+        <MudGrid Spacing="2">
+            @* Category Filter *@
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" Label="Policy Category" @bind-Value="_searchCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem Value="@((string)null)">All Categories</MudSelectItem>
+                    <MudSelectItem Value="@("HR")">Human Resources</MudSelectItem>
+                    <MudSelectItem Value="@("IT")">IT & Security</MudSelectItem>
+                    <MudSelectItem Value="@("Safety")">Health & Safety</MudSelectItem>
+                    <MudSelectItem Value="@("Finance")">Finance</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            @* Search Text *@
+            <MudItem xs="12" sm="5">
+                <MudTextField @bind-Value="_searchText" Placeholder="Search by policy name..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+
+            <MudItem xs="12" sm="3" Class="d-flex align-center">
+                <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">Refresh List</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="@FilteredPolicies" Hover="true" Loading="@_loading" Dense="false" FixedHeader="true" Height="600px" Elevation="4">
+        <HeaderContent>
+            <MudTh>Category</MudTh>
+            <MudTh>Policy Name</MudTh>
+            <MudTh>Effective Date</MudTh>
+            <MudTh>Version</MudTh>
+            <MudTh Style="text-align:right">Download</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="policy">
+            <MudTd DataLabel="Category">
+                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@policy.Category</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Policy Name"><b>@policy.PolicyName</b></MudTd>
+            <MudTd DataLabel="Effective Date">@policy.EffectiveDate.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Version">v@{
+                @policy.Version
+            }
+        </MudTd>
+        <MudTd DataLabel="Download" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.FileDownload"
+                           Color="Color.Info"
+                           Size="Size.Medium"
+                           OnClick="@(() => DownloadPolicy(policy))"
+                           Title="Download PDF" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No policies found matching your criteria.</MudText>
+    </NoRecordsContent>
+</MudTable>
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private string? _searchCategory;
+    private string? _searchText;
+    private List<PolicyDoc> _policies = new();
+
+    // Data Model matching your Supabase Table 'policies_metadata'
+    [Table("policies_metadata")]
+    public class PolicyDoc : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public string Id { get; set; } = "";
+
+        [Column("category")] public string Category { get; set; } = "";
+
+        [Column("policy_name")] public string PolicyName { get; set; } = "";
+
+        [Column("effective_date")] public DateTime EffectiveDate { get; set; }
+
+        [Column("version")] public string Version { get; set; } = "1.0";
+
+        [Column("storage_path")] public string StoragePath { get; set; } = ""; // e.g., "hr/leave-policy.pdf"
+
+        // Update with your actual project reference URL
+        // public string GetDownloadUrl() =>
+        //     $"https://pmwutokmedbbphpwxafo.supabase.co/storage/v1/object/public/policies/{StoragePath}";
+
+        public string GetDownloadUrl() =>  StoragePath; // e.g., "hr/leave-policy.pdf"
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var result = await SupabaseClient.From<PolicyDoc>().Get();
+            _policies = result.Models;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading policies: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private IEnumerable<PolicyDoc> FilteredPolicies => _policies
+        .Where(x => (string.IsNullOrEmpty(_searchCategory) || x.Category == _searchCategory) &&
+                    (string.IsNullOrEmpty(_searchText) || x.PolicyName.Contains(_searchText, StringComparison.OrdinalIgnoreCase)));
+
+    private async Task DownloadPolicy(PolicyDoc policy)
+    {
+        try
+        {
+            // Using JS Interop to open the public URL in a new tab which triggers download
+            await JS.InvokeVoidAsync("open", policy.GetDownloadUrl(), "_blank");
+            Snackbar.Add($"Downloading {policy.PolicyName}...", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Download failed.", Severity.Error);
+        }
+    }
+}
