@@ -7,118 +7,140 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using static Supabase.Functions.Client;
-
+using Supabase.Functions;
+using static OIL.Shared.Pages.AI.ChatBotComponent;
 
 namespace OIL.Shared.Services
 {
     // GeminiService.cs in your Shared RCL
     public class GeminiService
     {
-        private readonly string gkey;
-
-        private readonly HttpClient _http;
         private readonly Supabase.Client _supabase;
 
-        // 2. This is the Constructor. It "injects" the config into the service.
-        // COMBINE BOTH HERE:
-
-        public GeminiService(Supabase.Client supabase) // Ensure this matches Program.cs registration
+        public GeminiService(Supabase.Client supabase)
         {
-            _supabase = supabase ?? throw new ArgumentNullException(nameof(supabase));
+            _supabase = supabase;
         }
 
 
-        //public GeminiService(HttpClient http, IConfiguration config)
-        //{
-        //    _http = http;
-        //    //gkey = config["Gemini:ApiKey"] ?? "";
-        //}
-
-        // In your GeminiService.cs
-        private string _modelName = "gemini-3-flash-preview"; // Try changing this to gemini-2.5-flash if it fails
-
-        //private readonly HttpClient _http;
-        //private const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
-        private string BaseUrl => $"https://generativelanguage.googleapis.com/v1beta/models/{_modelName}:generateContent";
-
-        public async Task<string> Chat(List<ChatMessage> history, string locationCode, string[] assets)
+        public async Task<string> ProcessMaintenanceChat(List<ChatMessage> history)
         {
-            
+            try
+            {
+                // 1. Create the history string
+                string historyString = string.Join("\n", history.Select(m => $"{m.Role}: {m.Text}"));
 
-            List<ChatMessage> updatedHistory = new List<ChatMessage>(history);
+                // 2. We use a HARDCODED ID "current_session" so we only ever have ONE row
+                // This keeps storage at near zero and makes it easy to find.
+                var session = new ChatSession { Id = "current_session", History = historyString };
 
+                // 3. FORCE the update
+                await _supabase.From<ChatSession>().Upsert(session);
 
-            //updatedHistory.Add(new ChatMessage("system", systemPrompt)); // Add system prompt to the history
+                // 4. Call function with NO payload
+                var response = await _supabase.Functions.Invoke("gemini-chat", "{}");
 
-            String jsontoAI = JsonSerializer.Serialize(updatedHistory);
+                var result = JsonSerializer.Deserialize<AiResponse>(response,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            //Console.WriteLine(jsontoAI);
+                return result?.Text ?? "Error";
+            }
+            catch (Exception ex)
+            {
+                return $"C# Error: {ex.Message}";
+            }
+        }
+
+        public async Task<string> Chat(List<ChatMessage> history)
+        {
+            // 1. Extract the text
+            string mssagefromlist = history.LastOrDefault(x => x.Role == "user")?.Text ?? "Hi";
 
             try
             {
-                var payload = new
+                // 2. Create a PLAIN object (Do NOT serialize it to a string here)
+                var payload = new { message = mssagefromlist };
+
+
+                // 3. Define the options for the Invoke call
+                var options = new InvokeFunctionOptions
                 {
-                    history = jsontoAI // Add system prompt to the history
+                    Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
                 };
 
-                var json = JsonSerializer.Serialize(payload);
+                string jsonPayload = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
 
-                var response = await _supabase.Functions.Invoke("gemini-chat", json);
+                Console.WriteLine($"Invoking function with payload: {jsonPayload}");
 
-                var result = JsonSerializer.Deserialize<AiResponse>(
-                    response,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
+                // 4. Pass 'payload' as an object. 
+                // Supabase.Functions will serialize this correctly for the Edge Function.
+                var response = await _supabase.Functions.Invoke("gemini-chat", jsonPayload, options);
+
+                var result = JsonSerializer.Deserialize<AiResponse>(response, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
                 return result?.Text ?? "No reply";
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine($"Function Error: {ex.Message}");
                 return "Error";
+            }
+        }
+        public async Task<string> Chatold(List<ChatMessage> history)
+        {
+            try
+            {
+                // Extract the latest message from history
+                var latestInput = history.LastOrDefault(x => x.Role == "user")?.Text ?? "";
+
+                // Create a serializable object with lowercase names to match Edge Function logic
+                var payload = new
+                {
+                    latest = latestInput,
+                    history = history.Select(h => new { role = h.Role, text = h.Text }).ToList()
+                };
+
+                // Serialize with camelCase just in case
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                // Invoke the Supabase Edge Function
+                var response = await _supabase.Functions.Invoke("gemini-chat", json);
+
+                if (string.IsNullOrEmpty(response)) return "Error: No response from assistant.";
+
+                var result = JsonSerializer.Deserialize<AiResponse>(response, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return result?.Text ?? "Error parsing response.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
             }
         }
     }
 
-    public class AiResponse
-    {
-        public string Text { get; set; }
-    }
+    // Support Classes
+    public class AiResponse { public string Text { get; set; } }
 
     public class ChatMessage
     {
         public string Role { get; set; } // "user" or "model"
         public string Text { get; set; }
+        public DateTime Time { get; set; } = DateTime.UtcNow;
 
-        public ChatMessage(string role, string text)
-        {
-            Role = role;
-            Text = text;
-        }
+        public ChatMessage(string role, string text) { Role = role; Text = text; }
     }
-
-    // These classes map the JSON response from Google Gemini
-    public class GeminiResponse
-    {
-        public List<Candidate> Candidates { get; set; }
-    }
-
-    public class Candidate
-    {
-        public Content Content { get; set; }
-    }
-
-    public class Content
-    {
-        public List<Part> Parts { get; set; }
-    }
-
-    public class Part
-    {
-        public string Text { get; set; }
-    }
-
-
 
 }

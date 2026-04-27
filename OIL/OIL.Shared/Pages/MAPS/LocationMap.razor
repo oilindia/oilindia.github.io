@@ -1,0 +1,80 @@
+﻿@page "/locatoionmap"
+
+
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5" Color="Color.Primary" Class="fw-bold">
+                Regional Map Viewer
+            </MudText>
+
+            <MudGrid VerticalAlign="VerticalAlign.Center">
+                <MudItem xs="12" sm="8">
+                    <MudSelect T="string" 
+                               Label="Select Region" 
+                               Variant="Variant.Outlined" 
+                               @bind-Value="_tempUrl"
+                               AdornmentIcon="@Icons.Material.Filled.Map" 
+                               AdornmentColor="Color.Primary">
+                        <MudSelectItem Value="@(_easternUrl)">Eastern Map</MudSelectItem>
+                        <MudSelectItem Value="@(_centralUrl)">Central Map</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Primary" 
+                               FullWidth="true" 
+                               Size="Size.Large" 
+                               Style="height:56px"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="UpdateActiveMap">
+                        Submit
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            @if (!string.IsNullOrEmpty(_activeUrl))
+            {
+                <MudPaper Outlined="true" Style="height: 600px; width: 100%; overflow: hidden; border-radius: 8px;">
+                    <iframe src="@_activeUrl" 
+                            style="border:none; height:100%; width:100%;" 
+                            allowfullscreen="" 
+                            loading="lazy"
+                            title="Google Map View">
+                    </iframe>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                    Select a map and click submit to load the view.
+                </MudAlert>
+            }
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    // Constants for the URLs
+    private const string _easternUrl = "https://www.google.com/maps/d/u/0/edit?mid=16kp6xg_n6Zm4Js987Cf65f7ayL29eTo&ll=27.477651425269556%2C95.51801305000002&z=11";
+    private const string _centralUrl = "https://www.google.com/maps/d/u/0/edit?mid=1M7q8XQMJotU0BOeDlGyz0cdheJrThA8&ll=27.40539579224312%2C95.42602969999999&z=11";
+
+    // State management
+    private string _tempUrl = _easternUrl;
+    private string? _activeUrl;
+
+    protected override void OnInitialized()
+    {
+        // Set initial map load
+        _activeUrl = _easternUrl;
+    }
+
+    private void UpdateActiveMap()
+    {
+        // Trigger UI refresh for the iframe
+        _activeUrl = _tempUrl;
+        StateHasChanged();
+    }
+}

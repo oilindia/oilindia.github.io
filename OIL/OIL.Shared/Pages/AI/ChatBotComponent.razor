@@ -1,182 +1,98 @@
-﻿@* ChatBotComponent.razor *@
-@page "/chatbot"
-
+﻿@page "/chatbot"
 @using MudBlazor
 @using OIL.Shared.Services
-
 @inject GeminiService AiService
 @inject NavigationManager NavManager
-@inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
 
-<MudPaper Elevation="4" Class="pa-4"
-          Style="height: 550px; display: flex; flex-direction: column; background: #f4f4f9;">
+<MudPaper Elevation="4" Class="pa-4" Style="height: 600px; display:flex; flex-direction:column; background:#f4f4f9; border-radius: 12px;">
+    <MudText Typo="Typo.h6" Class="mb-2">🤖 OCS Maintenance Assistant</MudText>
 
-    <!-- HEADER -->
-    <MudText Typo="Typo.h6" Class="mb-2">
-        🤖 AI Assistant
-    </MudText>
-
-    <!-- CHAT AREA -->
-    <div id="chat-container"
-         style="flex-grow: 1; overflow-y: auto; padding-right: 10px;">
-
+    <div id="chat-container" style="flex-grow:1; overflow-y:auto; padding:10px; background: white; border-radius: 8px;">
         @foreach (var msg in Messages)
         {
             <div style="display:flex; justify-content:@(msg.Role == "user" ? "flex-end" : "flex-start")">
-
-                <MudPaper Class="pa-2 mb-2"
-                          Style="@GetBubbleStyle(msg)">
-                    @msg.Text
+                <MudPaper Class="pa-3 mb-3" Style="@GetBubbleStyle(msg)" Elevation="1">
+                    <MudText Typo="Typo.body1">@msg.Text</MudText>
+                    <MudText Typo="Typo.caption" Style="opacity:0.6">@msg.Time.ToLocalTime().ToString("HH:mm")</MudText>
                 </MudPaper>
-
             </div>
         }
-
         @if (IsLoading)
         {
-            <MudProgressLinear Indeterminate="true"
-                               Color="Color.Primary"
-                               Class="mb-2" />
+            <MudProgressLinear Color="Color.Info" Indeterminate="true" Class="my-2" />
         }
-
     </div>
 
-    <!-- TICKET BUTTON -->
     @if (ShowTicketButton)
     {
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Error"
-                   FullWidth="true"
-                   Class="mb-2"
-                   OnClick="LogTicket"
-                   StartIcon="@Icons.Material.Filled.Assignment">
-
-            Log Maintenance Ticket
+        <MudButton Variant="Variant.Filled" Color="Color.Error" Class="my-2" OnClick="LogTicket" StartIcon="@Icons.Material.Filled.Assignment">
+            Log Maintenance Ticket for OCS-4
         </MudButton>
     }
 
-    <!-- INPUT -->
-    <MudTextField @bind-Value="UserInput"
-                  Placeholder="Type message..."
-                  Variant="Variant.Outlined"
-                  Class="mt-2"
-                  Immediate="true"
-                  OnKeyDown="HandleKeyDown"
-                  Adornment="Adornment.End"
-                  AdornmentIcon="@Icons.Material.Filled.Send"
-                  OnAdornmentClick="SendMessage" />
-
+    <MudTextField @bind-Value="UserInput" Placeholder="e.g. Heater burner not igniting..." Variant="Variant.Outlined"
+                  OnKeyDown="HandleKeyDown" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Send"
+                  OnAdornmentClick="SendMessage" Class="mt-4" AutoFocus="true" />
 </MudPaper>
 
 @code {
 
-    // ✅ USE SERVICE MODEL ONLY (NO DUPLICATE CLASS)
+    [Table("chat_sessions")]
+    public class ChatSession : BaseModel
+    {
+        [PrimaryKey("id")]
+        public string Id { get; set; }
+
+        [Column("history")]
+        public string History { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+    }
+
     private List<ChatMessage> Messages = new();
-
     private string UserInput = "";
-    private bool IsLoading = false;
-    private bool ShowTicketButton = false;
+    private bool IsLoading;
+    private bool ShowTicketButton;
 
-    // ✅ SEND MESSAGE
+
+
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(UserInput))
-            return;
+        if (string.IsNullOrWhiteSpace(UserInput)) return;
 
-        // Add user message
-        var userMsg = new ChatMessage("user", UserInput);
-
-        
-
-
-        //userMsg.Text = userMsg.Text + systemPrompt;
-
-        Messages.Add(userMsg);
-
-        IsLoading = true;
-
-        await ScrollToBottom();
-
-        StateHasChanged();
-
-
-        try
-        {
-            // Call your Supabase → Gemini API
-            var response = await AiService.Chat(Messages, "", new string[] { });
-
-            if (!string.IsNullOrWhiteSpace(response))
-            {
-                if (response.Contains("SIGNAL_TICKET_LOG"))
-                {
-                    ShowTicketButton = true;
-                    response = response.Replace(
-                        "SIGNAL_TICKET_LOG",
-                        "⚠ I recommend logging a maintenance ticket.");
-                }
-                if (response.Contains("You exceeded your current quota, please check your plan and billing details"))
-                {
-                    ShowTicketButton = true;
-                    Messages.Add(new ChatMessage("model", "AI is taking a breather. Try again in a min. or log a ticket directly"));
-                    ShowTicketButton = true;
- 
-                }
-
-                // Add AI response
-                Messages.Add(new ChatMessage("model", response));
-            }
-            else
-            {
-                Messages.Add(new ChatMessage("model", "No response from AI."));
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"API Error: {ex.Message}", Severity.Error);
-            Messages.Add(new ChatMessage("model", "⚠ Error getting response."));
-        }
-
+        var text = UserInput.Trim();
+        Messages.Add(new ChatMessage("user", text));
         UserInput = "";
-        IsLoading = false;
-
-        await ScrollToBottom();
+        IsLoading = true;
         StateHasChanged();
-    }
+        await Scroll();
 
-    // ✅ ENTER KEY SUPPORT
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
+        var response2 = await AiService.Chat(Messages);
+
+        var response = await AiService.ProcessMaintenanceChat(Messages);
+
+        if (response.Contains("SIGNAL_TICKET_LOG"))
         {
-            await SendMessage();
+            ShowTicketButton = true;
+            response = response.Replace("SIGNAL_TICKET_LOG", "⚠ Recommended: Log a formal ticket.");
         }
+
+        Messages.Add(new ChatMessage("model", response));
+        IsLoading = false;
+        await Scroll();
     }
 
-    // ✅ AUTO SCROLL
-    private async Task ScrollToBottom()
-    {
-        await JSRuntime.InvokeVoidAsync("eval",
-            @"var el = document.getElementById('chat-container');
-              if(el) el.scrollTop = el.scrollHeight;");
-    }
+    private async Task HandleKeyDown(KeyboardEventArgs e) { if (e.Key == "Enter") await SendMessage(); }
 
-    // ✅ CHAT BUBBLE STYLE FIX (NO INLINE EXPRESSION ERROR)
-    private string GetBubbleStyle(ChatMessage msg)
-    {
-        if (msg.Role == "user")
-        {
-            return "max-width:70%; background:#1976d2; color:white; border-radius:12px;";
-        }
-        else
-        {
-            return "max-width:70%; background:#e0e0e0; color:black; border-radius:12px;";
-        }
-    }
+    private async Task Scroll() => await JSRuntime.InvokeVoidAsync("eval", "var el=document.getElementById('chat-container'); if(el) el.scrollTop=el.scrollHeight;");
 
-    // ✅ NAVIGATION
-    private void LogTicket()
-    {
-        NavManager.NavigateTo("/reportnewjob");
-    }
+    private string GetBubbleStyle(ChatMessage msg) => msg.Role == "user"
+        ? "max-width:80%; background:#1976d2; color:white; border-radius:15px 15px 0px 15px;"
+        : "max-width:80%; background:#e0e0e0; color:black; border-radius:15px 15px 15px 0px;";
+
+    private void LogTicket() => NavManager.NavigateTo("/reportnewjob");
 }

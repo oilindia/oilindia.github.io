@@ -202,6 +202,13 @@
 
 
 
+        
+    window.scrollChatBottom = function () {
+        let el = document.getElementById("chat-container");
+        if (el) {
+            el.scrollTop = el.scrollHeight;
+        }
+    };
 
 
     </script>

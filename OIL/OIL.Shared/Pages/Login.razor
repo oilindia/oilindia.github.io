@@ -85,9 +85,13 @@
             <MudDivider Class="my-2" />
 
             <div class="d-flex justify-center">
-                <MudLink OnClick="ToggleMode" Underline="Underline.None" Typo="Typo.body2" Style="cursor: pointer;">
-                    @(_isSignup ? "Already have an account? Login" : "Don't have an account? Sign Up")
+                
+                <MudLink Underline="Underline.None" Typo="Typo.body2" Style="cursor: pointer;">
+                    @(_isSignup ? "Already have an account? Login" : "Access to this portal is invite only. For sign up, contact : Field Maintenance Team -  Instrumentation Department")
                 </MudLink>
+
+                @* OnClick="ToggleMode" *@
+
             </div>
         </MudStack>
     </MudPaper>
