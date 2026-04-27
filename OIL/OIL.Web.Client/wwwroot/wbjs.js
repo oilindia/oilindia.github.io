@@ -1,7 +1,10 @@
-﻿window.getElementDimensions = (id) => {
-    const el = document.getElementById(id);
+﻿// In index.html
+window.getElementDimensions = (el) => {
     if (!el) return { width: 0, height: 0 };
-    return { width: el.offsetWidth, height: el.offsetHeight };
+    return {
+        width: el.offsetWidth,
+        height: el.offsetHeight
+    };
 };
 
 window.scrollToMarker = (containerId, xPercent, yPercent) => {

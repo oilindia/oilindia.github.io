@@ -51,7 +51,7 @@
                     </div>
 
                     <div id="pid-map-container" @onclick="HandleImageClick" style="@GetZoomStyle()" class="@(_isMappingMode ? "mapping-active" : "")">
-                        <img src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
+                        <img @ref="myImage" src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
 
                         @foreach (var m in _markers.Where(x => x.CoordX.HasValue && x.CoordY.HasValue))
                         {
@@ -113,6 +113,11 @@
 </MudDrawer>
 
 @code {
+
+    // 2. You MUST declare this variable here
+    // This is what the error "does not exist in current context" is looking for
+    private ElementReference myImage;
+
     private ElementReference _mapScrollContainer;
     private Location _tempLocation;
     private Location _currentLocation;
@@ -224,8 +229,13 @@
 
             if (!_isMappingMode) return;
 
+            // Pass the ElementReference 'myImage' directly
+            var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", myImage);
+            Console.WriteLine($"Width: {dims.Width}");
+
+
             // FIX 2: Check for nulls and ensure dimensions are captured correctly
-            var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+            //var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
             if (dims.Width <= 0 || dims.Height <= 0) return;
 
             _selectedMarker = new Marker

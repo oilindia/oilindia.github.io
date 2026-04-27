@@ -45,9 +45,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        window.getElementDimensions = (element) => {
-            if (!element) return { width: 0, height: 0 };
-            return { width: element.offsetWidth, height: element.offsetHeight };
+        // In index.html
+        window.getElementDimensions = (el) => {
+            if (!el) return { width: 0, height: 0 };
+            return {
+                width: el.offsetWidth,
+                height: el.offsetHeight
+            };
         };
 
 
