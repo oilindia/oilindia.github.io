@@ -31,17 +31,31 @@
         <a class="dismiss">🗙</a>
     </div>
 
+    <script src="wbjs.js"></script>
+
+    <!--<script src="_content/OIL.Shared/scripts.js"></script>
+
+    <script src="_framework/blazor.webassembly.js"></script>-->
+
+
+
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        window.getElementDimensions = (id) => {
-            const el = document.getElementById(id);
-            if (!el) return { width: 0, height: 0 };
-            return { width: el.offsetWidth, height: el.offsetHeight };
+        window.getElementDimensions = (element) => {
+            if (!element) return { width: 0, height: 0 };
+            return { width: element.offsetWidth, height: element.offsetHeight };
         };
+
+
+        //window.getElementDimensions = (id) => {
+        //    const el = document.getElementById(id);
+        //    if (!el) return { width: 0, height: 0 };
+        //    return { width: el.offsetWidth, height: el.offsetHeight };
+        //};
 
         window.scrollToMarker = (containerId, xPercent, yPercent) => {
             const container = document.getElementById(containerId).parentElement;
@@ -202,13 +216,13 @@
 
 
 
-        
-    window.scrollChatBottom = function () {
-        let el = document.getElementById("chat-container");
-        if (el) {
-            el.scrollTop = el.scrollHeight;
-        }
-    };
+
+        window.scrollChatBottom = function () {
+            let el = document.getElementById("chat-container");
+            if (el) {
+                el.scrollTop = el.scrollHeight;
+            }
+        };
 
 
     </script>

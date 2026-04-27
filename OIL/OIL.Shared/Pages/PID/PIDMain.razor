@@ -150,22 +150,45 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var res = await SupabaseClient.From<Location>().Get();
+        try
+        {
+            var res = await SupabaseClient.From<Location>().Get();
         _allLocations = res.Models;
+
+    }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
+        }
     }
 
     private void OnFieldTypeChanged(string t)
-    {
+{try
+{
         _selectedFieldType = t;
         _filteredLocations = _allLocations.Where(x => x.FieldType != null && x.FieldType.Equals(t, StringComparison.OrdinalIgnoreCase)).ToList();
         _tempLocation = null;
+
+    }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
+        }
     }
 
     private async Task LoadDrawing()
     {
+        try
+        {
         _currentLocation = _tempLocation;
         _zoomLevel = 1.0; // Adjust zoom to 1.0 or lower to see full image vertically
         await RefreshMarkers();
+
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
+        }
     }
 
 
@@ -197,25 +220,37 @@
 
     private async Task HandleImageClick(MouseEventArgs e)
     {
-        if (!_isMappingMode) return;
+        try{
 
-        // FIX 2: Check for nulls and ensure dimensions are captured correctly
-        var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
-        if (dims.Width <= 0 || dims.Height <= 0) return;
+            if (!_isMappingMode) return;
 
-        _selectedMarker = new Marker
+            // FIX 2: Check for nulls and ensure dimensions are captured correctly
+            var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
+            if (dims.Width <= 0 || dims.Height <= 0) return;
+
+            _selectedMarker = new Marker
+            {
+                // Forces the 'Insert' logic in Supabase Upsert
+                LocationId = _currentLocation.Id,
+                CoordX = (e.OffsetX / dims.Width) * 100,
+                CoordY = (e.OffsetY / dims.Height) * 100,
+                TagNumber = "NEW-TAG",
+                InstrumentType = "",
+                MakeModelType = "",
+                Range = ""
+            };
+
+            _drawerOpen = true;
+
+
+        }
+        catch (Exception ex)
         {
-            // Forces the 'Insert' logic in Supabase Upsert
-            LocationId = _currentLocation.Id,
-            CoordX = (e.OffsetX / dims.Width) * 100,
-            CoordY = (e.OffsetY / dims.Height) * 100,
-            TagNumber = "NEW-TAG",
-            InstrumentType = "",
-            MakeModelType = "",
-            Range = ""
-        };
+            Console.WriteLine("Error handling click: " + ex.Message, Severity.Error);
+            return;
+        }
 
-        _drawerOpen = true;
+        
     }
 
     private async Task SaveMarker()
