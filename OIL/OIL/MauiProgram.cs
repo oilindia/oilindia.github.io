@@ -19,24 +19,32 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
             });
 
-        // 1. Supabase Configuration (Use the same keys as WASM)
+        // 1. Supabase Configuration
+        // Note: In production, consider using Microsoft.Extensions.Configuration 
+        // or a secure storage approach for these keys.
         var supabaseUrl = "https://pmwutokmedbbphpwxafo.supabase.co";
-        var supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtd3V0b2ttZWRiYnBocHd4YWZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NjYxNzksImV4cCI6MjA5MTA0MjE3OX0.5CyPUDvZiFVj47HimhKuXFFuvt0noAwR3VrYly9q-og";
+        var supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtd3V0b2ttZWRiYnBocHd4YWZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NjYxNzksImV4cCI6MjA5MTA0MjE3OX0.5CyPUDvZiFVj47HimhKuXFFuvt0noAwR3VrYly9q-og"; // Your key
 
-        // --- CRITICAL MISSING SERVICES START ---
-        builder.Services.AddAuthorizationCore();
-        builder.Services.AddScoped<CustomAuthStateProvider>();
-        builder.Services.AddScoped<AuthenticationStateProvider>(s =>
-            s.GetRequiredService<CustomAuthStateProvider>());
-        // --- CRITICAL MISSING SERVICES END ---
-
-        builder.Services.AddScoped<Supabase.Client>(provider =>
-            new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions { AutoConnectRealtime = true }));
-
-        builder.Services.AddScoped<AuthService>();
-        builder.Services.AddSingleton<IFormFactor, FormFactor>();
-        builder.Services.AddMudServices();
         builder.Services.AddMauiBlazorWebView();
+
+        // Use AddSingleton for Auth state in MAUI
+        builder.Services.AddAuthorizationCore();
+        builder.Services.AddSingleton<CustomAuthStateProvider>();
+        builder.Services.AddSingleton<AuthenticationStateProvider>(s =>
+            s.GetRequiredService<CustomAuthStateProvider>());
+
+        // Register Supabase WITHOUT calling BuildServiceProvider()
+        builder.Services.AddSingleton(provider =>
+            new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
+            {
+                AutoRefreshToken = true,
+                AutoConnectRealtime = true
+            }));
+
+        builder.Services.AddSingleton<AuthService>();
+        builder.Services.AddSingleton<IFormFactor, FormFactor>();
+        //builder.Services.AddScoped<GeminiService>();
+        builder.Services.AddMudServices();
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();

@@ -24,18 +24,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Check if the task itself is null
-        if (AuthStateTask == null) return;
-
-        // 2. Await the task safely
-        var authState = await AuthStateTask;
-        
-        if (authState?.User?.Identity != null)
+        try
         {
-            if (!authState.User.Identity.IsAuthenticated && !Nav.Uri.Contains("login"))
+            // 1. Check if the task itself is null
+            if (AuthStateTask == null) return;
+
+            // 2. Await the task safely
+            var authState = await AuthStateTask;
+
+            if (authState?.User?.Identity != null)
             {
-                Nav.NavigateTo("login");
+                if (!authState.User.Identity.IsAuthenticated && !Nav.Uri.Contains("login"))
+                {
+                    Nav.NavigateTo("login");
+                }
             }
         }
+        catch (Exception ex)
+        {
+            // Log the exception (you can use a logging service here)
+            Console.Error.WriteLine($"Error checking authentication state: {ex.Message}");
+            // Optionally, show a user-friendly message or navigate to an error page
+            Nav.NavigateTo("login");
+        }
+        
     }
 }

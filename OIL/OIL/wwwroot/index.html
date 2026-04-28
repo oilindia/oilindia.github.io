@@ -3,42 +3,170 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>OIL</title>
+    <title>OIL Systems</title>
     <base href="/" />
 
-
-
     <link rel="stylesheet" href="_content/OIL.Shared/app.css" />
-
     <link rel="stylesheet" href="app.css" />
-
     <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
     <link rel="icon" type="image/x-icon" href="favicon.png">
 
-    <!--<link rel="icon" href="data:,">-->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <div class="status-bar-safe-area"></div>
 
     <div id="app">
-        @* Simple loading spinner while MAUI starts up *@
-        <div style="display:flex; justify-content:center; align-items:center; height:100vh; color:#D32F2F;">
-            Loading OIL Systems...
+        <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; color:#D32F2F; font-family:sans-serif;">
+            <div class="loader-spinner"></div>
+            <p style="margin-top: 20px;">Loading OIL Systems...</p>
         </div>
     </div>
 
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-
-    <script src="_framework/blazor.webview.js" autostart="false"></script>
-
     <script>
-        window.getElementDimensions = (id) => {
-            const el = document.getElementById(id);
+        window.getElementDimensions = (el) => {
             if (!el) return { width: 0, height: 0 };
             return { width: el.offsetWidth, height: el.offsetHeight };
         };
+
+        window.scrollToMarker = (containerId, xPercent, yPercent) => {
+            const map = document.getElementById(containerId);
+            if (!map) return;
+            const container = map.parentElement;
+            if (container) {
+                const x = (map.clientWidth * (xPercent / 100)) - (container.clientWidth / 2);
+                const y = (map.clientHeight * (yPercent / 100)) - (container.clientHeight / 2);
+                container.scrollTo({ top: y, left: x, behavior: 'smooth' });
+            }
+        };
+
+        window.scrollChatBottom = function () {
+            let el = document.getElementById("chat-container");
+            if (el) el.scrollTop = el.scrollHeight;
+        };
+
+        // Chart Initializers with Null Checks
+        window.setupCharts = () => {
+            const barCtx = document.getElementById('barChart')?.getContext('2d');
+            if (barCtx) {
+                new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Maintenance', 'Employee OT', 'Transport'],
+                        datasets: [
+                            { label: 'Q1 & Q2', data: [952, 27.98, 54.75], backgroundColor: '#d1e4f6' },
+                            { label: 'Q3 & Q4', data: [790, 17.90, 52.54], backgroundColor: '#d32f2f' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            const donutCtx = document.getElementById('donutChart')?.getContext('2d');
+            if (donutCtx) {
+                new Chart(donutCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Maintenance ₹162L', 'Transport ₹2.21L', 'OT ₹10.08L'],
+                        datasets: [{
+                            data: [162, 2.21, 10.08],
+                            backgroundColor: ['#d32f2f', '#b0892d', '#20548a'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+        };
+
+        window.setupReductionCharts = () => {
+            const ctxReduction = document.getElementById('reductionChart')?.getContext('2d');
+            if (ctxReduction) {
+                new Chart(ctxReduction, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Maintenance', 'Employee OT', 'Transport', 'Overall'],
+                        datasets: [{
+                            axis: 'y',
+                            data: [17.0, 36.9, 4.0, 16.8],
+                            backgroundColor: ['#d32f2f', '#20548a', '#b0892d', '#1a7f4e'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { suggestedMax: 40 } }
+                    }
+                });
+            }
+
+            const ctxOT = document.getElementById('otHoursChart')?.getContext('2d');
+            if (ctxOT) {
+                new Chart(ctxOT, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Q1 & Q2', 'Q3 & Q4'],
+                        datasets: [{
+                            data: [4780, 4400],
+                            backgroundColor: ['#d1e4f6', '#d32f2f'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+            }
+        };
+
+        window.setupSavingsMixChart = () => {
+            const ctxSavings = document.getElementById('savingsMixChart')?.getContext('2d');
+            if (ctxSavings) {
+                new Chart(ctxSavings, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['PM & Spares', 'Transport', 'Technology', 'OT Control'],
+                        datasets: [{
+                            data: [60, 2, 30, 8],
+                            backgroundColor: ['#d32f2f', '#b0892d', '#1a7f4e', '#20548a'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: { cutout: '60%', responsive: true, maintainAspectRatio: false }
+                });
+            }
+        };
     </script>
+
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.webview.js"></script>
+
+    <style>
+        .loader-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #D32F2F;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-bar-safe-area {
+            height: env(safe-area-inset-top);
+            background-color: transparent;
+        }
+    </style>
 </body>
 </html>
