@@ -38,24 +38,33 @@ namespace OIL.Shared.Services
 
         public void AdminUpdateAuthenticationState(string email, string role)
         {
-            var claims = new List<Claim>
+            try
+            {
+                var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, email),
                     new Claim(ClaimTypes.Role, role)
                 };
 
-            var identity = new ClaimsIdentity(claims, "CustomAuth");
-            var user = new ClaimsPrincipal(identity);
+                var identity = new ClaimsIdentity(claims, "CustomAuth");
+                var user = new ClaimsPrincipal(identity);
 
-            // We wrap the result in a Task.FromResult to avoid "waiting on monitors"
-            var authState = Task.FromResult(new AuthenticationState(user));
+                // We wrap the result in a Task.FromResult to avoid "waiting on monitors"
+                var authState = Task.FromResult(new AuthenticationState(user));
 
-            NotifyAuthenticationStateChanged(authState);
+                NotifyAuthenticationStateChanged(authState);
+            }
+            catch (Exception ex)
+            {
+                
+            }
         }
 
         public async Task UpdateAuthenticationState(string email, string role)
         {
-            var userSession = new UserSession { Email = email, Role = role };
+            try
+            {
+                var userSession = new UserSession { Email = email, Role = role };
 
             // 1. Persist the user to LocalStorage so it survives refreshes/back button
             await _localStorage.SetItemAsync("user_session", JsonSerializer.Serialize(userSession));
@@ -63,24 +72,48 @@ namespace OIL.Shared.Services
             // 2. Create the principal and notify the UI
             var user = CreateClaimsPrincipal(email, role);
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+
+            }
+            catch (Exception ex)
+            {
+
+            }
         }
 
         public async Task NotifyLogout()
         {
-            // Clear storage and reset
-            await _localStorage.RemoveItemAsync("user_session");
+            try
+            {
+                // Clear storage and reset
+                await _localStorage.RemoveItemAsync("user_session");
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(_anonymous)));
-        }
+
+
+            }
+            catch (Exception ex)
+            {
+                
+            }
+}
 
         private ClaimsPrincipal CreateClaimsPrincipal(string email, string role)
         {
-            var identity = new ClaimsIdentity(new[]
+            try
+            {
+                var identity = new ClaimsIdentity(new[]
             {
                 new Claim(ClaimTypes.Name, email),
                 new Claim(ClaimTypes.Role, role),
             }, "SupabaseAuth");
 
             return new ClaimsPrincipal(identity);
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
         }
     }
 

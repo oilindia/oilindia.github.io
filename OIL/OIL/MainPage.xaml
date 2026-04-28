@@ -4,11 +4,15 @@
              xmlns:local="clr-namespace:OIL"
              xmlns:shared="clr-namespace:OIL.Shared;assembly=OIL.Shared"
              x:Class="OIL.MainPage"
-             BackgroundColor="{DynamicResource PageBackgroundColor}">
+             >
+             <!--BackgroundColor="{DynamicResource PageBackgroundColor}"-->
+    
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type shared:Routes}" />
+            <!--<RootComponent Selector="#app" ComponentType="{x:Type shared:Routes}" />-->
+
+            <RootComponent Selector="#app" ComponentType="{x:Type shared:AppRoot}" />
         </BlazorWebView.RootComponents>
     </BlazorWebView>
 
