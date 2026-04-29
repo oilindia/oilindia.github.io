@@ -1,0 +1,245 @@
+﻿@page "/fmorganodpt"
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10 mb-10">
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mud-text-primary font-weight-bold">Field Maintenance Organogram</MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">Departmental Hierarchy & Asset Allocation</MudText>
+
+    <div class="org-scroll-container">
+        <div class="org-tree">
+
+            @* --- LEVEL 1: HOD --- *@
+            <div class="node-group">
+                <MudPaper Elevation="8" Class="pa-4 node-card root-node">
+                    <MudText Typo="Typo.h6"><b>Chinmay Kumar Sarma</b></MudText>
+                    <MudText Typo="Typo.caption">HOD</MudText>
+                </MudPaper>
+
+                <div class="connector-v"></div>
+
+                @* --- LEVEL 2: GM --- *@
+                <div class="node-group">
+                    <MudPaper Elevation="6" Class="pa-4 node-card gm-node">
+                        <MudText Typo="Typo.subtitle1"><b>Partha Pratim Adhyapak</b></MudText>
+                        <MudText Typo="Typo.caption">GM</MudText>
+                    </MudPaper>
+
+                    <div class="connector-v"></div>
+
+                    @* --- LEVEL 3: MANAGERS (Static Distribution) --- *@
+                    <div class="node-children">
+                        @foreach (var manager in StaticManagers)
+                        {
+                            <div class="node-group">
+                                <div class="connector-h-branch"></div>
+                                <MudPaper Elevation="4" Class="pa-4 node-card manager-node">
+                                    <div class="d-flex align-center gap-2 mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Error" Size="Size.Small" />
+                                        <div class="text-start">
+                                            <MudText Typo="Typo.body1"><b>@manager.Name</b></MudText>
+                                            <MudText Typo="Typo.caption" Class="d-block">@manager.Designation</MudText>
+                                        </div>
+                                    </div>
+
+                                    <div class="asset-list-box">
+                                        @foreach (var loc in manager.Locations)
+                                        {
+                                            <div class="asset-row">
+                                                <span class="asset-dot"></span>
+                                                <span class="asset-name">@loc</span>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="mt-auto pt-3">
+                                        <MudDivider Class="mb-2" />
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudText Typo="Typo.caption" Style="font-weight: 700;">Total Assets:</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Error" Style="font-weight: 900;">@manager.Locations.Count</MudText>
+                                        </div>
+                                    </div>
+                                </MudPaper>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</MudContainer>
+
+<style>
+    .org-scroll-container {
+        overflow-x: auto;
+        padding: 60px 20px;
+        background: #f8fafc;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .org-tree {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 1600px;
+    }
+
+    .node-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    .node-children {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        position: relative;
+        padding-top: 30px;
+        gap: 20px;
+    }
+
+    .connector-v {
+        width: 2px;
+        height: 35px;
+        background: #94a3b8;
+    }
+
+    .node-children::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 15px;
+        right: 15px;
+        height: 2px;
+        background: #94a3b8;
+    }
+
+    .node-card {
+        width: 250px;
+        text-align: center;
+        z-index: 2;
+        border-bottom: 5px solid transparent;
+        border-radius: 12px;
+    }
+
+    .root-node {
+        border-bottom-color: #1e293b;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    }
+
+    .gm-node {
+        border-bottom-color: #ea580c;
+    }
+
+    .manager-node {
+        border-bottom-color: #dc2626;
+        width: 290px;
+        min-height: 720px; /* High min-height to ensure all 20+ locations fit */
+        display: flex;
+        flex-direction: column;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+        .manager-node:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        }
+
+    .asset-list-box {
+        text-align: left;
+        background: #fdfdfd;
+        border: 1px solid #f1f5f9;
+        border-radius: 8px;
+        padding: 12px;
+        flex-grow: 1;
+    }
+
+    .asset-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #f8fafc;
+        padding-bottom: 2px;
+    }
+
+    .asset-dot {
+        width: 6px;
+        height: 6px;
+        background: #dc2626;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .asset-name {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+</style>
+
+@code {
+    public class ManagerData
+    {
+        public string Name { get; set; }
+        public string Designation { get; set; }
+        public List<string> Locations { get; set; } = new();
+    }
+
+    private List<ManagerData> StaticManagers = new();
+
+    protected override void OnInitialized()
+    {
+        var allLocations = GetManualLocations();
+
+        // Define exactly 5 managers as per your requirement
+        StaticManagers = new List<ManagerData> {
+            new ManagerData { Name = "Satya Ranjan Chetia", Designation = "SUPERINTENDING ENGINEER" },
+            new ManagerData { Name = "Rahul Pal", Designation = "SUPERINTENDING ENGINEER" },
+            new ManagerData { Name = "Subhanan Goswami", Designation = "SENIOR OFFICER" },
+            new ManagerData { Name = "Surendra Choudhary", Designation = "SUPERINTENDING ENGINEER" },
+            new ManagerData { Name = "Tolan Boruah", Designation = "DEPUTY CHIEF ENGINEER" }
+        };
+
+        // Distribute 102 locations across 5 managers (~20 each)
+        int perManager = allLocations.Count / StaticManagers.Count;
+        int remainder = allLocations.Count % StaticManagers.Count;
+        int currentIdx = 0;
+
+        for (int i = 0; i < StaticManagers.Count; i++)
+        {
+            int countToTake = perManager + (i < remainder ? 1 : 0);
+            StaticManagers[i].Locations = allLocations.Skip(currentIdx).Take(countToTake).ToList();
+            currentIdx += countToTake;
+        }
+    }
+
+    private List<string> GetManualLocations()
+    {
+        return new List<string> {
+            "Dikom OCS", "Kathaloni OCS", "Tengakhat OCS", "Bhekulajan EPS", "Hatiali EPS", "Khagorijan QPS",
+            "HJC Chabua QPS", "DIAN QPS", "Chabua 3 EPS", "WHS TAI (EKJ-1)", "Bhogpara OCS", "CH (NDA-1) QPS",
+            "WHS TAT (Kharjan-1)", "SPF TAF (Dinjan)", "SPF HXR (SSB-1)", "SPF HZV (SSB-6)", "Chabua FGGS",
+            "Dikom GCS", "Hatiali FGGS", "Kathaloni GCS", "Tengakhat GCS", "HJC Chabua GCS", "Bhogpara GCS",
+            "Bhekulajan GCS", "Khagorijan GGS [UPCOMING]", "Nadua OCS [UPCOMING]", "NHK OCS 1", "NHK OCS 2",
+            "NHK OCS 6", "NHK OCS 8", "Jaipur OCS", "NHK OCS 3", "Moran OCS 1", "Shalmari OCS 1", "Deroi EPS",
+            "Shalmari OCS 2", "DGD QPS", "Balimara QPS", "WHS RHG 14", "WHS MFC (MRN-116)", "WHS DIBC (SLG-1)",
+            "WHS MFP (DKP-2)", "WHS MEW (MRN-112)", "SPF MFJ (BHB-1)", "WHS BG (WBMR-01)", "SPF NDX (NHK-156)",
+            "WHS MDB (RGH-3)", "SPF MGJ (LKG-5)", "SPF MGO (LKG-10)", "SPF MFK II (LKG-14)", "SPF MGM (LKG-13)",
+            "SPF MHB (LKG-21)", "SPF NHK 86", "SPF MGO II (LKG-14)", "SPF MFK (LKG-1)", "NHK GCS 1", "NHK GCS 2",
+            "NHK GCS 6", "NHK GCS 8", "Jaipur GCS", "Moran GCS", "Shalmari GCS", "Balimara GCS", "OCS 4", "OCS 5",
+            "Jorajan OCS", "Kathalguri OCS", "Langkasi OCS", "Nagajan OCS", "Ushapur OCS", "Balijan QPS", "NKF QPS",
+            "SPF NHK 506", "WHS Bordubi", "WHS Tarajan", "WHS Balijan", "Deohal FGS", "FGGS 336", "GCS 4", "GCS 5",
+            "Jorajan GCS", "Kathalguri FGGS & OTP", "Kathalguri GCS", "Langkasi GCS", "Madhuting FGGS", "Nagajan GCS",
+            "Ushapur GCS", "Hapjan OCS", "SPF Bogapani", "Makum OCS", "Barekuri QPS", "Baghjan EPS", "Kumchai OCS",
+            "WHS TX", "WHS HWDH", "Hebeda OCS", "SPF Borhapjan", "SPF DID", "SPF TAG", "SPF Samdung",
+            "CBUS Unit", "WSS Unit", "WI Unit", "Boiler Unit", "MSG Units", "Medical Section", "Field Engineering",
+            "Chemical Lab", "R&D Unit", "CMT Unit"
+        };
+    }
+}

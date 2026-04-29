@@ -4,17 +4,21 @@
         <Authorized>
             @* --- GLOBAL LINKS (Everyone) --- *@
             <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
-            <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+            <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
             
-            <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+            <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+
+            <MudNavLink Href="/coststatic" Icon="@Icons.Material.Filled.Money">FY26 Cost</MudNavLink>
+
+            <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM Dashboard</MudNavLink>
 
             <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
 
             <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
             <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
 
-            <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
-            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink>
+            
+            @* <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink> *@
 
             @* <MudNavLink Href="/locatoionmap" Icon="@Icons.Material.Filled.Map">Sites Locations Map</MudNavLink> *@
 
@@ -43,6 +47,9 @@
                     <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
                     <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
                     <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
+
+                    <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
+
                     @* <MudNavLink Href="/jobcard">Job Card</MudNavLink> *@
                 </MudNavGroup>
 

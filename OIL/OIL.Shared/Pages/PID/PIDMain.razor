@@ -7,6 +7,7 @@
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
 
+<div id="full-page-container" style="background: inherit;">
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudGrid>
         @* --- TOP CONTROLS --- *@
@@ -33,6 +34,14 @@
                     <MudToggleItem Value="false" Text="View Mode" />
                     <MudToggleItem Value="true" Text="Edit Mode" />
                 </MudToggleGroup>
+
+                    <MudDivider Vertical="true" FlexItem="true" />
+
+                    @* NEW FULLSCREEN BUTTON *@
+                    <MudIconButton Icon="@(_isFull ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
+                                   Color="Color.Inherit"
+                                   OnClick="ToggleFullScreen"
+                                   Title="Toggle Fullscreen" />
             </MudPaper>
         </MudItem>
 
@@ -45,6 +54,8 @@
                     
                     @* Floating Controls *@
                     <div style="position: sticky; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 8px;">
+                        
+                                                
                         <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="() => _zoomLevel += 0.15" />
                         <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" Size="Size.Small" OnClick="() => _zoomLevel = Math.Max(0.1, _zoomLevel - 0.15)" />
                         <MudFab Color="Color.Info" StartIcon="@Icons.Material.Filled.FullscreenExit" Size="Size.Small" OnClick="() => _zoomLevel = 1.0" Tooltip="Reset View" />
@@ -53,17 +64,22 @@
                     <div id="pid-map-container" @onclick="HandleImageClick" style="@GetZoomStyle()" class="@(_isMappingMode ? "mapping-active" : "")">
                         <img @ref="myImage" src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
 
-                        @foreach (var m in _markers.Where(x => x.CoordX.HasValue && x.CoordY.HasValue))
-                        {
-                            <div style="position: absolute; top: @($"{m.CoordY}%"); left: @($"{m.CoordX}%"); transform: translate(-50%, -50%);">
-                                <MudTooltip Text="@($"{m.TagNumber} | {m.MakeModelType}")">
-                                    <MudIconButton Icon="@Icons.Material.Filled.LocationOn"
-                                                   Style="color: #00C853; filter: drop-shadow(0px 0px 4px rgba(0,0,0,0.8));"
-                                                   Size="Size.Medium"
-                                                   OnClick="() => OpenEdit(m)" />
-                                </MudTooltip>
-                            </div>
-                        }
+                            @* Conditional Style: If this is the active marker, make it Red, otherwise Green *@
+
+                            @foreach (var m in _markers.Where(x => x.CoordX.HasValue && x.CoordY.HasValue))
+                            {
+                                <div style="position: absolute; top: @($"{m.CoordY}%"); left: @($"{m.CoordX}%"); transform: translate(-50%, -50%);">
+                                    <MudTooltip Text="@($"{m.TagNumber} | {m.MakeModelType}")">
+                                        <MudIconButton Icon="@Icons.Material.Filled.LocationOn"
+                                                       
+                                                       Style="@((_activeMarkerId == m.Id)
+                                                                                           ? "color: #FF0000; filter: drop-shadow(0px 0px 8px rgba(255,0,0,0.8)); scale: 2.3;"
+                                                                                           : "color: #00C853; filter: drop-shadow(0px 0px 4px rgba(0,0,0,0.8));")"
+                                                       Size="Size.Medium"
+                                                       OnClick="() => OpenEdit(m)" />
+                                    </MudTooltip>
+                                </div>
+                            }
                     </div>
                 </div>
             </MudItem>
@@ -107,10 +123,49 @@
                 <MudTextField @bind-Value="_selectedMarker.MakeModelType" Label="Make & Model" Variant="Variant.Outlined" />
                 <MudTextField @bind-Value="_selectedMarker.Range" Label="Range" Variant="Variant.Outlined" />
                 <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Class="mt-4">Save</MudButton>
+
+                    <MudDivider Class="my-4" />
+
+                    @* --- PM Configuration Read-Only Info --- *@
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-n2">Maintenance Schedule :</MudText>
+                    <MudPaper Variant="Variant.Outlined" Class="pa-4" Style="background: rgba(0,0,0,0.05);">
+                        <MudStack Spacing="1">
+                            <div class="d-flex justify-space-between">
+                                <MudText Typo="Typo.body2" Color="Color.Primary">Last PM Done On:</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    @(_locationPmConfig?.LastGeneratedDate?.ToString("dd-MMM-yyyy") ?? "Not Recorded")
+                                </MudText>
+                            </div>
+                            <div class="d-flex justify-space-between">
+                                <MudText Typo="Typo.body2" Color="Color.Primary">PM Repeats Every:</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    @(_locationPmConfig != null ? $"{_locationPmConfig.FrequencyDays} days" : "N/A")
+                                </MudText>
+                            </div>
+                            <div class="d-flex justify-space-between">
+                                <MudText Typo="Typo.body2" Color="Color.Primary">Cyclicity:</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    @(_locationPmConfig?.CyclicityLabel ?? "N/A")
+                                </MudText>
+                            </div>
+                             <div class="d-flex justify-space-between">
+                            <MudText Typo="Typo.body2" Color="Color.Primary" Class="mb-n1">Asset QR (Tag Number)</MudText>
+
+                            @* Dynamic Image: Uses the GetQrCodeUrl helper *@
+                            <img src="@GetQrCodeUrl(_selectedMarker.TagNumber)"
+                                 alt="QR Code for @_selectedMarker.TagNumber"
+                                 style="width: 150px; height: 150px; border: 4px solid white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s ease;" />
+                            </div>
+                             </MudStack>
+                    </MudPaper>
+
+
             </MudStack>
         }
     </div>
 </MudDrawer>
+</div>
+
 
 @code {
 
@@ -139,6 +194,16 @@
         [Column("image_url")] public string ImageUrl { get; set; }
     }
 
+    [Table("pm_configurations")]
+    public class PmConfiguration : BaseModel
+    {
+        [Column("id")] public long Id { get; set; }
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("last_generated_date")] public DateTime? LastGeneratedDate { get; set; }
+        [Column("cyclicity_label")] public string CyclicityLabel { get; set; }
+        [Column("frequency_days")] public int FrequencyDays { get; set; }
+    }
+
     [Table("pid_markers")]
     public class Marker : BaseModel
     {
@@ -152,6 +217,44 @@
         [Column("coord_x")] public double? CoordX { get; set; }
         [Column("coord_y")] public double? CoordY { get; set; }
     }
+
+    private double _zoomLevellocal = 1.0;
+    private bool _isFull = false;
+
+    private PmConfiguration _locationPmConfig;
+
+    private string GetQrCodeUrl(string tagNumber)
+    {
+        if (string.IsNullOrWhiteSpace(tagNumber)) return string.Empty;
+
+        // Uses goqr.me API to generate a 200x200 QR code
+        // and ensures the tagNumber is URL-safe using Uri.EscapeDataString
+        return $"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={Uri.EscapeDataString(tagNumber)}";
+    }
+
+    private async Task ToggleFullScreen()
+    {
+        try
+        {
+            if (!_isFull)
+            {
+                // Requests fullscreen for the main container
+                await JS.InvokeVoidAsync("eval", "document.getElementById('full-page-container').requestFullscreen()");
+                _isFull = true;
+            }
+            else
+            {
+                // Exits fullscreen
+                await JS.InvokeVoidAsync("eval", "if(document.fullscreenElement) document.exitFullscreen()");
+                _isFull = false;
+            }
+        }
+        catch (Exception ex)
+        {
+             Snackbar.Add("Fullscreen not supported or blocked", Severity.Error);
+        }
+    }
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -213,6 +316,13 @@
 
             // Overwrite the old list with the fresh data from the DB
             _markers = res.Models ?? new List<Marker>();
+
+
+            // Fetch PM Config for this location
+            var pmRes = await SupabaseClient.From<PmConfiguration>()
+                .Where(x => x.LocationId == _currentLocation.Id).Get();
+            _locationPmConfig = pmRes.Models.FirstOrDefault();
+
 
             // Force Blazor to re-render the overlay and the table
             StateHasChanged();
@@ -355,14 +465,26 @@
     //     await RefreshMarkers();
     //     Snackbar.Add("Updated Successfully", Severity.Success);
     // }
+    private long? _activeMarkerId;
+
 
     private async Task LocateMarker(Marker m)
     {
         if (!m.CoordX.HasValue || !m.CoordY.HasValue) return;
+        
+
+        // Set the active marker ID to trigger the color change
+        _activeMarkerId = m.Id;
+
         _zoomLevel = 1.2;
+
         StateHasChanged();
+
+
         await Task.Delay(100);
         await JS.InvokeVoidAsync("scrollToMarker", "pid-map-container", m.CoordX.Value, m.CoordY.Value);
+
+
     }
 
     // private async Task DeleteMarker(Marker m)

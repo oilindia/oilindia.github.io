@@ -29,6 +29,8 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
 
+        //builder.RootComponents.Add<SharedProject.App>("app");
+
         // Use AddSingleton for Auth state in MAUI
         builder.Services.AddAuthorizationCore();
         builder.Services.AddSingleton<CustomAuthStateProvider>();

@@ -1,0 +1,537 @@
+﻿@page "/homeDB"
+
+@using MudBlazor
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<MudThemeProvider Theme="_brandTheme" DefaultScrollbar="true" />
+
+<div id="full-page-container" style="background: inherit;">
+    <div class="dashboard-root">
+        <div class="dashboard-shell">
+
+            <div class="d-flex justify-space-between align-center flex-wrap gap-4 mb-8">
+                <div class="d-flex align-center gap-4">
+                    <div class="logo-container">
+                        <MudImage Src="_content/OIL.Shared/imgs/oil.png" Width="68" Height="68" Alt="OIL Logo" />
+                    </div>
+                    <div>
+                        <span class="brand-kicker">Instrumentation Department • Field Maintenance Section</span>
+                        <MudText Typo="Typo.h3" Class="brand-title">Field Maintenance <span class="accent-red">Command Dashboard</span></MudText>
+                        <MudText Typo="Typo.body1" Class="brand-subtext">Instrumentation support for production installations, control systems and safety-critical assets.</MudText>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 align-center">
+                    <div class="brand-pill">
+                        <span class="@(_autoCycle ? "dot-live" : "dot-paused")"></span>
+                        Status: <b>@(_autoCycle ? "Live Cycle" : "Paused")</b>
+                    </div>
+                    <div class="brand-pill">Time: <b>@DateTime.Now.ToString("HH:mm:ss")</b></div>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="rounded-pill px-4" OnClick="ToggleFullScreen">Full Screen</MudButton>
+                    @if (!_autoCycle)
+                    {
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="rounded-pill px-4" OnClick="() => _autoCycle = true">Resume</MudButton>
+                    }
+                </div>
+            </div>
+
+            <MudGrid Class="mb-8">
+                @foreach (var kpi in _kpis)
+                {
+                    <MudItem xs="12" sm="4" md="2">
+                        <div class="kpi-card-brand">
+                            <div class="k">@kpi.Title</div>
+                            <div class="v">@kpi.Value</div>
+                            <div class="s">@kpi.Subtext</div>
+                        </div>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <div class="carousel-container">
+                <MudCarousel @bind-SelectedIndex="_currentSlideIndex"
+                             Class="mud-width-full"
+                             Style="height: 620px;"
+                             ShowArrows="true"
+                             ShowBullets="true"
+                             AutoCycle="_autoCycle"
+                             TData="object">
+
+                    <MudCarouselItem Transition="Transition.Slide">
+                        <div class="slide-layout">
+                            <div class="content-panel">
+                                <div class="section-tag">Operational Mandate</div>
+                                <MudText Typo="Typo.h4" Class="mt-4 fw-bold">High availability of field instrumentation services.</MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2 mb-6 opacity-70">Field Maintenance sustains operating continuity through preventive maintenance and disciplined response.</MudText>
+
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="6"><div class="callout-box"><span>Primary Objective</span><strong>Service continuity</strong><p>Keeps control elements available.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="callout-box"><span>Maintenance Model</span><strong>Preventive Support</strong><p>Structured maintenance coverage.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="callout-box"><span>Operating Value</span><strong>Plant Performance</strong><p>Strengthens process stability.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="callout-box"><span>Section Reach</span><strong>Production Allied</strong><p>Associated support functions.</p></div></MudItem>
+                                </MudGrid>
+                            </div>
+
+                            <div class="visual-panel">
+                                <div class="media-card">
+                                    <MudImage Src="/static/fm_scene_1.jpg" ObjectFit="ObjectFit.Cover" Class="w-100 h-100" />
+                                    <div class="media-label"><b>Command View</b><span>P&IDs and Daily Report workflow.</span></div>
+                                </div>
+                                <div class="mini-scada-brand mt-4">
+                                    <div class="d-flex justify-space-between mb-2">
+                                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Coverage Snapshot</MudText>
+                                        <span class="pulse-text">Active</span>
+                                    </div>
+                                    @foreach (var meter in _meters)
+                                    {
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-space-between mb-1">
+                                                <MudText Typo="Typo.caption" Class="fw-bold">@meter.Label</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Primary">@meter.Val</MudText>
+                                            </div>
+                                            <MudProgressLinear Color="Color.Primary" Value="@meter.Percent" Size="Size.Small" Class="rounded-pill bg-pink-light" />
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </MudCarouselItem>
+
+                    <MudCarouselItem Transition="Transition.Slide">
+                        <div class="slide-layout">
+                            <div class="content-panel">
+                                <div class="section-tag">Service Portfolio</div>
+                                <MudText Typo="Typo.h4" Class="mt-4 fw-bold">Integrated support across instruments and safety systems.</MudText>
+                                <p class="mt-2 opacity-70">Managing field devices, control platforms, and safety-related instrumentation assets.</p>
+
+                                <MudGrid Class="mt-4" Spacing="2">
+                                    <MudItem xs="6"><div class="service-card-brand"><strong>Field Instrument Health</strong><p>Calibration and troubleshooting.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="service-card-brand"><strong>Control System Readiness</strong><p>DCS and Panel hardware support.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="service-card-brand"><strong>Safety System Dependability</strong><p>BMS and Flare Ignition support.</p></div></MudItem>
+                                    <MudItem xs="6"><div class="service-card-brand"><strong>Cross-functional Support</strong><p>Allied department services.</p></div></MudItem>
+                                </MudGrid>
+                            </div>
+                            <div class="visual-panel">
+                                <div class="media-card" style="height: 200px;">
+                                    <MudImage Src="/static/fm_scene_2.jpg" ObjectFit="ObjectFit.Cover" Class="w-100 h-100" />
+                                    <div class="media-label"><b>Portfolio Coverage</b></div>
+                                </div>
+                                <MudGrid Spacing="2" Class="mt-2">
+                                    @foreach (var tile in _portfolioTiles)
+                                    {
+                                        <MudItem xs="6">
+                                            <div class="portfolio-tile">
+                                                <div class="d-flex justify-space-between align-center">
+                                                    <span class="tile-label">@tile.Label</span>
+                                                    <span class="tile-idx">@tile.Id</span>
+                                                </div>
+                                                <div class="tile-val">@tile.Value</div>
+                                                <div class="tile-note">@tile.Note</div>
+                                            </div>
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            </div>
+                        </div>
+                    </MudCarouselItem>
+
+                    <MudCarouselItem Transition="Transition.Slide">
+                        <div class="slide-layout">
+                            <div class="content-panel">
+                                <div class="section-tag">Connected Workflow</div>
+                                <MudText Typo="Typo.h4" Class="mt-4 fw-bold">Immediate visibility and direct operating access.</MudText>
+
+                                <MudGrid Spacing="2" Class="mt-4">
+                                    @foreach (var live in _liveStats)
+                                    {
+                                        <MudItem xs="6">
+                                            <div class="live-stat-card">
+                                                <div class="k">@live.Label</div>
+                                                <div class="v">@live.Value</div>
+                                                <div class="s">@live.Sub</div>
+                                            </div>
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                                <div class="mt-4 pa-4 rounded-lg bg-pink-light border-red-soft">
+                                    <MudText Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">Loading current workbook coverage...</MudText>
+                                </div>
+                            </div>
+                            <div class="visual-panel">
+                                <MudStack Spacing="2">
+                                    <div class="nav-link-brand">
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="fw-bold" onclick="">Open P&IDs</MudText>
+                                            <MudText Typo="Typo.caption" onlick="">Installation-wise drawings & hotspots.</MudText>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
+                                    </div>
+                                    <div class="nav-link-brand">
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="fw-bold" onclick="">Open Daily Report</MudText>
+                                            <MudText Typo="Typo.caption" onclick="">Daily entry and reporting workflow.</MudText>
+                                        </div>
+                                        <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
+                                    </div>
+                                    <div class="media-card mt-2" style="height: 180px;">
+                                        <MudImage Src="/static/fm_scene_4.jpg" ObjectFit="ObjectFit.Cover" Class="w-100 h-100" />
+                                        <div class="media-label"><b>System Access</b></div>
+                                    </div>
+                                </MudStack>
+                            </div>
+                        </div>
+                    </MudCarouselItem>
+                </MudCarousel>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --oil-red: #d71920;
+        --oil-pink: #fff1f2;
+        --oil-white: #ffffff;
+    }
+
+    .dashboard-root {
+        background: radial-gradient(circle at top left, rgba(215, 25, 32, 0.05), transparent 40%), var(--oil-white);
+        min-height: 100vh;
+        color: #1e293b;
+    }
+
+    .dashboard-shell {
+        padding: 40px;
+    }
+
+    .logo-container {
+        padding: 10px;
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(215, 25, 32, 0.1);
+        border: 1px solid var(--oil-pink);
+    }
+
+    .brand-kicker {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--oil-red);
+        font-weight: 800;
+        background: var(--oil-pink);
+        padding: 4px 14px;
+        border-radius: 20px;
+    }
+
+    .brand-title {
+        font-weight: 900;
+        color: #0f172a;
+        margin-top: 8px;
+    }
+
+    .accent-red {
+        color: var(--oil-red);
+    }
+
+    .brand-subtext {
+        color: #64748b;
+        font-size: 1.1rem;
+    }
+
+    .brand-pill {
+        background: white;
+        border: 1px solid #e2e8f0;
+        padding: 8px 20px;
+        border-radius: 99px;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .dot-live {
+        width: 8px;
+        height: 8px;
+        background: #22c55e;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 8px #22c55e;
+    }
+
+    .dot-paused {
+        width: 8px;
+        height: 8px;
+        background: #f59e0b;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 8px #f59e0b;
+    }
+
+    /* KPI CARDS */
+    .kpi-card-brand {
+        padding: 24px;
+        background: white;
+        border-radius: 24px;
+        border: 1px solid #f1f5f9;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+        border-bottom: 4px solid var(--oil-red);
+    }
+
+        .kpi-card-brand .k {
+            font-size: 11px;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .kpi-card-brand .v {
+            font-size: 32px;
+            font-weight: 900;
+            color: #1e293b;
+            margin: 4px 0;
+        }
+
+        .kpi-card-brand .s {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+    /* CAROUSEL */
+    .carousel-container {
+        background: white;
+        border: 1px solid #f1f5f9;
+        border-radius: 32px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.04);
+    }
+
+    .slide-layout {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 40px;
+        padding: 40px;
+    }
+
+    .section-tag {
+        display: inline-block;
+        padding: 6px 14px;
+        background: var(--oil-pink);
+        color: var(--oil-red);
+        border-radius: 99px;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .callout-box, .service-card-brand, .live-stat-card {
+        background: var(--oil-pink);
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(215, 25, 32, 0.05);
+    }
+
+        .callout-box span, .live-stat-card .k {
+            font-size: 10px;
+            color: var(--oil-red);
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .callout-box strong, .service-card-brand strong {
+            display: block;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .callout-box p, .service-card-brand p {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 4px;
+            line-height: 1.2;
+        }
+
+        .live-stat-card .v {
+            font-size: 26px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+    .media-card {
+        position: relative;
+        border-radius: 24px;
+        overflow: hidden;
+        border: 4px solid white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    .media-label {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(transparent, rgba(0,0,0,0.85));
+        color: white;
+    }
+
+    .mini-scada-brand {
+        background: #fff8f8;
+        padding: 20px;
+        border-radius: 20px;
+        border: 1px solid var(--oil-pink);
+    }
+
+    .pulse-text {
+        color: var(--oil-red);
+        font-weight: 900;
+        font-size: 11px;
+        text-transform: uppercase;
+        animation: blink 2s infinite;
+    }
+
+    .portfolio-tile {
+        padding: 16px;
+        background: white;
+        border: 1px solid #f1f5f9;
+        border-radius: 16px;
+    }
+
+    .tile-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #64748b;
+    }
+
+    .tile-idx {
+        font-size: 11px;
+        color: var(--oil-red);
+        font-weight: 900;
+        opacity: 0.3;
+    }
+
+    .tile-val {
+        font-size: 22px;
+        font-weight: 900;
+    }
+
+    .nav-link-brand {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        border: 1px solid #f1f5f9;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .nav-link-brand:hover {
+            border-color: var(--oil-red);
+            background: var(--oil-pink);
+        }
+
+    .bg-pink-light {
+        background-color: var(--oil-pink) !important;
+    }
+
+    .border-red-soft {
+        border: 1px solid rgba(215, 25, 32, 0.1);
+    }
+
+    .fw-bold {
+        font-weight: 700;
+    }
+
+    @@keyframes blink {
+        50% {
+            opacity: 0.4;
+        }
+    }
+</style>
+
+@code {
+    private int _currentSlideIndex = 0;
+    private int _lastInteractedIndex = -1;
+    private bool _autoCycle = true;
+    private bool _isFull = false;
+
+    // Detects when the user clicks a dot or arrow
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (_currentSlideIndex != _lastInteractedIndex)
+        {
+            _lastInteractedIndex = _currentSlideIndex;
+            // If user explicitly changed the slide, pause the cycle
+            _autoCycle = false;
+            StateHasChanged();
+        }
+    }
+
+    private MudTheme _brandTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#d71920",
+            AppbarBackground = "#ffffff",
+            Background = "#ffffff",
+            Surface = "#ffffff",
+            TextPrimary = "#1e293b"
+        }
+    };
+
+    private List<Kpi> _kpis = new() {
+        new("Production", "70+", "Installations"),
+        new("Instruments", "7000+", "Device Base"),
+        new("DCS Systems", "3", "Platforms"),
+        new("Gas Panels", "120+", "Field Panels"),
+        new("BMS Systems", "110+", "Safety Units"),
+        new("Air Comp", "40+", "Air Support")
+    };
+
+    private List<Meter> _meters = new() {
+        new("Field Instruments", "7000+", 96),
+        new("Compressor Panels", "120+", 82),
+        new("BMS Systems", "110+", 76),
+        new("Air Compressors", "40+", 54)
+    };
+
+    private List<PortfolioTile> _portfolioTiles = new() {
+        new("01", "Field Instruments", "7000+", "Large device base."),
+        new("02", "DCS Systems", "3", "Main platforms."),
+        new("03", "Compressor Panels", "120+", "Electronic controls."),
+        new("04", "BMS Systems", "110+", "Safety oversight.")
+    };
+
+    private List<LiveStat> _liveStats = new() {
+        new("Installations", "74", "Live footprint"),
+        new("Drawing Pages", "128", "P&ID Index"),
+        new("Asset Records", "7201", "Tagged assets"),
+        new("Report History", "14k", "Row entries")
+    };
+
+    private async Task ToggleFullScreen()
+    {
+        try
+        {
+            if (!_isFull)
+            {
+                await JS.InvokeVoidAsync("eval", "document.getElementById('full-page-container').requestFullscreen()");
+                _isFull = true;
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("eval", "if(document.fullscreenElement) document.exitFullscreen()");
+                _isFull = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Fullscreen not supported or blocked", Severity.Error);
+        }
+    }
+
+    public record Kpi(string Title, string Value, string Subtext);
+    public record Meter(string Label, string Val, int Percent);
+    public record PortfolioTile(string Id, string Label, string Value, string Note);
+    public record LiveStat(string Label, string Value, string Sub);
+}
