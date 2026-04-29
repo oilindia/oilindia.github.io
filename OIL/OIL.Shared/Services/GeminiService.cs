@@ -9,6 +9,7 @@ using System.Text.Json;
 using static Supabase.Functions.Client;
 using Supabase.Functions;
 using static OIL.Shared.Pages.AI.ChatBotComponent;
+using static OIL.Shared.Pages.AI.AIInsights;
 
 namespace OIL.Shared.Services
 {
@@ -21,6 +22,34 @@ namespace OIL.Shared.Services
         {
             _supabase = supabase;
         }
+
+
+        public async Task<string> GenerateMaintenanceReport(string period, List<Job> jobs)
+        {
+            // 1. Convert Job List into a compact text summary for the AI
+            var summaryData = string.Join("\n", jobs.Select(j =>
+                $"[{j.CreatedAt:yyyy-MM-dd}] {j.JobName} | Type: {j.JobType} | Priority: {j.Priority} | Status: {j.Status} | Cost: {j.PartsCost} | Downtime: {j.DowntimeHours}hrs"));
+
+            // 2. Create the specialized Prompt
+            var prompt = $@"
+        Act as an Industrial Maintenance Analyst. Analyze the following job logs for the {period} period:
+        
+        {summaryData}
+
+        Please provide a report in the following format:
+        1. **Executive Summary**: A high-level overview of department activity.
+        2. **Cost & Efficiency**: Analysis of parts cost vs downtime.
+        3. **Key Issues**: Identify recurring problems or problematic locations.
+        4. **Recommendations**: 3 actionable points for the next period.
+        
+        Use professional engineering terminology.";
+
+            // 3. Call your existing AI logic (using the same structure as your chat)
+            // We create a temporary message list to reuse your existing chat logic
+            var tempMessages = new List<ChatMessage> { new ChatMessage("user", prompt) };
+            return await ProcessMaintenanceChat(tempMessages);
+        }
+
 
 
         public async Task<string> ProcessMaintenanceChat(List<ChatMessage> history)

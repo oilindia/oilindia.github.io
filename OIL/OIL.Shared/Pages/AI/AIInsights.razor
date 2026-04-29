@@ -1,0 +1,186 @@
+﻿@page "/ai-insights"
+@using MudBlazor
+@using OIL.Shared.Services
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Client SupabaseClient
+@inject GeminiService AiService
+@inject IJSRuntime JSRuntime
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4" Style="font-weight:700;">📊 AI Maintenance Insights</MudText>
+
+    <MudPaper Class="pa-6" Elevation="4" Style="border-radius:15px;">
+        <div class="d-flex align-center flex-wrap gap-4 mb-6">
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.Timeline" Color="Color.Primary" Class="mr-2" />
+                <MudText Typo="Typo.h6">Reporting Period</MudText>
+            </div>
+            <MudSpacer />
+            <MudToggleGroup T="string" Value="@SelectedPeriod" ValueChanged="OnPeriodChanged" SelectionMode="SelectionMode.SingleSelection" Color="Color.Primary" Outline="true" Delimiters="true">
+                <MudToggleItem Value="@("Weekly")" />
+                <MudToggleItem Value="@("Monthly")" />
+                <MudToggleItem Value="@("Yearly")" />
+            </MudToggleGroup>
+        </div>
+
+        @if (IsLoading)
+        {
+            <div class="d-flex flex-column align-center justify-center py-12">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
+                <MudText Typo="Typo.h6" Class="animate-pulse" Color="Color.Primary">@LoadingText</MudText>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(AiInsightResult))
+        {
+            <div class="report-content animate-fade-in">
+                <div class="d-flex align-center mb-4">
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.CheckCircle">Analysis Complete</MudChip>
+                    <MudText Typo="Typo.caption" Class="ml-2">Generated at @DateTime.Now.ToString("f")</MudText>
+                </div>
+                <MudDivider Class="mb-4" />
+                <div class="pa-4" style="background:#f9f9fb; border-radius:12px; border-left: 5px solid #594ae2;">
+                    <MudText Typo="Typo.body1" Style="white-space: pre-wrap; line-height: 1.8;">
+                        @((MarkupString)AiInsightResult)
+                    </MudText>
+                </div>
+                <MudButton StartIcon="@Icons.Material.Filled.Download" Variant="Variant.Text" Color="Color.Primary" Class="mt-4">Export PDF</MudButton>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column align-center py-12" style="border: 2px dashed #e0e0e0; border-radius: 12px;">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">Click to analyze departmental performance</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateReport" Class="mt-4" StartIcon="@Icons.Material.Filled.AutoAwesome">Generate Insights</MudButton>
+            </div>
+        }
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .animate-pulse {
+        animation: pulse 2s infinite;
+    }
+    @("@keyframes") pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: .4;
+        }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+    @("@keyframes") fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private string SelectedPeriod = "Weekly";
+    private bool IsLoading = false;
+    private string LoadingText = "";
+    private string AiInsightResult = "";
+
+    
+    // Chat message class used by the UI
+    public class ChatMessage
+    {
+        public string Role { get; set; } // "user" or "model"
+        public string Text { get; set; }
+        public DateTime Time { get; set; } = DateTime.Now;
+
+        public ChatMessage(string role, string text)
+        {
+            Role = role;
+            Text = text;
+        }
+    }
+
+
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [PrimaryKey("id")] public Guid Id { get; set; }
+        [Column("created_at")] public DateTime CreatedAt { get; set; }
+        [Column("job_name")] public string JobName { get; set; }
+        [Column("priority")] public string Priority { get; set; }
+        [Column("status")] public string Status { get; set; }
+        [Column("job_type")] public string JobType { get; set; }
+        [Column("parts_cost")] public decimal PartsCost { get; set; }
+        [Column("downtime_hours")] public decimal DowntimeHours { get; set; }
+        [Column("labor_hours")] public decimal LaborHours { get; set; }
+    }
+
+    private async Task OnPeriodChanged(string p)
+    {
+        SelectedPeriod = p;
+        await GenerateReport();
+    }
+
+    private async Task GenerateReport()
+    {
+        IsLoading = true;
+        AiInsightResult = "";
+        _ = RotateStatus();
+
+        try
+        {
+            // 1. Fetch from Supabase
+            int days = SelectedPeriod == "Weekly" ? 7 : (SelectedPeriod == "Monthly" ? 30 : 365);
+            var threshold = DateTime.UtcNow.AddDays(-days);
+
+            var result = await SupabaseClient.From<Job>()
+                .Where(x => x.CreatedAt >= threshold)
+                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+
+            // 2. Process with AI
+            if (result.Models.Any())
+            {
+                AiInsightResult = await AiService.GenerateMaintenanceReport(SelectedPeriod, result.Models);
+            }
+            else
+            {
+                AiInsightResult = "No data found for this period.";
+            }
+        }
+        catch (Exception ex)
+        {
+            AiInsightResult = "Failed to load report: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task RotateStatus()
+    {
+        string[] steps = {
+            "Connecting to Supabase...", "Fetching job records...", "Analyzing breakdown trends...",
+            "Calculating labor productivity...", "Reviewing instrumentation costs...", "Gemini is writing report..."
+        };
+        int i = 0;
+        while (IsLoading)
+        {
+            LoadingText = steps[i % steps.Length];
+            StateHasChanged();
+            i++;
+            await Task.Delay(1100);
+        }
+    }
+}

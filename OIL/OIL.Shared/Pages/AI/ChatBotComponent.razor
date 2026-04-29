@@ -22,7 +22,12 @@
         }
         @if (IsLoading)
         {
-            <MudProgressLinear Color="Color.Info" Indeterminate="true" Class="my-2" />
+           
+            <div class="d-flex flex-column align-center my-3">
+                <MudProgressLinear Color="Color.Info" Indeterminate="true" Style="width:150px; border-radius:4px;" />
+                <MudText Typo="Typo.caption" Color="Color.Info" Class="mb-1 animate-pulse">@LoadingText</MudText>
+                
+            </div>
         }
     </div>
 
@@ -38,7 +43,56 @@
                   OnAdornmentClick="SendMessage" Class="mt-4" AutoFocus="true" />
 </MudPaper>
 
+<style>
+    .animate-pulse {
+        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @("@keyframes") pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: .5;
+        }
+    }
+</style>
+
 @code {
+
+    // Status text logic
+    private string LoadingText = "";
+    private readonly string[] StatusSteps = {
+       "Reading problem...",
+    "Analyzing maintenance logs...",
+    "Reviewing P&ID diagrams...",
+    "Checking parts availability...",
+    "Finding solution...",
+    "Cross-referencing data...",
+    "Compiling data...",
+    "Validating safety protocols...",
+    "Fetching from database...",
+    "Optimizing workflow...",
+    "Ready for response..."
+    };
+
+    private async Task RotateStatusText()
+    {
+        int index = 0;
+        while (IsLoading)
+        {
+            LoadingText = StatusSteps[index];
+            StateHasChanged();
+
+            // Move to next text or stay on "Ready" if at end
+            if (index < StatusSteps.Length - 1) index++;
+
+            await Task.Delay(1200); // Change text every 1.2 seconds
+        }
+    }
+
+    // The Job Model matching your SQL table
+
 
     [Table("chat_sessions")]
     public class ChatSession : BaseModel
@@ -68,6 +122,10 @@
         Messages.Add(new ChatMessage("user", text));
         UserInput = "";
         IsLoading = true;
+
+        // Start the status rotation in the background
+        _ = RotateStatusText();
+
         StateHasChanged();
         await Scroll();
 
