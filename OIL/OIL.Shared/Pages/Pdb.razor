@@ -122,10 +122,14 @@
             <MudGrid Class="mb-12 slide-up">
                 <MudItem xs="12" md="7">
                     <MudText Typo="Typo.h3" Style="font-weight: 900;" Class="mb-2">Who We Are</MudText>
-                    <MudText Typo="Typo.subtitle1" Class="mb-6" Style="color: #666;">Strategic Evolution & Operational Resilience (1983 - 2026)</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-6" Style="color: #666;">Field Maintenance Team, Instrumentation</MudText>
                     <MudText Typo="Typo.body1" Style="font-size: 1.1rem; line-height: 1.8;">
-                        From a small maintenance base for <b>19 IR compressors in 1983</b>, we have evolved into an organization-wide
-                        backbone for measurement, control, automation, safety systems, and digital initiatives.
+                        The Field Maintenance Instrumentation Team provides comprehensive maintenance services across a wide
+                        geographical and operational footprint. Our scope of work covers a diverse range of critical
+                        installations including <b>OCS, GCS, EPS, QPS, and WHS clusters</b>, along with specialized support
+                        for industrial units such as <b>CBUS, MSG, CMT, and R&D facilities</b>. From established
+                        production hubs to upcoming sites like Nadua and Khagorijan, we ensure the reliability and
+                        precision of instrumentation and control systems organization-wide.
                     </MudText>
                     <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.FormatQuote" Class="mt-4" Style="color: var(--oil-red); font-style: italic;">
                         "Printing our footprints in every domain of automation and digitalization."
@@ -215,15 +219,15 @@
     private List<KpiModel> KPIs = new() {
         new("70+ ", "Installations", "Production Basis"),
         new("7000+", "Device Base", "Field Instruments"),
-        new("3", "Platforms", "DCS Systems"),
+        new("13", "Platforms", "DCS Systems"),
         new("120+", "Field Panels", "Gas Panels"),
         new("110+", "Safety Units", "BMS Systems"),
         new("40+", "Air Support", "Air Comp")
     };
 
     private List<OpModel> Operations = new() {
-        new("Drilling", Icons.Material.Filled.HeatPump, "#E21E26", Color.Error, "Operational Readiness",
-            new[] { "Rig automation & control", "VFD rig control ecosystem", "Gas detection/alarm" }),
+        // new("Drilling", Icons.Material.Filled.HeatPump, "#E21E26", Color.Error, "Operational Readiness",
+        //     new[] { "Rig automation & control", "VFD rig control ecosystem", "Gas detection/alarm" }),
         new("Production", Icons.Material.Filled.PrecisionManufacturing, "#1A1A1A", Color.Dark, "Production Continuity",
             new[] { "Process control reliability", "DCS/PLC/Field instruments", "Gas compressor system" }),
         new("Safety", Icons.Material.Filled.Shield, "#E21E26", Color.Error, "Risk Reduction",
@@ -245,13 +249,13 @@
 
     private List<PresenceModel> Locations = new() {
         new("SCADA", "44 Nos. RTU and MCS, Field-wide telemetry", Icons.Material.Filled.Router),
-        new("LPG", "DCS and control system, PLC support", Icons.Material.Filled.Propane),
+        new("Field Sites", "DCS and control system, PLC support", Icons.Material.Filled.LocationOn),
         new("Power Station", "Turbine control, GEG control system", Icons.Material.Filled.ElectricBolt),
-        new("Tank Farms", "Secondary Tank Farm - STF, ITF - Tengakhat", Icons.Material.Filled.Storage),
+        new("Tank Farms", "Secondary Tank Farm - STF, ITF - Tengakhat", Icons.Material.Filled.PropaneTank),
         new("OGPS", "Boiler/Plant control, WSS units", Icons.Material.Filled.Factory),
-        new("Rajasthan Fields", "Remote instrumentation support", Icons.Material.Filled.Landscape),
+        // new("Rajasthan Fields", "Remote instrumentation support", Icons.Material.Filled.Landscape),
         new("Cyber Security", "IEC 62443 compliance for OT systems", Icons.Material.Filled.Security),
-        new("Projects", "Instrumentation scope, FAT/SAT oversight", Icons.Material.Filled.Assignment)
+        new("OCS/GCS", "Instrumentation Maintenance, Equipment Upkeeping", Icons.Material.Filled.Devices)
     };
 
     public record KpiModel(string Value, string Label, string SubText);

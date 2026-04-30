@@ -126,6 +126,29 @@
 
                     <MudDivider Class="my-4" />
 
+                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-n2">Device Info :</MudText>
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2" Color="Color.Primary">Device_location:</MudText>
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            @(_selectedMarker?.Device_location ?? "Not Recorded")
+                        </MudText>
+                    </div>
+
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2" Color="Color.Primary">Serial_number:</MudText>
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            @(_selectedMarker?.Serial_number ?? "Not Recorded")
+                        </MudText>
+                    </div>
+
+                    <div class="d-flex justify-space-between">
+                        <MudText Typo="Typo.body2" Color="Color.Primary">Replacement_cost:</MudText>
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            @(_selectedMarker?.Replacement_cost.ToString() ?? "Not Recorded")
+                        </MudText>
+                    </div>
+
+
                     @* --- PM Configuration Read-Only Info --- *@
                     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-n2">Maintenance Schedule :</MudText>
                     <MudPaper Variant="Variant.Outlined" Class="pa-4" Style="background: rgba(0,0,0,0.05);">
@@ -216,6 +239,9 @@
         [Column("range")] public string Range { get; set; }
         [Column("coord_x")] public double? CoordX { get; set; }
         [Column("coord_y")] public double? CoordY { get; set; }
+        [Column("device_location")] public string? Device_location { get; set; }
+        [Column("serial_number")] public string? Serial_number { get; set; }
+        [Column("replacement_cost")] public long? Replacement_cost { get; set; }
     }
 
     private double _zoomLevellocal = 1.0;
