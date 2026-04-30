@@ -1,4 +1,4 @@
-﻿<h3>CostStatic</h3>
+﻿
 @inject IJSRuntime JS
 
 @page "/coststatic"
@@ -82,6 +82,135 @@
 
     </MudGrid>
 
+
+    <MudStack Spacing="6">
+
+    @* --- 1. LOGIC FLOW & DRAWING SECTION --- *@
+        <MudPaper Elevation="0" Class="pa-6 mud-theme-dark rounded-lg">
+            <MudText Typo="Typo.h5" Class="mb-4">Costs Calculations</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-3 mud-theme-primary text-center">
+                        <MudText Typo="Typo.button">1. Input (The Job)</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.caption">Labor Hours + Spares Used + Asset Downtime</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="1" Class="d-flex align-center justify-center">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="pa-3 mud-theme-secondary text-center">
+                        <MudText Typo="Typo.button">2. Direct Cost (TCM)</MudText>
+                        <MudDivider Class="my-2" />
+                        @* Using clean text with bolding for readability *@
+                        <MudText Typo="Typo.caption">
+                            (<b>Hours</b> &times; <b>Rate</b>) + <b>Parts Cost</b> + <b>Transportation Cost</b> = <b>Department Spend</b>
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="1" Class="d-flex align-center justify-center">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudPaper Class="pa-3 mud-theme-error text-center">
+                        <MudText Typo="Typo.button">3. Business Impact</MudText>
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.caption">
+                            <b>Downtime Hours</b> &times; <b>Production Value</b> = <b>Company Loss</b>
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @* --- 2. MAIN KPI TILES --- *@
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-primary);">
+                    <MudText Typo="Typo.caption">TCM (Total Spend / month)</MudText>
+                    @* <MudText Typo="Typo.h5">@TotalCost.ToString("C0")</MudText> *@
+                    <MudText Typo="Typo.h5">1.31 Cr.</MudText>
+
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-success);">
+                    <MudText Typo="Typo.caption">Emp. OT Hours / Month</MudText>
+                    @* <MudText Typo="Typo.caption">Cost / Employee</MudText> *@
+                    @* <MudText Typo="Typo.h5">@CPME.ToString("C0")</MudText> *@
+                    <MudText Typo="Typo.h5">733.34</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-warning);">
+                    <MudText Typo="Typo.caption">Utilization Rate</MudText>
+
+                    <MudText Typo="Typo.h5">98.79%</MudText>
+                    @* <MudText Typo="Typo.h5">@Utilization.ToString("F1")%</MudText> *@
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-info);">
+                    
+                    <MudText Typo="Typo.caption">Transportation Cost / Month</MudText>
+                    <MudText Typo="Typo.h5">8.756 lakhs</MudText>
+
+@* <MudText Typo="Typo.caption">MTTR (Repair Efficiency)</MudText>
+                    <MudText Typo="Typo.h5">@MTTR.ToString("F2")h</MudText> *@
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="12" md="4">
+                <MudPaper Elevation="4" Class="pa-4 text-center mud-theme-error">
+                   @*  <MudText Typo="Typo.caption">TOTAL PRODUCTION LOSS (Down Impact this month)</MudText> *@
+
+                    <MudText Typo="Typo.caption">TOTAL DOWN IMPACT HRS. (this month)</MudText>
+
+                    <MudText Typo="Typo.h4" Style="font-weight: 800;">12</MudText>
+                    @* <MudText Typo="Typo.h4" Style="font-weight: 800;">@ProductionLoss.ToString("C0")</MudText> *@
+                </MudPaper>
+            </MudItem>
+
+            @* --- 3. ANALYTICS & CHARTS --- *@
+            <MudItem xs="12" md="8">
+                <MudCard Elevation="4">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Downtime Correlation: Preventive vs. Failure</MudText></CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@CorrelationSeries" XAxisLabels="@Labels" Width="100%" Height="350px" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="4">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Labor Distribution Heatmap</MudText></CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @foreach (var item in HeatmapData)
+                        {
+                            <MudText Typo="Typo.caption" Class="mt-2 d-block">@item.Category.ToUpper()</MudText>
+                            <MudProgressLinear Color="@GetHeatColor(item.Percentage)" Size="Size.Large" Value="@item.Percentage">
+                                <MudText Typo="Typo.caption" Color="Color.Dark"><b>@item.Percentage%</b></MudText>
+                            </MudProgressLinear>
+                        }
+                        <MudAlert Severity="Severity.Info" Class="mt-4" Dense="true">
+                            Observation: Automation accounts for @(HeatmapData.FirstOrDefault(x => x.Category == "automation")?.Percentage)% of labor.
+                        </MudAlert>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+    </MudGrid>
+
+
+
+
+    </MudStack>
 
     <MudPaper Elevation="0" Class="pa-6" Style="background-color: #fcfcfd; border: 1px solid #e0e0e0; border-radius: 12px;">
         <MudGrid Spacing="6">
@@ -660,4 +789,73 @@
             await JS.InvokeVoidAsync("setupSavingsMixChart");
         }
     }
+
+
+    public record JobData(string JobName, string Category, double LaborHours, double PartsCost, double DowntimeHours);
+    public record Heatmap(string Category, double Percentage);
+
+    private List<JobData> JobLogs = new();
+    private List<Heatmap> HeatmapData = new();
+    private List<ChartSeries<double>> CorrelationSeries = new();
+    private string[] Labels = { "W1", "W2", "W3", "W4" };
+
+    // Constants for Back-Calculations
+    private double TotalCost, CPME, Utilization, ProductionLoss, MTTR;
+    private const int TotalEngineers = 8;
+    private const double HourlyRate = 50.0;
+    private const double LossPerHour = 1500.0;
+
+    protected override void OnInitialized()
+    {
+        GenerateMockData();
+        CalculateMetrics();
+    }
+
+    private void GenerateMockData()
+    {
+        var rng = new Random();
+        string[] types = { "breakdown", "preventive", "calibration", "automation", "project" };
+        for (int i = 0; i < 50; i++)
+        {
+            JobLogs.Add(new JobData(
+                $"J-{1000 + i}",
+                types[rng.Next(types.Length)],
+                rng.Next(1, 15),
+                rng.Next(50, 2500),
+                rng.Next(0, 6)
+            ));
+        }
+    }
+
+    private void CalculateMetrics()
+    {
+        // 1. TCM (Total Cost of Maintenance)
+        TotalCost = JobLogs.Sum(x => (x.LaborHours * HourlyRate) + x.PartsCost);
+
+        // 2. CPME (Cost Per Maintenance Employee)
+        CPME = TotalCost / TotalEngineers;
+
+        // 3. Utilization (Wrench Time) - Based on 160 hrs capacity per engineer
+        Utilization = (JobLogs.Sum(x => x.LaborHours) / (TotalEngineers * 160)) * 100;
+
+        // 4. Production Loss Impact
+        ProductionLoss = JobLogs.Sum(x => x.DowntimeHours) * LossPerHour;
+
+        // 5. MTTR (Mean Time to Repair)
+        var breakdowns = JobLogs.Where(x => x.Category == "breakdown").ToList();
+        MTTR = breakdowns.Any() ? breakdowns.Average(x => x.LaborHours) : 0;
+
+        // 6. Heatmap Logic
+        double totalLabor = JobLogs.Sum(x => x.LaborHours);
+        HeatmapData = JobLogs.GroupBy(x => x.Category)
+            .Select(g => new Heatmap(g.Key, Math.Round((g.Sum(x => x.LaborHours) / totalLabor) * 100, 1)))
+            .OrderByDescending(x => x.Percentage)
+            .ToList();
+
+        // 7. Correlation Series (Generics Fixed for MudBlazor v7+)
+        CorrelationSeries.Add(new ChartSeries<double> { Name = "Downtime Hours", Data = new double[] { 55, 40, 25, 12 } });
+        CorrelationSeries.Add(new ChartSeries<double> { Name = "PM & Automation Hrs", Data = new double[] { 15, 50, 85, 130 } });
+    }
+
+    private Color GetHeatColor(double val) => val > 35 ? Color.Error : Color.Success;
 }

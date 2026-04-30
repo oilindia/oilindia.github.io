@@ -1,0 +1,251 @@
+﻿@page "/CalibrationCert"
+
+@using MudBlazor
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* Report Styling */
+    .report-paper {
+        background-color: white;
+        color: black;
+        font-family: "Arial", sans-serif;
+        line-height: 1.2;
+        margin: 0 auto;
+        border: 1px solid black;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: black;
+    }
+
+        .report-table th, .report-table td {
+            border: 1px solid black !important;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+    .text-center {
+        text-align: center !important;
+    }
+
+    .font-bold {
+        font-weight: bold;
+    }
+
+    .header-logo-section {
+        border: 1px solid black;
+        text-align: center;
+        padding: 10px;
+    }
+
+    /* Print Logic Fixes */
+    @@media print {
+        /* Hide all UI elements */
+        body * {
+            visibility: hidden !important;
+            -webkit-print-color-adjust: exact;
+        }
+        /* Target only the report and force visibility */
+        #printable-report, #printable-report * {
+            visibility: visible !important;
+            /* display: block !important; */
+        }
+        /* Position the report at the top-left of the printed page */
+        #printable-report {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 10mm;
+            border: none;
+        }
+        /* Fix for table borders in some browsers */
+        .report-table {
+            border: 1px solid black !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+    }
+
+    /* Modal Layout Fixes */
+    .custom-modal-overlay {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Start from top to allow scrolling */
+        overflow-y: auto;
+        padding: 40px 0;
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-content-container {
+        width: 900px;
+        height: auto; /* Auto height based on content */
+        background-color: #f0f0f0;
+        padding: 25px;
+        margin-bottom: 40px;
+        border-radius: 4px;
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Color="Color.Success" />
+            <MudText Typo="Typo.h5">Calibration Certificates</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _isModalOpen = true">
+                View Sample Certificate
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="CalibrationView" Items="_staticReports" Dense="true" Hover="true" Bordered="true">
+            <Columns>
+                <TemplateColumn Title="View" HeaderStyle="width: 50px;">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="() => _isModalOpen = true" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.Date" Title="Date" />
+                <PropertyColumn Property="x => x.DocNo" Title="Document No" />
+                <PropertyColumn Property="x => x.Installation" Title="Installation" />
+                <PropertyColumn Property="x => x.InstrumentType" Title="Instrument" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@if (_isModalOpen)
+{
+    <div class="custom-modal-overlay no-print">
+        <div class="modal-content-container">
+            <!-- Sticky Header Actions -->
+            <div class="d-flex justify-space-between align-center mb-4" style="position: sticky; top: -25px; background: #f0f0f0; z-index: 10; padding: 10px 0;">
+                <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
+                    Print Certificate
+                </MudButton>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
+            </div>
+
+            <div id="printable-report" class="report-paper mx-auto" style="width: 210mm; padding: 15mm; background-color: white;">
+
+                <!-- Logo and Title Section -->
+                <div class="header-logo-section">
+                    <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="height: 60px;" /><br />
+                    <MudText Typo="Typo.h5" Class="font-bold">OIL INDIA LIMITED</MudText>
+                </div>
+                <div style="border: 1px solid black; border-top: none; text-align: center; background-color: #f8f9fa;">
+                    <MudText Typo="Typo.body1" Class="font-bold">Calibration report for Controller</MudText>
+                </div>
+
+                <!-- Basic Info Table -->
+                <table class="report-table" style="border-top: none;">
+                    <tr>
+                        <td style="width: 60%;">Installation: DIAN QPS</td>
+                        <td style="width: 40%;">Document No -INST/PC/161</td>
+                    </tr>
+                    <tr><td colspan="2">Date: 20/02/2026</td></tr>
+                    <tr>
+                        <td>Instrument Type : Pressure Controller</td>
+                        <td>Unit : SERVO</td>
+                    </tr>
+                    <tr><td colspan="2">Model : V-Automat</td></tr>
+                    <tr><td colspan="2">Range: 0 - 7 kg/cm2</td></tr>
+                    <tr><td colspan="2">Calibrator Make/Model : FLUKE (718Ex 300G) Master Calibrator</td></tr>
+                </table>
+
+                <!-- Values Table -->
+                <table class="report-table" style="border-top: none;">
+                    <thead>
+                        <tr class="text-center">
+                            <th>Input Process Value</th>
+                            <th>Measured Value</th>
+                            <th>Error</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>0</td><td>0</td><td>0</td><td rowspan="5" class="text-center">Error Adjustments carried out</td></tr>
+                        <tr><td>1.75</td><td>1.78</td><td>0.3</td></tr>
+                        <tr><td>3.5</td><td>3.9</td><td>0.4</td></tr>
+                        <tr><td>5.25</td><td>5.27</td><td>0.2</td></tr>
+                        <tr><td>7</td><td>7</td><td>0</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Parameters -->
+                <div style="border: 1px solid black; border-top: none; padding: 5px;">
+                    <p class="font-bold" style="text-decoration: underline; margin-bottom: 2px;">Process Requirement -</p>
+                    <p style="font-size: 13px;">As per process requirement the set point is 3.5kg/cm2</p>
+                    <p class="font-bold" style="margin-top: 5px;">Controller Parameters:</p>
+                    <ul style="list-style: none; padding-left: 0; font-size: 13px; margin: 0;">
+                        <li>Actuator Operation - Reverse action</li>
+                        <li>Proportional Band - 5 | Reset Time - 1</li>
+                    </ul>
+                </div>
+
+                <!-- Simulation Table -->
+                <table class="report-table" style="border-top: none;">
+                    <thead>
+                        <tr class="text-center">
+                            <th>Simulation (Kgf/cm2)</th>
+                            <th>Output (psi)</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="text-center">3.1</td><td class="text-center">15</td><td rowspan="6" style="font-size: 11px;">Response adjusted and servicing carried out.</td></tr>
+                        <tr><td class="text-center">3.2</td><td class="text-center">12</td></tr>
+                        <tr><td class="text-center">3.3</td><td class="text-center">9</td></tr>
+                        <tr><td class="text-center">3.4</td><td class="text-center">6</td></tr>
+                        <tr><td class="text-center">3.5</td><td class="text-center">3</td></tr>
+                        <tr><td class="text-center">> 3.5</td><td class="text-center">0</td></tr>
+                    </tbody>
+                </table>
+
+                <!-- Signatures -->
+                <table class="report-table" style="border-top: none;">
+                    <tr><td colspan="2">Observations: OK.</td></tr>
+                    <tr style="background-color: #f1f1f1;">
+                        <td style="width: 50%;">Calibration by:</td>
+                        <td style="width: 50%;">Engineer:</td>
+                    </tr>
+                    <tr><td>Name:</td><td>Name:</td></tr>
+                    <tr><td>Designation:</td><td>Designation:</td></tr>
+                    <tr><td>Date:</td><td>Date:</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isModalOpen = false;
+    private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    public class CalibrationView
+    {
+        public string Date { get; set; } = "";
+        public string DocNo { get; set; } = "";
+        public string Installation { get; set; } = "";
+        public string InstrumentType { get; set; } = "";
+    }
+
+    private List<CalibrationView> _staticReports = new() {
+        new CalibrationView { Date = "2026-02-20", DocNo = "INST/PC/161", Installation = "DIAN QPS", InstrumentType = "Pressure Controller" }
+    };
+}

@@ -11,6 +11,59 @@
 @inject IJSRuntime JSRuntime
 
 <style>
+    /* Styling for the report appearance */
+    .report-paper {
+        background-color: white;
+        color: black;
+        font-family: 'Times New Roman', Times, serif;
+        line-height: 1.4;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+        color: black;
+    }
+
+        .report-table th, .report-table td {
+            border: 1px solid black;
+            padding: 4px 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+
+    .header-field {
+        border-bottom: 1px dotted black;
+        display: inline-block;
+        min-width: 200px;
+    }
+
+    /* Print logic to hide UI elements and focus on the report div */
+    @@media print {
+        body * {
+            visibility: hidden;
+        }
+
+        #printable-report, #printable-report * {
+            visibility: visible;
+        }
+
+        #printable-report {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            border: none !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+
+<style>
     /* Styling to mimic the Word Document appearance */
     .report-paper {
         background-color: white;
@@ -41,6 +94,20 @@
 
     /* Print Logic */
     @@media print {
+        /* Specifically hide any MudBlazor overlays or scrollbars during print */
+        .mud-overlay, .mud-dialog-container {
+            display: none !important;
+        }
+        /* Hide everything by default */
+        body * {
+            display: none !important;
+        }
+        /* Show the report and all its children */
+        /* #printable-report, #printable-report * {
+            display: block !important;
+        } */
+
+        
         body * {
             visibility: hidden;
         }
@@ -59,6 +126,8 @@
         .no-print {
             display: none !important;
         }
+       
+
     }
 </style>
 
@@ -102,33 +171,39 @@
 
 @if (_isModalOpen)
 {
-    <div class="no-print" style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-        <MudPaper Style="width: 1000px; max-width: 98%; max-height: 95vh; padding: 10px; overflow-y: auto; background-color: #f0f0f0;" Elevation="25">
+    
 
-            <div class="d-flex justify-end mb-2">
-                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" />
+    <div class="no-print" style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <MudPaper Style="width: 1000px; max-width: 98%; max-height: 95vh; padding: 20px; overflow-y: auto; margin-top: 20px; background-color: #f0f0f0;" Elevation="25">
+
+            <!-- Header Actions -->
+            <div class="d-flex justify-space-between align-center mb-6 no-print" style="position: sticky; top: 0; background: #f0f0f0; z-index: 10; padding: 10px 0;">
+                <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" Size="Size.Large">
+                    Print Report
+                </MudButton>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
             </div>
 
-            <div id="printable-report" class="report-paper pa-10 shadow-lg mx-auto" style="width: 210mm; min-height: 297mm; border: 1px solid #ccc;">
+            <div id="printable-report" class="report-paper pa-10 mx-auto" style="width: 210mm; min-height: 297mm; border: 1px solid #ccc; padding: 40px;">
 
-                @* Source 1: Header Title *@
-                <MudText Typo="Typo.h6" Align="Align.Center" Style="text-decoration: underline; font-weight: bold;">
+                <!-- Header Title -->
+                <MudText Typo="Typo.h6" Align="Align.Center" Style="text-decoration: underline; font-weight: bold; text-transform: uppercase;">
                     Preventive Maintenance Checklist (OCS, EPS, QPS, WHS & FGGS)
                 </MudText>
 
-                @* Source 2: Meta Data Table *@
-                <div class="mt-6 mb-4">
-                    <p>Installation Name: <span class="header-field">@_viewingReport.LocationName</span> Date: <span class="header-field">@_viewingReport.CompletionDateLocal</span></p>
-                    <p>Work Permit Number: <span class="header-field" style="width: 80%;">@_viewingReport.WorkPermit</span></p>
-                    <p>Job Assigned To: <span class="header-field" style="width: 80%;">@_viewingReport.AssignedTo</span></p>
+                <!-- Meta Data -->
+                <div class="mt-6 mb-4" style="font-size: 14px;">
+                    <p>Installation Name: <span class="header-field">@_viewingReport.LocationName</span> &nbsp;&nbsp;&nbsp;&nbsp; Date: <span class="header-field">@_viewingReport.CompletionDateLocal</span></p>
+                    <p class="mt-2">Work Permit Number: <span class="header-field" style="width: 75%;">@_viewingReport.WorkPermit</span></p>
+                    <p class="mt-2">Job Assigned To: <span class="header-field" style="width: 75%;">@_viewingReport.AssignedTo</span></p>
                 </div>
 
-                @* Source 3 & 4: Section A - Controllers *@
-                <MudText Typo="Typo.body1" Class="mt-4"><b>(A) Functionality Testing / Calibration / Replaced with pre calibrated controller</b></MudText>
+                <!-- Section A: Controllers -->
+                <MudText Typo="Typo.body1" Class="mt-6"><b>(A) Functionality Testing / Calibration / Replaced with pre calibrated controller</b></MudText>
 
                 @foreach (var cat in new[] { "Pressure Controller", "Temperature Controller", "Level Controller" })
                 {
-                    <p class="mt-2 mb-1"><b>@cat</b></p>
+                    <p class="mt-4 mb-1"><b>@cat</b></p>
                     <table class="report-table">
                         <thead>
                             <tr>
@@ -137,32 +212,34 @@
                                 <th>Make</th>
                                 <th>Model</th>
                                 <th>Range</th>
-                                <th>Set point</th>
-                                <th>PSV Setting</th>
+                                <th>Set point of controller</th>
+                                <th>PSV Setting of Vessel</th>
                                 <th>Calibration Status</th>
                                 <th>p-band, I-band</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var row in _viewingRows.Where(r => r.Category == cat))
+                            @* Static rows as per document requirement - displaying up to 10 slots or data *@
+                            @for (int i = 1; i <= 5; i++)
                             {
+                                var row = _viewingRows.FirstOrDefault(r => r.Category == cat && r.SlNo == i.ToString());
                                 <tr>
-                                    <td>@row.SlNo</td>
-                                    <td>@row.Unit</td>
-                                    <td>@row.Make</td>
-                                    <td>@row.Model</td>
-                                    <td>@row.Range</td>
-                                    <td>@row.SetPoint</td>
-                                    <td>@row.PsvSetting</td>
-                                    <td>@row.CalibrationStatus</td>
-                                    <td>@row.Bands</td>
+                                    <td>@i</td>
+                                    <td>@(row?.Unit ?? "")</td>
+                                    <td>@(row?.Make ?? "")</td>
+                                    <td>@(row?.Model ?? "")</td>
+                                    <td>@(row?.Range ?? "")</td>
+                                    <td>@(row?.SetPoint ?? "")</td>
+                                    <td>@(row?.PsvSetting ?? "")</td>
+                                    <td>@(row?.CalibrationStatus ?? "")</td>
+                                    <td>@(row?.Bands ?? "")</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 }
 
-                @* Source 10-19: Transmitters & Gauges *@
+                <!-- Section B: Transmitters & Gauges -->
                 @foreach (var cat in new[] { "Pressure Transmitter", "Temperature Transmitter", "Level Transmitter", "Pressure Gauge", "Temperature Gauge" })
                 {
                     <p class="mt-4 mb-1"><b>@cat</b></p>
@@ -174,87 +251,128 @@
                                 <th>Make</th>
                                 <th>Model</th>
                                 <th>Range</th>
-                                <th>Calibrated / Replaced</th>
-                                <th>Equipment used</th>
+                                <th>Calibrated / Replaced with pre calibrated Tx</th>
+                                <th>Equipment used for Calibration</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var row in _viewingRows.Where(r => r.Category == cat))
+                            @for (int i = 1; i <= 3; i++)
                             {
+                                var row = _viewingRows.FirstOrDefault(r => r.Category == cat && r.SlNo == i.ToString());
                                 <tr>
-                                    <td>@row.SlNo</td>
-                                    <td>@row.Unit</td>
-                                    <td>@row.Make</td>
-                                    <td>@row.Model</td>
-                                    <td>@row.Range</td>
-                                    <td>@row.CalibrationStatus</td>
-                                    <td>@row.EquipmentUsed</td>
+                                    <td>@i</td>
+                                    <td>@(row?.Unit ?? "")</td>
+                                    <td>@(row?.Make ?? "")</td>
+                                    <td>@(row?.Model ?? "")</td>
+                                    <td>@(row?.Range ?? "")</td>
+                                    <td>@(row?.CalibrationStatus ?? "")</td>
+                                    <td>@(row?.EquipmentUsed ?? "")</td>
                                 </tr>
                             }
                         </tbody>
                     </table>
                 }
 
-                @* Source 20 & 21: Section C - Other Checkpoints *@
+                <!-- Section C: Other Checkpoints -->
                 <MudText Typo="Typo.body1" Class="mt-6"><b>(C) Other Check Points</b></MudText>
                 <table class="report-table">
                     <thead>
-                        <tr><th style="width: 40px;">Sl.No</th><th>Checking Point</th><th style="width: 60px;">Yes/No</th><th>Comment</th></tr>
+                        <tr>
+                            <th style="width: 40px;">Sl.No</th>
+                            <th>Checking Point</th>
+                            <th style="width: 80px;">Yes/No</th>
+                            <th>Comment</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        @foreach (var cp in _viewingCheckpoints)
+                        @{
+                            var checkPoints = new[] {
+                            "Whether Air Filter regulators drained?",
+                            "Whether Pressure Gauges & Temperature Gauges are working properly?",
+                            "Whether Functionality of Burner Management System / Remote ignition system of fired vessels checked?",
+                            "Whether Functionality of Data acquisition panel / SRV Panel checked?",
+                            "Whether Level Transmitters cone cleaning done?",
+                            "Whether visual Inspection of cables, glands, junction box and cable trays carried out?",
+                            "Whether Instrument air tube deformation or leakage found any?",
+                            "Whether instrument label / tags readable?",
+                            "Whether any interlocks bypassed?",
+                            "Whether any static / on-line Gas Detector found faulty?",
+                            "Whether proper PPE used and tool-box talk conducted?"
+                        };
+                        }
+                        @for (int i = 0; i < checkPoints.Length; i++)
                         {
-                            <tr><td>@cp.SlNo</td><td>@cp.CheckingPoint</td><td>@cp.Value</td><td>@cp.Comment</td></tr>
+                            var cpVal = _viewingCheckpoints.ElementAtOrDefault(i);
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@checkPoints[i]</td>
+                                <td>@(cpVal?.Value ?? "")</td>
+                                <td>@(cpVal?.Comment ?? "")</td>
+                            </tr>
                         }
                     </tbody>
                 </table>
 
-                @* Source 22 & 23: Section D - Spares *@
+                <!-- Section D: Spares -->
                 <MudText Typo="Typo.body1" Class="mt-6"><b>(D) Spares Consumed List (if any)</b></MudText>
                 <table class="report-table">
                     <thead>
-                        <tr><th style="width: 40px;">Sl. No</th><th>Instrument</th><th>Tag No</th><th>Unit</th></tr>
+                        <tr>
+                            <th style="width: 40px;">Sl. No</th>
+                            <th>Instrument</th>
+                            <th>Tag No</th>
+                            <th>Unit</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        @foreach (var spare in _viewingSpares)
+                        @for (int i = 1; i <= 5; i++)
                         {
-                            <tr><td>@spare.SlNo</td><td>@spare.Instrument</td><td>@spare.TagNo</td><td>@spare.Unit</td></tr>
+                            var spare = _viewingSpares.ElementAtOrDefault(i - 1);
+                            <tr>
+                                <td>@i</td>
+                                <td>@(spare?.Instrument ?? "")</td>
+                                <td>@(spare?.TagNo ?? "")</td>
+                                <td>@(spare?.Unit ?? "")</td>
+                            </tr>
                         }
                     </tbody>
                 </table>
 
-                @* Source 24: Observations *@
+                <!-- Observations -->
                 <div class="mt-4">
-                    <p><b>Any other observations:</b> @_viewingReport.Observations</p>
+                    <p><b>Any other observations:</b></p>
+                    <div style="border-bottom: 1px solid black; min-height: 60px; line-height: 25px;">
+                        @_viewingReport.Observations
+                    </div>
                 </div>
 
-                @* Source 25-28: Signatures *@
-                <div class="mt-10">
+                <!-- Signatures -->
+                <div class="mt-12">
                     <table style="width: 100%; border: none;">
                         <tr style="border: none;">
-                            <td style="border: none; width: 33%;">
-                                <p>Job Completed By</p>
-                                <p style="margin-top: 30px;">Designations & Signatures:</p>
+                            <td style="border: none; width: 40%; vertical-align: top;">
+                                <p><b>Job Completed By</b></p>
+                                <p style="margin-top: 40px;">Designations & Signatures:</p>
                             </td>
-                            <td style="border: none; width: 33%; text-align: center; vertical-align: bottom;">
-                                <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;">Signature (Checked By)</div>
+                            <td style="border: none; width: 30%; text-align: center; vertical-align: bottom;">
+                                <div style="border-top: 1px solid black; width: 90%; margin: 0 auto; padding-top: 5px;">Signature (Checked By)</div>
                             </td>
-                            <td style="border: none; width: 33%; text-align: center; vertical-align: bottom;">
-                                <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;">Signature (Approved By)</div>
+                            <td style="border: none; width: 30%; text-align: center; vertical-align: bottom;">
+                                <div style="border-top: 1px solid black; width: 90%; margin: 0 auto; padding-top: 5px;">Signature (Approved By)</div>
                             </td>
                         </tr>
                     </table>
                 </div>
             </div>
-
-            @* Print Actions *@
-            <div class="d-flex justify-center gap-4 mt-6 no-print">
-                <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Print">Print Report</MudButton>
-                <MudButton OnClick="() => _isModalOpen = false" Variant="Variant.Outlined" Color="Color.Default">Close Preview</MudButton>
-            </div>
         </MudPaper>
     </div>
+
 }
+
+
+
+
+
 
 @code {
     private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");

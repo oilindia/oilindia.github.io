@@ -15,12 +15,12 @@
     <MudGrid Justify="Justify.Center" Class="align-center mt-6">
         <MudItem xs="12" md="3">
             <MudPaper Elevation="4" Class="pa-8" Style="border-top: 6px solid var(--mud-palette-primary); min-height: 220px; display: flex; flex-direction: column; justify-content: center;">
-                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Driver / Vehicle</b></MudText>
-                <MudSelect T="Driver" Label="Select Driver" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
-                           ToStringFunc="@(d => d?.FullName)" AnchorOrigin="Origin.BottomCenter">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Vehicle</b></MudText>
+                <MudSelect T="Driver" Label="Select Vehicle" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
+                           ToStringFunc="@(d => d?.VehicleNumber)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var d in _dbDrivers)
                     {
-                        <MudSelectItem T="Driver" Value="@d">@d.FullName</MudSelectItem>
+                        <MudSelectItem T="Driver" Value="@d">@d.VehicleNumber</MudSelectItem>
                     }
                 </MudSelect>
             </MudPaper>
@@ -64,7 +64,7 @@
         <HeaderContent>
             <MudTh>Date</MudTh>
             <MudTh>Doc No</MudTh>
-            <MudTh>Driver</MudTh>
+            <MudTh>Vehicle</MudTh>
             <MudTh>Jobs</MudTh>
             <MudTh>Personnel</MudTh>
             <MudTh Style="text-align:right">Actions</MudTh>
@@ -97,10 +97,10 @@
             <MudText Typo="Typo.h6" Class="mb-4">Edit Job Card: @_editingItem.DocNumber</MudText>
             <MudGrid Spacing="3">
                 <MudItem xs="12">
-                    <MudSelect T="Driver" Label="Driver" @bind-Value="_editDriver" Variant="Variant.Outlined" ToStringFunc="@(d => d?.FullName)">
+                    <MudSelect T="Driver" Label="Vehicle" @bind-Value="_editDriver" Variant="Variant.Outlined" ToStringFunc="@(d => d?.VehicleNumber)">
                         @foreach (var d in _dbDrivers)
                         {
-                            <MudSelectItem T="Driver" Value="@d">@d.FullName</MudSelectItem>
+                            <MudSelectItem T="Driver" Value="@d">@d.VehicleNumber</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -357,7 +357,13 @@
         try
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
+            // _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
+
+            // Fetch only jobs where status is 'pending'
+            _dbJobs = (await SupabaseClient.From<Job>()
+                .Where(x => x.JobStatus == "pending")
+                .Get()).Models;
+
             _dbEngineers = (await SupabaseClient.From<Engineer>().Get()).Models;
             _assignments = (await SupabaseClient.From<Assignment>().Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending).Get()).Models;
         }
@@ -417,15 +423,24 @@
 
     private async Task PrintNow() => await JS.InvokeVoidAsync("window.print");
     private async Task DeleteAssignment(Guid id) { await SupabaseClient.From<Assignment>().Where(x => x.Id == id).Delete(); await LoadData(); }
-    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
+    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "N/A";
     private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
     private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
 
     public class JobCardModel { public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; }
     public class JobTask { public string Description { get; set; } = ""; }
 
-    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
-    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; }
+    [Table("drivers")]
+    public class Driver : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("full_name")] public string FullName { get; set; } = ""; 
+        [Column("vehicle_number")]
+        public string VehicleNumber { get; set; } = "";
+    }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; 
+        [Column("status")] public string JobStatus { get; set; } = "";
+    }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
     [Table("job_assignments")]
     public class Assignment : BaseModel

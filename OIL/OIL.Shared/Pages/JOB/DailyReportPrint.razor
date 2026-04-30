@@ -23,6 +23,18 @@
             box-shadow: none;
             width: 100%;
         }
+        /* Specifically hide any MudBlazor overlays or scrollbars during print */
+        .mud-overlay, .mud-dialog-container {
+            display: none !important;
+        }
+        /* Hide everything by default */
+        body * {
+            display: none !important;
+        }
+        /* Show the report and all its children */
+        #printable-report, #printable-report * {
+            display: block !important;
+        }
     }
 
     .a4-container {
@@ -154,7 +166,7 @@
         <thead>
             <tr>
                 <th style="width: 45px;">SL</th>
-                <th style="width: 80px;">SHIFT</th>
+                @* <th style="width: 80px;">SHIFT</th> *@
                 <th style="width: 200px;">INSTALLATION</th>
                 <th>EQUIPMENT / FIELD REPORT</th>
                 <th style="width: 220px;">PERSONNEL</th>
@@ -169,7 +181,7 @@
             {
                 <tr>
                     <td style="text-align: center;">@(sl1++)</td>
-                    <td style="text-align: center;">@item.ShiftName</td>
+                    @* <td style="text-align: center;">@item.ShiftName</td> *@
                     <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
                     <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
                     <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
@@ -192,7 +204,7 @@
         <thead>
             <tr>
                 <th style="width: 45px;">SL</th>
-                <th style="width: 80px;">SHIFT</th>
+               @*  <th style="width: 80px;">SHIFT</th> *@
                 <th style="width: 200px;">INSTALLATION</th>
                 <th>EQUIPMENT / TASK DESCRIPTION</th>
                 <th style="width: 100px;">VEHICLE</th>
@@ -208,7 +220,7 @@
             {
                 <tr>
                     <td style="text-align: center;">@(sl2++)</td>
-                    <td style="text-align: center;">@item.ShiftName</td>
+                    @* <td style="text-align: center;">@item.ShiftName</td> *@
                     <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
                     <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
                     <td style="text-align: center;">@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
