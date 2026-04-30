@@ -67,7 +67,7 @@ namespace OIL.Shared.Services
                 await _supabase.From<ChatSession>().Upsert(session);
 
                 // 4. Call function with NO payload
-                var response = await _supabase.Functions.Invoke("gemini-chat", "{}");
+                var response = await _supabase.Functions.Invoke("insights", "{}");
 
                 var result = JsonSerializer.Deserialize<AiResponse>(response,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

@@ -1,0 +1,261 @@
+﻿@page "/Pdb"
+
+@using MudBlazor
+@inject IJSRuntime JSRuntime
+
+<style>
+    :root {
+        --oil-red: #E21E26;
+        --oil-pink: #FFF5F7;
+        --oil-soft-pink: #FEF2F4;
+        --oil-black: #1A1A1A;
+        --oil-white: #FFFFFF;
+        --card-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+
+    .main-container {
+        background-color: var(--oil-white);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Reference Image 9 Styling: Minimalist Cards with Red Accents */
+    .command-card {
+        background: var(--oil-white) !important;
+        border-radius: 12px !important;
+        box-shadow: var(--card-shadow) !important;
+        border-bottom: 4px solid var(--oil-red) !important;
+        transition: transform 0.3s ease;
+    }
+
+        .command-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .hero-section {
+        background: linear-gradient(180deg, var(--oil-pink) 0%, var(--oil-white) 100%);
+        padding: 40px 0;
+    }
+
+    /* Animations */
+    .fade-in {
+        animation: fadeIn 0.8s ease-in forwards;
+    }
+
+    .slide-up {
+        animation: slideUp 0.6s ease-out forwards;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(30px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .timeline-line {
+        position: relative;
+        border-bottom: 3px solid #eee;
+    }
+
+    .timeline-dot {
+        height: 15px;
+        width: 15px;
+        background-color: var(--oil-red);
+        border-radius: 50%;
+        display: inline-block;
+        position: absolute;
+        top: -9px;
+    }
+
+    /* Presence Grid Styling */
+    .presence-chip {
+        border-left: 4px solid var(--oil-red);
+        background: var(--oil-soft-pink);
+    }
+</style>
+
+<div class="main-container">
+    @* --- TOP HEADER --- *@
+    <MudAppBar Elevation="0" Class="px-8 py-2" Style="background: white; border-bottom: 1px solid #eee;">
+        <MudImage Src="https://upload.wikimedia.org/wikipedia/en/5/53/Oil_India_Logo.png" Height="40" Class="mr-4" />
+        <MudText Typo="Typo.h6" Style="color: var(--oil-black); font-weight: 800;">
+            FIELD MAINTENANCE <span style="color: var(--oil-red)">COMMAND DASHBOARD</span>
+        </MudText>
+        <MudSpacer />
+        <MudChip T="string" Color="Color.Error" Variant="Variant.Text" Icon="@Icons.Material.Filled.Lens" IconColor="Color.Success">Status: Live Cycle</MudChip>
+        <MudText Typo="Typo.body2" Class="ml-4" Style="font-weight: bold;">Time: 08:18:38</MudText>
+    </MudAppBar>
+
+    <div class="hero-section mt-12">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge">
+            @* --- KPI SECTION (Slide 3 Data) --- *@
+            <MudGrid Class="mb-8">
+                @foreach (var kpi in KPIs)
+                {
+                    <MudItem xs="12" sm="4" md="2">
+                        <MudPaper Class="pa-4 command-card d-flex flex-column align-start">
+                            <MudText Typo="Typo.caption" Style="color: #888; font-weight: bold; text-transform: uppercase;">@kpi.Label</MudText>
+                            <MudText Typo="Typo.h4" Style="font-weight: 900; color: var(--oil-black);">@kpi.Value</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #aaa;">@kpi.SubText</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @* --- MISSION & IDENTITY (Slide 1 Data) --- *@
+            <MudGrid Class="mb-12 slide-up">
+                <MudItem xs="12" md="7">
+                    <MudText Typo="Typo.h3" Style="font-weight: 900;" Class="mb-2">Who We Are</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-6" Style="color: #666;">Strategic Evolution & Operational Resilience (1983 - 2026)</MudText>
+                    <MudText Typo="Typo.body1" Style="font-size: 1.1rem; line-height: 1.8;">
+                        From a small maintenance base for <b>19 IR compressors in 1983</b>, we have evolved into an organization-wide
+                        backbone for measurement, control, automation, safety systems, and digital initiatives.
+                    </MudText>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.FormatQuote" Class="mt-4" Style="color: var(--oil-red); font-style: italic;">
+                        "Printing our footprints in every domain of automation and digitalization."
+                    </MudAlert>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudPaper Elevation="0" Class="pa-6" Style="background: var(--oil-pink); border-radius: 15px;">
+                        <MudList T="string">
+                            <MudListItem Icon="@Icons.Material.Filled.Hub" IconColor="Color.Error">
+                                <MudText Typo="Typo.body1"><b>Operational Backbone:</b> Base to enterprise-wide support</MudText>
+                            </MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Security" IconColor="Color.Error">
+                                <MudText Typo="Typo.body1"><b>Automation Custodian:</b> Control & protection systems</MudText>
+                            </MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Analytics" IconColor="Color.Error">
+                                <MudText Typo="Typo.body1"><b>Digital Enabler:</b> Data foundation for decisions</MudText>
+                            </MudListItem>
+                        </MudList>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            @* --- CORE OPERATIONS (Slide 2 Data) --- *@
+            <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Core Operations & Contributions</MudText>
+            <MudGrid Class="mb-12">
+                @foreach (var op in Operations)
+                {
+                    <MudItem xs="12" md="3">
+                        <MudPaper Elevation="0" Class="pa-6 border-top-4" Style="@($"border-top: 4px solid {op.Color}; background: white; height: 100%; box-shadow: var(--card-shadow);")">
+                            <div class="d-flex align-center mb-4">
+                                <MudIcon Icon="@op.Icon" Color="@op.MudColor" Class="mr-2" />
+                                <MudText Typo="Typo.h6" Style="font-weight: bold;">@op.Title</MudText>
+                            </div>
+                            <MudList T="string" Dense="true">
+                                @foreach (var detail in op.Items)
+                                {
+                                    <MudListItem Icon="@Icons.Material.Filled.KeyboardArrowRight" IconColor="@op.MudColor">@detail</MudListItem>
+                                }
+                            </MudList>
+                            <MudDivider Class="my-4" />
+                            <MudText Typo="Typo.button" Style="@($"color: {op.Color}; font-weight: 800;")">@op.Goal</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @* --- ASSET PORTFOLIO (Slide 3 Expanded Data) --- *@
+            <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Complete Asset Portfolio</MudText>
+            <MudGrid Class="mb-12">
+                @foreach (var asset in Portfolio)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <div class="d-flex align-center pa-4 mb-2 command-card">
+                            <MudAvatar Color="Color.Error" Variant="Variant.Outlined" Class="mr-4">
+                                <MudIcon Icon="@asset.Icon" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.h5" Style="font-weight: 900;">@asset.Count</MudText>
+                                <MudText Typo="Typo.caption" Style="color: #666; font-weight: bold;">@asset.Name.ToUpper()</MudText>
+                            </div>
+                        </div>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            @* --- GLOBAL PRESENCE (Slide 4 Data) --- *@
+            <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Our Presence Across OIL</MudText>
+            <MudGrid>
+                @foreach (var p in Locations)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudPaper Elevation="0" Class="pa-4 presence-chip">
+                            <div class="d-flex align-center mb-2">
+                                <MudIcon Icon="@p.Icon" Color="Color.Error" Size="Size.Small" Class="mr-2" />
+                                <MudText Typo="Typo.button" Style="font-weight: 900;">@p.Area</MudText>
+                            </div>
+                            <MudText Typo="Typo.body2" Style="color: #555;">@p.Details</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudContainer>
+    </div>
+</div>
+
+@code {
+    private List<KpiModel> KPIs = new() {
+        new("70+ ", "Installations", "Production Basis"),
+        new("7000+", "Device Base", "Field Instruments"),
+        new("3", "Platforms", "DCS Systems"),
+        new("120+", "Field Panels", "Gas Panels"),
+        new("110+", "Safety Units", "BMS Systems"),
+        new("40+", "Air Support", "Air Comp")
+    };
+
+    private List<OpModel> Operations = new() {
+        new("Drilling", Icons.Material.Filled.BoreHole, "#E21E26", Color.Error, "Operational Readiness",
+            new[] { "Rig automation & control", "VFD rig control ecosystem", "Gas detection/alarm" }),
+        new("Production", Icons.Material.Filled.PrecisionManufacturing, "#1A1A1A", Color.Dark, "Production Continuity",
+            new[] { "Process control reliability", "DCS/PLC/Field instruments", "Gas compressor system" }),
+        new("Safety", Icons.Material.Filled.Shield, "#E21E26", Color.Error, "Risk Reduction",
+            new[] { "BMS & Process safety", "Fire & Gas detection", "Remote flaring/ignition" }),
+        new("Business", Icons.Material.Filled.AutoGraph, "#005682", Color.Info, "Visibility & Control",
+            new[] { "DRIVE 2.0", "Utilities", "Asset life-cycle support" })
+    };
+
+    private List<AssetModel> Portfolio = new() {
+        new("7000+", "Field Instruments (50km Radius)", Icons.Material.Filled.Compress),
+        new("115+", "Gas Compressor Panels", Icons.Material.Filled.Settings),
+        new("110+", "Burner Management Systems", Icons.Material.Filled.LocalFireDepartment),
+        new("12", "Remote Ignition Systems", Icons.Material.Filled.SettingsRemote),
+        new("20+", "Air Compressor Panels in GCS", Icons.Material.Filled.Air),
+        new("5", "Boiler Battery Control", Icons.Material.Filled.Water),
+        new("15", "WSS Well Servicing Units", Icons.Material.Filled.Build),
+        new("13", "Mobile Steam Gen Units", Icons.Material.Filled.LocalShipping)
+    };
+
+    private List<PresenceModel> Locations = new() {
+        new("SCADA", "44 Nos. RTU and MCS, Field-wide telemetry", Icons.Material.Filled.Router),
+        new("LPG", "DCS and control system, PLC support", Icons.Material.Filled.Propane),
+        new("Power Station", "Turbine control, GEG control system", Icons.Material.Filled.ElectricBolt),
+        new("Tank Farms", "Secondary Tank Farm - STF, ITF - Tengakhat", Icons.Material.Filled.Storage),
+        new("OGPS", "Boiler/Plant control, WSS units", Icons.Material.Filled.Factory),
+        new("Rajasthan Fields", "Remote instrumentation support", Icons.Material.Filled.Landscape),
+        new("Cyber Security", "IEC 62443 compliance for OT systems", Icons.Material.Filled.Security),
+        new("Projects", "Instrumentation scope, FAT/SAT oversight", Icons.Material.Filled.Assignment)
+    };
+
+    public record KpiModel(string Value, string Label, string SubText);
+    public record OpModel(string Title, string Icon, string Color, Color MudColor, string Goal, string[] Items);
+    public record AssetModel(string Count, string Name, string Icon);
+    public record PresenceModel(string Area, string Details, string Icon);
+}

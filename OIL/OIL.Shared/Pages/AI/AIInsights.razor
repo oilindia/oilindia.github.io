@@ -110,6 +110,21 @@
         }
     }
 
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [Column("id")]
+        public long Id { get; set; }
+
+        [Column("installation_name")]
+        public string? InstallationName { get; set; }
+
+        [Column("installation_type")]
+        public string? InstallationType { get; set; }
+
+        [Column("field_type")]
+        public string? FieldType { get; set; }
+    }
 
     [Table("jobs")]
     public class Job : BaseModel
@@ -143,10 +158,18 @@
             int days = SelectedPeriod == "Weekly" ? 7 : (SelectedPeriod == "Monthly" ? 30 : 365);
             var threshold = DateTime.UtcNow.AddDays(-days);
 
+            // var result = await SupabaseClient.From<Job>()
+            //     .Where(x => x.CreatedAt >= threshold)
+            //     .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+            //     .Get();
+
             var result = await SupabaseClient.From<Job>()
-                .Where(x => x.CreatedAt >= threshold)
-                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-                .Get();
+            // This joins the locations table and pulls specific columns
+            .Select("*, locations(installation_name, installation_type, field_type)")
+            .Where(x => x.CreatedAt >= threshold)
+            .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+            .Get();
+
 
             // 2. Process with AI
             if (result.Models.Any())
@@ -171,8 +194,7 @@
     private async Task RotateStatus()
     {
         string[] steps = {
-            "Connecting to Supabase...", "Fetching job records...", "Analyzing breakdown trends...",
-            "Calculating labor productivity...", "Reviewing instrumentation costs...", "Gemini is writing report..."
+            "Connecting to database...", "Fetching job records...", "Analyzing breakdown trends...", "Calculating labor productivity...", "Reviewing instrumentation costs...", "Comparing actual vs. target...", "Identifying bottleneck sources...", "Synchronizing asset registry...", "Evaluating material overhead...", "Verifying sensor calibration...", "Auditing safety compliance...", "Generating performance metrics...", "Aggregating historical logs...", "Scanning for operational anomalies...", "Mapping equipment hierarchy...", "Projecting maintenance schedules...", "Processing diagnostic telemetry...", "Finalizing data synthesis...", "Optimizing resource allocation...", "AI is writing report..."
         };
         int i = 0;
         while (IsLoading)
