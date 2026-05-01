@@ -119,9 +119,9 @@
         StateHasChanged();
         await Scroll();
 
-        var response2 = await AiService.Chat(Messages);
+        var response = await AiService.Chat(Messages);
 
-        var response = await AiService.ProcessMaintenanceChat(Messages);
+        //var response = await AiService.ProcessMaintenanceChat(Messages);
 
         if (response.Contains("SIGNAL_TICKET_LOG"))
         {

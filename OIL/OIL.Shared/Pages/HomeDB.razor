@@ -18,7 +18,7 @@
                     <div>
                         <span class="brand-kicker">Instrumentation Department • Field Maintenance Section</span>
                         <MudText Typo="Typo.h3" Class="brand-title">Field Maintenance <span class="accent-red">Dashboard</span></MudText>
-                        <MudText Typo="Typo.body1" Class="brand-subtext">Instrumentation support for production installations, control systems and safety-critical assets.</MudText>
+                        <MudText Typo="Typo.body1" Class="brand-subtext">Maintenance support for production installations and safety systems. .</MudText>
                     </div>
                 </div>
 
@@ -113,8 +113,8 @@
                     </MudGrid>
 
                     @* --- ASSET PORTFOLIO (Slide 3 Expanded Data) --- *@
-                    <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Complete Asset Portfolio</MudText>
-                    <MudGrid Class="mb-12">
+                   @*  <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Complete Asset Portfolio</MudText> *@
+                    @* <MudGrid Class="mb-12">
                         @foreach (var asset in Portfolio)
                         {
                             <MudItem xs="12" sm="6" md="4">
@@ -129,8 +129,11 @@
                                 </div>
                             </MudItem>
                         }
-                    </MudGrid>
+                    </MudGrid> *@
 
+                    
+                    
+                    
                     @* --- GLOBAL PRESENCE (Slide 4 Data) --- *@
                     <MudText Typo="Typo.h4" Class="mb-6" Style="font-weight: 900;">Our Presence Across OIL</MudText>
                     <MudGrid>
@@ -294,7 +297,7 @@
                             </div>
                             <div class="visual-panel">
                                 <MudStack Spacing="2">
-                                    <div class="nav-link-brand">
+                                    @* <div class="nav-link-brand">
                                         <div>
                                             <MudText Typo="Typo.subtitle1" Class="fw-bold" onclick="">Open P&IDs</MudText>
                                             <MudText Typo="Typo.caption" onlick="">Installation-wise drawings & hotspots.</MudText>
@@ -307,7 +310,7 @@
                                             <MudText Typo="Typo.caption" onclick="">Daily entry and reporting workflow.</MudText>
                                         </div>
                                         <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" />
-                                    </div>
+                                    </div> *@
                                     
 
                                 <div class="media-card" style="height: 300px; width: 100%; overflow: hidden; position: relative; border-radius: 8px;">
@@ -687,9 +690,10 @@
         new("70+ ", "Installations", "Production Basis"),
         new("7000+", "Device Base", "Field Instruments"),
         new("13", "Platforms", "DCS Systems"),
-        new("120+", "Field Panels", "Gas Panels"),
-        new("110+", "Safety Units", "BMS Systems"),
-        new("40+", "Air Support", "Air Comp")
+        new("120+", "Control Panels", "Gas Compressors"),
+        new("110+", "Safety Units", "BMS Systems")
+        //new("110+", "Safety Units", "BMS Systems"),
+        //new("40+", "Air Support", "Air Comp")
     };
 
     private List<OpModel> Operations = new() {
@@ -766,12 +770,13 @@
     };
 
     private List<Kpi> _kpis = new() {
-        new("Production", "70+", "Installations"),
+        new("OCS", "45+", "Installations"),
+        new("GCS", "27+", "Installations"),
         new("Instruments", "7000+", "Device Base"),
-        new("DCS Systems", "3", "Platforms"),
+        new("Utilities", "15+", "CBUS,WSS,Boiler"),
         new("Gas Panels", "120+", "Field Panels"),
         new("BMS Systems", "110+", "Safety Units"),
-        new("Air Comp", "40+", "Air Support")
+        //new("Air Comp", "40+", "Air Support")
     };
 
     private List<Meter> _meters = new() {
@@ -790,9 +795,9 @@
 
     private List<LiveStat> _liveStats = new() {
         new("Installations", "74", "Live footprint"),
-        new("Drawing Pages", "128", "P&ID Index"),
-        new("Asset Records", "7201", "Tagged assets"),
-        new("Report History", "14k", "Row entries")
+        new("Drawing Pages", "58", "P&ID Index"),
+        new("Asset Records", "3201", "Tagged assets"),
+        new("Report History", "2k", "Row entries")
     };
 
     private async Task ToggleFullScreen()

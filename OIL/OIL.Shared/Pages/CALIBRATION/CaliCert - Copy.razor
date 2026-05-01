@@ -1,11 +1,11 @@
-﻿@page "/CalibrationCert"
+﻿@page "/CalibrationCert2"
 
 @using MudBlazor
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 
 <style>
-    /* 1. SCREEN STYLING (The UI looks) */
+    /* Report Styling */
     .report-paper {
         background-color: white;
         color: black;
@@ -19,13 +19,7 @@
         width: 100%;
         border-collapse: collapse;
         color: black;
-        page-break-inside: auto;
     }
-
-        .report-table tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
 
         .report-table th, .report-table td {
             border: 1px solid black !important;
@@ -49,6 +43,39 @@
         padding: 10px;
     }
 
+    /* Print Logic Fixes */
+    @@media print {
+        /* Hide all UI elements */
+        body * {
+            visibility: hidden !important;
+            -webkit-print-color-adjust: exact;
+        }
+        /* Target only the report and force visibility */
+        #printable-report, #printable-report * {
+            visibility: visible !important;
+            /* display: block !important; */
+        }
+        /* Position the report at the top-left of the printed page */
+        #printable-report {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 10mm;
+            border: none;
+        }
+        /* Fix for table borders in some browsers */
+        .report-table {
+            border: 1px solid black !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+    }
+
+    /* Modal Layout Fixes */
     .custom-modal-overlay {
         position: fixed;
         z-index: 1000;
@@ -59,7 +86,7 @@
         background-color: rgba(0,0,0,0.8);
         display: flex;
         justify-content: center;
-        align-items: flex-start;
+        align-items: flex-start; /* Start from top to allow scrolling */
         overflow-y: auto;
         padding: 40px 0;
         backdrop-filter: blur(4px);
@@ -67,64 +94,11 @@
 
     .modal-content-container {
         width: 900px;
+        height: auto; /* Auto height based on content */
         background-color: #f0f0f0;
         padding: 25px;
         margin-bottom: 40px;
         border-radius: 4px;
-    }
-
-    /* 2. PRINT LOGIC (The "Magic" Fix) */
-    @@media print {
-        @@page {
-            size: A4;
-            margin: 10mm;
-        }
-        /* Hide all UI background elements */
-        body * {
-            visibility: hidden !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-        /* Make the report and its specific parents visible */
-        #printable-report,
-        #printable-report *,
-        .custom-modal-overlay,
-        .modal-content-container {
-            visibility: visible !important;
-        }
-        /* CRITICAL: Remove scrollbars and fixed heights for multi-page flow */
-        .custom-modal-overlay {
-            position: absolute !important;
-            display: block !important; /* Prevents flexbox clipping */
-            overflow: visible !important;
-            height: auto !important;
-            background: white !important;
-            padding: 0 !important;
-        }
-
-        .modal-content-container {
-            width: 100% !important;
-            max-width: none !important;
-            background: white !important;
-            height: auto !important;
-            overflow: visible !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        #printable-report {
-            position: static !important; /* Let it flow across pages naturally */
-            width: 100% !important;
-            border: none !important;
-            padding: 0 !important;
-            /* Scale slightly to ensure it fits within A4 margins */
-            transform: scale(0.98);
-            transform-origin: top left;
-        }
-
-        .no-print {
-            display: none !important;
-        }
     }
 </style>
 
@@ -134,9 +108,9 @@
             <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Large" Color="Color.Success" />
             <MudText Typo="Typo.h5">Calibration Certificates</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _isModalOpen = true">
+            @* <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => _isModalOpen = true">
                 View Sample Certificate
-            </MudButton>
+            </MudButton> *@
         </MudStack>
 
         <MudDataGrid T="CalibrationView" Items="_staticReports" Dense="true" Hover="true" Bordered="true">
@@ -157,10 +131,10 @@
 
 @if (_isModalOpen)
 {
-    <div class="custom-modal-overlay">
+    <div class="custom-modal-overlay no-print">
         <div class="modal-content-container">
             <!-- Sticky Header Actions -->
-            <div class="d-flex justify-space-between align-center mb-4 no-print" style="position: sticky; top: -25px; background: #f0f0f0; z-index: 10; padding: 10px 0;">
+            <div class="d-flex justify-space-between align-center mb-4" style="position: sticky; top: -25px; background: #f0f0f0; z-index: 10; padding: 10px 0;">
                 <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
                     Print Certificate
                 </MudButton>

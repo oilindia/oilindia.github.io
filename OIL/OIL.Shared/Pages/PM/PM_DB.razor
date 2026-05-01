@@ -1,5 +1,7 @@
 ﻿@page "/pmdb"
 
+@inject IJSRuntime JSRuntime
+
 <style>
     /* Fix for Line Chart styling (replaces LineStrokeWidth) */
     .mud-chart-line {
@@ -114,7 +116,7 @@
     <SummarySection />
 
     @* --- SUMMARY SECTION --- *@
-    <div class="mt-8 mb-4">
+    @* <div class="mt-8 mb-4">
         <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-4">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudIcon Icon="@Icons.Material.Filled.Upgrade" Color="Color.Error" Size="Size.Medium" />
@@ -136,7 +138,7 @@
                 This dashboard presents the year-wise preventive maintenance trend, PM share of total jobs, field-wise PM distribution...
             </MudText>
         </MudAlert>
-    </div>
+    </div> *@
 
     @* --- KPI SNAPSHOT SECTION --- *@
     <div class="mt-10">
@@ -316,7 +318,7 @@
     @* --- 2nd Code Block --- *@
 
 
-    @* --- Header remains same --- *@
+    @* --- PM Trends & Growth --- *@
     <div class="d-flex align-center mb-1">
         <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
         <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">PM Trends & Growth</MudText>
@@ -327,178 +329,94 @@
 
     <MudGrid Class="mb-6">
         <MudItem xs="12" md="4">
-            <ChartCard Title="Year-wise PM Jobs (In Days)">
-                @* Add T="double" here *@
-                <MudChart T="double" 
-                          ChartType="ChartType.Line" 
-                          ChartSeries="@_pmDaysSeries" 
-                          XAxisLabels="@_years" 
-                          Width="100%" Height="250px"
-                          ChartOptions="@_lineOptions" />
-            </ChartCard>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Year-wise PM Jobs (In Days)</MudText>
+                <div style="height: 250px;"><canvas id="chartPmDays"></canvas></div>
+            </MudPaper>
         </MudItem>
 
         <MudItem xs="12" md="4">
-            <ChartCard Title="Total Number of PM Jobs (Installation Wise)">
-                <MudChart T="double" 
-                          ChartType="ChartType.Bar" 
-                          ChartSeries="@_pmCountSeries" 
-                          XAxisLabels="@_yearsPi" 
-                          Width="100%" Height="250px" />
-            </ChartCard>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Total Number of PM Jobs</MudText>
+                <div style="height: 250px;"><canvas id="chartPmCount"></canvas></div>
+            </MudPaper>
         </MudItem>
 
         <MudItem xs="12" md="4">
-            <ChartCard Title="PM % of Total Jobs">
-                <MudChart T="double" 
-                          ChartType="ChartType.Line" 
-                          ChartSeries="@_pmPercentSeries" 
-                          XAxisLabels="@_yearsPi" 
-                          Width="100%" Height="250px"
-                          ChartOptions="@_percentOptions" />
-            </ChartCard>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">PM % of Total Jobs</MudText>
+                <div style="height: 250px;"><canvas id="chartPmPercent"></canvas></div>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 
-    <MudGrid>
+    <MudGrid Class="mb-6">
         <MudItem xs="12" md="4">
-            <ChartCard Title="YoY Growth in PM Activities">
-                <MudChart T="double" 
-                          ChartType="ChartType.Bar" 
-                          ChartSeries="@_yoySeries" 
-                          XAxisLabels="@_yoyYears" 
-                          Width="100%" Height="250px" />
-                <MudText Typo="Typo.caption" Align="Align.Center" Class="d-block mt-2" Style="color: #94a3b8;">
-                    2023-24 considered as base year for comparison
-                </MudText>
-            </ChartCard>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">YoY Growth in PM Activities</MudText>
+                <div style="height: 250px;"><canvas id="chartYoY"></canvas></div>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 
-
-    @* --- Field-wise Distribution Section --- *@
+    @* --- Field-wise Distribution --- *@
     <div class="d-flex align-center mb-1">
         <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
         <MudIcon Icon="@Icons.Material.Filled.PieChart" Class="mr-2" />
         <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Field-wise Distribution</MudText>
     </div>
-    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
-        Distribution of PM activities across major field groupings in FY 2025-26
-    </MudText>
 
     <MudGrid Class="mb-10">
-        @* 1. Pie Chart: Field-wise PM Share *@
-        @* <MudItem xs="12" md="6">
-            <ChartContainer Title="Field-wise PM Share">
-                
-                <MudChart T="double" ChartType="ChartType.Pie" 
-                          InputData="@_shareData" 
-                          InputLabels="@_shareLabels" 
-                          Width="300px" Height="300px"
-                          ChartOptions="@_pieOptions"
-                          LegendPosition="Position.Bottom" />
-            </ChartContainer>
-        </MudItem> *@
-
-        @* 2. Bar Chart: Field-wise PM Jobs *@
         <MudItem xs="12" md="6">
-            <ChartContainer Title="Field-wise PM Jobs">
-                <MudChart T="double" ChartType="ChartType.Bar" 
-                          ChartSeries="@_pmCountSeriesFW" 
-                          XAxisLabels="@_shareLabels" 
-                          Width="100%" Height="300px"
-                          LegendPosition="Position.Bottom"
-                          ChartOptions="@_barOptions" />
-            </ChartContainer>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Field-wise PM Jobs</MudText>
+                <div style="height: 300px;"><canvas id="chartFieldPm"></canvas></div>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 
-    @* --- Comparative Analysis Section --- *@
+    @* --- Comparative Analysis --- *@
     <div class="d-flex align-center mt-10 mb-1">
         <div style="width: 4px; height: 24px; background-color: #3b82f6; margin-right: 12px;"></div>
         <MudIcon Icon="@Icons.Material.Filled.BarChart" Class="mr-2" />
         <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Comparative Analysis</MudText>
     </div>
-    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
-        Comparison of PM and non-PM jobs across the last three financial years
-    </MudText>
 
     <MudGrid>
-        @* 3. Grouped Bar: PM vs Non-PM Jobs *@
         <MudItem xs="12" md="6">
-            <ChartContainer Title="PM vs Non-PM Jobs">
-                <MudChart T="double" ChartType="ChartType.Bar" 
-                          ChartSeries="@_compSeriesGrouped" 
-                          XAxisLabels="@_yearsPi" 
-                          Width="100%" Height="300px"
-                          LegendPosition="Position.Bottom" />
-            </ChartContainer>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">PM vs Non-PM Jobs</MudText>
+                <div style="height: 300px;"><canvas id="chartPmVsNonPm"></canvas></div>
+            </MudPaper>
         </MudItem>
 
-        @* 4. Stacked Bar: Stacked Job Mix *@
         <MudItem xs="12" md="6">
-            <ChartContainer Title="Stacked Job Mix">
-                @* Use ChartOptions to configure stacking *@
-                <MudChart T="double" ChartType="ChartType.StackedBar" 
-                          ChartSeries="@_compSeriesStacked" 
-                          XAxisLabels="@_yearsPi" 
-                          Width="100%" Height="300px"
-                          LegendPosition="Position.Bottom"
-                          ChartOptions="@_stackedBarOptions" />
-            </ChartContainer>
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Stacked Job Mix</MudText>
+                <div style="height: 300px;"><canvas id="chartStackedMix"></canvas></div>
+            </MudPaper>
         </MudItem>
     </MudGrid>
 
-
-
-    @* --- 3rd Code Block --- *@
-
-
-    @* --- Header --- *@
-    <div class="d-flex align-center mb-1">
+    @* --- Additional Insights --- *@
+    <div class="d-flex align-center mt-10 mb-1">
         <div style="width: 4px; height: 24px; background-color: #f59e0b; margin-right: 12px;"></div>
         <MudIcon Icon="@Icons.Material.Filled.Search" Class="mr-2" />
         <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Additional Insights</MudText>
     </div>
-    <MudText Typo="Typo.caption" Class="mb-6 d-block" Style="color: #64748b;">
-        Maintenance trends and PM job distribution by production field grouping
-    </MudText>
 
     <MudGrid>
-        @* 1. Dual Axis Chart: Maintenance Trends with PM % *@
         <MudItem xs="12" md="4">
-            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">Maintenance Trends with PM %</MudText>
-                <MudChart T="double" ChartType="ChartType.Line"
-                          ChartSeries="@_trendSeries"
-                          XAxisLabels="@_years"
-                          Width="100%" Height="300px"
-                          ChartOptions="@_trendOptions" />
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Maintenance Trends with PM %</MudText>
+                <div style="height: 300px;"><canvas id="chartDualAxis"></canvas></div>
             </MudPaper>
         </MudItem>
 
-        @* 2. Donut Chart: PM Jobs in CF, WF and EF *@
-        @* <MudItem xs="12" md="4">
-            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">PM Jobs in CF, WF and EF (2025-26)</MudText>
-                <MudChart T="double" ChartType="ChartType.Donut"
-                          InputData="@_fieldData"
-                          InputLabels="@_fieldLabels"
-                          Width="250px" Height="250px"
-                          LegendPosition="Position.Bottom"
-                          ChartOptions="@_donutOptions" />
-            </MudPaper>
-        </MudItem> *@
-
-        @* 3. Bar Chart: Total OverTime (OT) *@
         <MudItem xs="12" md="4">
-            <MudPaper Elevation="1" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Align="Align.Center" Class="fw-bold mb-4">Total OverTime (OT)</MudText>
-                <MudChart T="double" ChartType="ChartType.Bar"
-                          ChartSeries="@_otSeries"
-                          XAxisLabels="@_otYears"
-                          Width="100%" Height="300px"
-                          ChartOptions="@_otOptions" />
+            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
+                <MudText Typo="Typo.subtitle2" Class="mb-4">Total OverTime (OT)</MudText>
+                <div style="height: 300px;"><canvas id="chartOT"></canvas></div>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -560,6 +478,14 @@
 @code {
     private string[] _shareLabels = { "OCS/EPS/QPS/FGGS/WHS", "GCS", "WI" };
     private string[] _yearsPi = { "2023-2024", "2024-2025", "2025-2026" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("initAllMaintenanceCharts");
+        }
+    }
 
     // --- Chart Data Setups ---
 

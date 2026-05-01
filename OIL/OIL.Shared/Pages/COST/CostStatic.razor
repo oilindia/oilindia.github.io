@@ -93,7 +93,7 @@
                     <MudPaper Class="pa-3 mud-theme-primary text-center">
                         <MudText Typo="Typo.button">1. Input (The Job)</MudText>
                         <MudDivider Class="my-2" />
-                        <MudText Typo="Typo.caption">Labor Hours + Spares Used + Asset Downtime</MudText>
+                        (<b>Hours</b> &times; <b>Rate per hour</b>) + <b>Spare Cost</b> + <b>Transportation Cost</b>
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12" md="1" Class="d-flex align-center justify-center">
@@ -101,11 +101,11 @@
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudPaper Class="pa-3 mud-theme-secondary text-center">
-                        <MudText Typo="Typo.button">2. Direct Cost (TCM)</MudText>
+                        <MudText Typo="Typo.button">2. Overhead Cost</MudText>
                         <MudDivider Class="my-2" />
                         @* Using clean text with bolding for readability *@
                         <MudText Typo="Typo.caption">
-                            (<b>Hours</b> &times; <b>Rate</b>) + <b>Parts Cost</b> + <b>Transportation Cost</b> = <b>Department Spend</b>
+                            Emp. Overtime cost
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -116,10 +116,10 @@
 
                 <MudItem xs="12" md="3">
                     <MudPaper Class="pa-3 mud-theme-error text-center">
-                        <MudText Typo="Typo.button">3. Business Impact</MudText>
+                        <MudText Typo="Typo.button">3. Total Cost</MudText>
                         <MudDivider Class="my-2" />
                         <MudText Typo="Typo.caption">
-                            <b>Downtime Hours</b> &times; <b>Production Value</b> = <b>Company Loss</b>
+                            <b>Derived from</b> <b> 1. & 2. </b> 
                         </MudText>
                     </MudPaper>
                 </MudItem>
@@ -128,78 +128,89 @@
 
         @* --- 2. MAIN KPI TILES --- *@
         <MudGrid>
-            <MudItem xs="12" sm="6" md="2">
+            <MudItem xs="12" sm="6" md="3">
                 <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-primary);">
-                    <MudText Typo="Typo.caption">TCM (Total Spend / month)</MudText>
+                    <MudText Typo="Typo.caption">(Maintenance Cost/month) - Current</MudText>
                     @* <MudText Typo="Typo.h5">@TotalCost.ToString("C0")</MudText> *@
-                    <MudText Typo="Typo.h5">1.31 Cr.</MudText>
+                    <MudText Typo="Typo.h5">1.30 Cr.</MudText>
 
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="2">
+            <MudItem xs="12" sm="6" md="3">
                 <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-success);">
-                    <MudText Typo="Typo.caption">Emp. OT Hours / Month</MudText>
+                    <MudText Typo="Typo.caption">(Maintenance Cost/month) - Previous</MudText>
                     @* <MudText Typo="Typo.caption">Cost / Employee</MudText> *@
                     @* <MudText Typo="Typo.h5">@CPME.ToString("C0")</MudText> *@
                     <MudText Typo="Typo.h5">733.34</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="2">
+            @* <MudItem xs="12" sm="6" md="2">
                 <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-warning);">
                     <MudText Typo="Typo.caption">Utilization Rate</MudText>
 
-                    <MudText Typo="Typo.h5">98.79%</MudText>
+                    <MudText Typo="Typo.h5">98.79%</MudText> *@
                     @* <MudText Typo="Typo.h5">@Utilization.ToString("F1")%</MudText> *@
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="2">
+               @*  </MudPaper>
+            </MudItem> *@
+            @* <MudItem xs="12" sm="6" md="3">
                 <MudPaper Elevation="4" Class="pa-4 text-center border-l-4" Style="border-color: var(--mud-palette-info);">
                     
                     <MudText Typo="Typo.caption">Transportation Cost / Month</MudText>
-                    <MudText Typo="Typo.h5">8.756 lakhs</MudText>
+                    <MudText Typo="Typo.h5">8.756 lakhs</MudText> *@
 
 @* <MudText Typo="Typo.caption">MTTR (Repair Efficiency)</MudText>
                     <MudText Typo="Typo.h5">@MTTR.ToString("F2")h</MudText> *@
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="12" md="4">
+               @*  </MudPaper>
+            </MudItem> *@
+            @* <MudItem xs="12" sm="12" md="4">
                 <MudPaper Elevation="4" Class="pa-4 text-center mud-theme-error">
                    @*  <MudText Typo="Typo.caption">TOTAL PRODUCTION LOSS (Down Impact this month)</MudText> *@
 
-                    <MudText Typo="Typo.caption">TOTAL DOWN IMPACT HRS. (this month)</MudText>
+                    @* <MudText Typo="Typo.caption">TOTAL DOWN IMPACT HRS. (this month)</MudText>
 
-                    <MudText Typo="Typo.h4" Style="font-weight: 800;">12</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 800;">12</MudText> *@
                     @* <MudText Typo="Typo.h4" Style="font-weight: 800;">@ProductionLoss.ToString("C0")</MudText> *@
-                </MudPaper>
-            </MudItem>
+               @*  </MudPaper>
+            </MudItem> *@ 
 
             @* --- 3. ANALYTICS & CHARTS --- *@
             <MudItem xs="12" md="8">
-                <MudCard Elevation="4">
-                    <MudCardHeader>
-                        <CardHeaderContent><MudText Typo="Typo.h6">Downtime Correlation: Preventive vs. Failure</MudText></CardHeaderContent>
-                    </MudCardHeader>
-                    <MudCardContent>
-                        <MudChart T="double" ChartType="ChartType.Line" ChartSeries="@CorrelationSeries" XAxisLabels="@Labels" Width="100%" Height="350px" />
+                <MudCard Elevation="4" Style="height:100%;">
+                    @* <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Downtime Correlation: Preventive vs. Failure</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader> *@
+                    <MudCardContent Class="pa-0">
+                        @* Remove padding from card content *@
+                        <MudPaper Elevation="0" Class="pa-4" Style="width:100%;">
+                            <MudChip T="string" Size="Size.Small" Style="background-color: #ffebee; color: #d32f2f; font-weight: 900;">ANALYTICS</MudChip>
+                            <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight: 800; color: #1a237e;">Cost comparison last 7 days</MudText>
+                            <MudText Typo="Typo.caption" Style="color: #90a4ae;">Cost comparison last 7 days | Values shown in ₹ Lakhs</MudText>
+
+                            @* Ensure the container has no horizontal constraints *@
+                            <div style="height: 350px; width: 100%; position: relative;" class="mt-4">
+                                <canvas id="CPDbarChart"></canvas>
+                            </div>
+                        </MudPaper>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
 
             <MudItem xs="12" md="4">
-                <MudCard Elevation="4">
+                <MudCard Elevation="4" Style="height: 100%;">
                     <MudCardHeader>
-                        <CardHeaderContent><MudText Typo="Typo.h6">Labor Distribution Heatmap</MudText></CardHeaderContent>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Cost Distribution Across Quarters</MudText>
+                        </CardHeaderContent>
                     </MudCardHeader>
-                    <MudCardContent>
-                        @foreach (var item in HeatmapData)
-                        {
-                            <MudText Typo="Typo.caption" Class="mt-2 d-block">@item.Category.ToUpper()</MudText>
-                            <MudProgressLinear Color="@GetHeatColor(item.Percentage)" Size="Size.Large" Value="@item.Percentage">
-                                <MudText Typo="Typo.caption" Color="Color.Dark"><b>@item.Percentage%</b></MudText>
-                            </MudProgressLinear>
-                        }
+                    <MudCardContent Class="pa-2">
+                        <div style="position: relative; height: 320px; width: 100%;">
+                            <canvas id="quarterlyCostChart"></canvas>
+                        </div>
+
                         <MudAlert Severity="Severity.Info" Class="mt-4" Dense="true">
-                            Observation: Automation accounts for @(HeatmapData.FirstOrDefault(x => x.Category == "automation")?.Percentage)% of labor.
+                            Values shown in ₹ Crores based on current project analytics.
                         </MudAlert>
                     </MudCardContent>
                 </MudCard>

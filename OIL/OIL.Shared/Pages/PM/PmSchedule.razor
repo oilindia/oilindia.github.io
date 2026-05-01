@@ -6,67 +6,114 @@
 @using Supabase.Postgrest.Models
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
+@using System.Linq
 
-<MudPaper Elevation="2" Class="pa-4">
-    <MudTable Items="@_configurations"
-              Loading="@_loading"
-              Hover="true"
-              Dense="true"
-              Striped="true"
-              Breakpoint="Breakpoint.Sm"
-              Filter="new Func<PmConfiguration,bool>(FilterFunc1)"
-              Elevation="0">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6" Color="Color.Primary">
-                <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Class="mr-2" />
-                PM Scheduling Manager
-            </MudText>
-            <MudSpacer />
-            @* --- SEARCH BOX --- *@
-            <MudTextField @bind-Value="_searchString"
-                          Placeholder="Search Installation or Cycle..."
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          IconSize="Size.Medium"
-                          Class="mt-0"
-                          Clearable="true" />
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh Style="width: 50px;">Force</MudTh>
-            <MudTh>Installation</MudTh>
-            <MudTh>Cycle</MudTh>
-            <MudTh>Freq (Days)</MudTh>
-            <MudTh>Last Generated</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Force">
-                <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
-                               Color="Color.Info"
-                               OnClick="@(() => HandleForcePm(context))"
-                               Title="Force PM for next upcoming jobs" />
-            </MudTd>
-            <MudTd DataLabel="Installation">@context.InstallationName</MudTd>
-            <MudTd DataLabel="Cycle">@context.CyclicityLabel</MudTd>
-            <MudTd DataLabel="Frequency">@context.FrequencyDays</MudTd>
-            <MudTd DataLabel="Last Generated">
-                @(context.LastGeneratedDate?.ToString("yyyy-MM-dd") ?? "N/A")
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            @if (_loading)
-            {
-                <MudText>Fetching configurations...</MudText>
-            }
-            else
-            {
-                <MudText>No matching PM configurations found.</MudText>
-            }
-        </NoRecordsContent>
-    </MudTable>
-</MudPaper>
+<MudStack Spacing="4">
+    @* --- UPCOMING JOBS TABLE (15 DAYS) --- *@
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudTable Items="@_upcomingJobs"
+                  Loading="@_isProcessing"
+                  Hover="true"
+                  Dense="true"
+                  Striped="true"
+                  Breakpoint="Breakpoint.Sm"
+                  Elevation="0">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6" Color="Color.Error">
+                    <MudIcon Icon="@Icons.Material.Filled.EventNote" Class="mr-2" />
+                    Upcoming PM Jobs (Next 15 Days)
+                </MudText>
+                <MudSpacer />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Force</MudTh>
+                <MudTh>Installation</MudTh>
+                <MudTh>Next Due Date</MudTh>
+                <MudTh>Days Remaining</MudTh>
+                <MudTh>Cycle</MudTh>
+                <MudTh>Last Generated</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Force">
+                    <MudIconButton Icon="@Icons.Material.Filled.FlashOn"
+                                   Color="Color.Warning"
+                                   OnClick="@(() => HandleForcePm(context.OriginalConfig))"
+                                   Title="Execute Now" />
+                </MudTd>
+                <MudTd DataLabel="Installation"><b>@context.InstallationName</b></MudTd>
+                <MudTd DataLabel="Next Due Date">
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Text">
+                        @context.NextDueDate.ToString("yyyy-MM-dd")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Days Remaining">
+                    <MudText Color="@(context.DaysRemaining <= 5 ? Color.Error : Color.Default)" Style="font-weight:bold">
+                        @context.DaysRemaining Days
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Cycle">@context.CyclicityLabel</MudTd>
+                <MudTd DataLabel="Last Generated">
+                    @(context.LastGeneratedDate?.ToString("yyyy-MM-dd") ?? "N/A")
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                @if (!_isProcessing)
+                {
+                    <MudText Typo="Typo.body1" Class="pa-4">No PM jobs scheduled within the next 15 days.</MudText>
+                }
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+
+    @* --- MASTER SCHEDULING MANAGER --- *@
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudTable Items="@_configurations"
+                  Loading="@_isProcessing"
+                  Hover="true"
+                  Dense="true"
+                  Striped="true"
+                  Filter="new Func<PmConfiguration,bool>(FilterFunc1)"
+                  Elevation="0">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6" Color="Color.Primary">
+                    <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Class="mr-2" />
+                    PM Scheduling Manager
+                </MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString"
+                              Placeholder="Search Installation..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Class="mt-0"
+                              Clearable="true" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh Style="width: 50px;">Force</MudTh>
+                <MudTh>Installation</MudTh>
+                <MudTh>Cycle</MudTh>
+                <MudTh>Freq (Days)</MudTh>
+                <MudTh>Last Generated</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Force">
+                    <MudIconButton Icon="@Icons.Material.Filled.PlayArrow"
+                                   Color="Color.Info"
+                                   OnClick="@(() => HandleForcePm(context))" />
+                </MudTd>
+                <MudTd DataLabel="Installation">@context.InstallationName</MudTd>
+                <MudTd DataLabel="Cycle">@context.CyclicityLabel</MudTd>
+                <MudTd DataLabel="Frequency">@context.FrequencyDays</MudTd>
+                <MudTd DataLabel="Last Generated">
+                    @(context.LastGeneratedDate?.ToString("yyyy-MM-dd") ?? "N/A")
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudStack>
 
 @code {
-    // --- Database Models ---
+    // --- Combined Database Model ---
     [Table("pm_configurations")]
     public class PmConfiguration : BaseModel
     {
@@ -90,82 +137,111 @@
         [Column("description")] public string? Description { get; set; }
     }
 
-    // --- Component Logic ---
+    public class PmUpcomingViewModel
+    {
+        public string InstallationName { get; set; }
+        public string CyclicityLabel { get; set; }
+        public DateTime? LastGeneratedDate { get; set; }
+        public DateTime NextDueDate { get; set; }
+        public int DaysRemaining { get; set; }
+        public PmConfiguration OriginalConfig { get; set; } // Reference back for Force PM action
+    }
+
     private List<PmConfiguration> _configurations = new();
-    private bool _loading = true;
+    private List<PmUpcomingViewModel> _upcomingJobs = new();
+    private bool _isProcessing = true;
     private string _searchString = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await FetchData();
+        await LoadAllData();
     }
 
-    private async Task FetchData()
+    private async Task LoadAllData()
     {
-        _loading = true;
+        _isProcessing = true;
         try
         {
-            var result = await SupabaseClient
-                .From<PmConfiguration>()
+            // 1. Fetch from Supabase
+            var result = await SupabaseClient.From<PmConfiguration>()
                 .Where(x => x.IsActive == true)
                 .Get();
 
             _configurations = result.Models;
+
+            // 2. Process Upcoming Jobs (15-day logic)
+            DateTime today = DateTime.Today;
+            DateTime threshold = today.AddDays(15);
+
+            _upcomingJobs = _configurations
+                .Where(c => c.LastGeneratedDate.HasValue)
+                .Select(c => new
+                {
+                    Config = c,
+                    NextDue = c.LastGeneratedDate.Value.AddDays(c.FrequencyDays)
+                })
+                .Where(x => x.NextDue >= today && x.NextDue <= threshold)
+                .Select(x => new PmUpcomingViewModel
+                {
+                    InstallationName = x.Config.InstallationName ?? "Unknown",
+                    CyclicityLabel = x.Config.CyclicityLabel,
+                    LastGeneratedDate = x.Config.LastGeneratedDate,
+                    NextDueDate = x.NextDue,
+                    DaysRemaining = (int)(x.NextDue - today).TotalDays,
+                    OriginalConfig = x.Config
+                })
+                .OrderBy(x => x.NextDueDate)
+                .ToList();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error fetching data: {ex.Message}", Severity.Error);
+            Snackbar.Add($"System Error: {ex.Message}", Severity.Error);
         }
         finally
         {
-            _loading = false;
+            _isProcessing = false;
         }
-    }
-
-    // --- Filter Logic ---
-    private bool FilterFunc1(PmConfiguration element) => FilterFunc(element, _searchString);
-
-    private bool FilterFunc(PmConfiguration element, string searchString)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-        if (element.InstallationName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
-            return true;
-        if (element.CyclicityLabel.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-        return false;
     }
 
     private async Task HandleForcePm(PmConfiguration config)
     {
         try
         {
+            _isProcessing = true;
+
+            // 1. Create Job
             var newJob = new Job
             {
                 JobName = $"PM: {config.InstallationName}",
                 LocationId = config.LocationId,
-                Status = "pending",
-                JobType = "preventive",
                 Description = $"Force generated PM for {config.CyclicityLabel} cycle."
             };
-
             await SupabaseClient.From<Job>().Insert(newJob);
 
-            config.LastGeneratedDate = DateTime.Now;
+            // 2. Update Last Generated Date in DB
             await SupabaseClient.From<PmConfiguration>()
                 .Where(x => x.Id == config.Id)
                 .Set(x => x.LastGeneratedDate, DateTime.Now)
                 .Update();
 
-            Snackbar.Add($"PM scheduled for upcoming dates for {config.InstallationName}.",
-                Severity.Success,
-                options => { options.Icon = Icons.Material.Filled.NotificationImportant; });
+            Snackbar.Add($"Success! PM Job created for {config.InstallationName}.", Severity.Success);
 
-            StateHasChanged();
+            // 3. Refresh lists
+            await LoadAllData();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to schedule PM: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Update failed: {ex.Message}", Severity.Error);
         }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private bool FilterFunc1(PmConfiguration element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return element.InstallationName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false;
     }
 }
