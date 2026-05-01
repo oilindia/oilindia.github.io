@@ -20,9 +20,10 @@
 
         <MudDataGrid T="Location" Items="@_locations" Loading="@_loading" Bordered="true" Dense="true" Hover="true">
             <Columns>
+                <PropertyColumn Property="x => x.Id" Title="Id" />
                 <PropertyColumn Property="x => x.InstallationName" Title="Installation" />
-                <PropertyColumn Property="x => x.AreaName" Title="Area" />
-                <PropertyColumn Property="x => x.SubArea" Title="Sub-Area" />
+                <PropertyColumn Property="x => x.FieldType" Title="Field Type" />
+                
                 <PropertyColumn Property="x => x.InstallationType" Title="Type" />
                 <TemplateColumn Title="Status">
                     <CellTemplate>
@@ -109,7 +110,9 @@
         try
         {
             _loading = true;
-            var result = await SupabaseClient.From<Location>().Get();
+            var result = await SupabaseClient.From<Location>()
+            .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Ascending)
+            .Get();
             _locations = result.Models;
             StateHasChanged();
         }
