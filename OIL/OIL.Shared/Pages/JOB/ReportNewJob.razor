@@ -252,7 +252,7 @@
         [Column("job_name")] public string JobName { get; set; } = "";
         [Column("location_id")] public long? LocationId { get; set; } 
         [Column("notification_number")] public string? NotificationNumber { get; set; }
-        //[Column("field_type")] public string? FieldArea { get; set; }
+        [Column("field_type")] public string? FieldArea { get; set; }
         [Column("installation_type")] public string? InstallationType { get; set; }
         [Column("priority")] public string Priority { get; set; } = "Normal";
         [Column("status")] public string Status { get; set; } = "pending";
