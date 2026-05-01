@@ -7,45 +7,56 @@
 @inject IJSRuntime JS
 
 <style>
+    /* --- PRINT LOGIC --- */
     @@media print {
+        /* Hide UI elements but keep the report container */
+        .no-print,
+        .mud-appbar,
+        .mud-drawer,
+        .mud-nav-menu,
+        .mud-overlay,
+        .mud-dialog-container {
+            display: none !important;
+        }
+        /* Reset MudBlazor layout offsets */
+        .mud-main-content {
+            margin-top: 0 !important;
+            padding: 0 !important;
+        }
+
+        body, html {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100%;
+        }
+
+        .a4-container {
+            width: 100% !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 5mm !important;
+            display: block !important;
+        }
+
         @@page {
             size: A4 landscape;
             margin: 5mm;
         }
-
-        .no-print {
-            display: none !important;
-        }
-
-        .a4-container {
-            margin: 0;
-            border: none;
-            box-shadow: none;
-            width: 100%;
-        }
-        /* Specifically hide any MudBlazor overlays or scrollbars during print */
-        .mud-overlay, .mud-dialog-container {
-            display: none !important;
-        }
-        /* Hide everything by default */
-        body * {
-            display: none !important;
-        }
-        /* Show the report and all its children */
-        #printable-report, #printable-report * {
-            display: block !important;
-        }
     }
 
+    /* --- SCREEN STYLES --- */
     .a4-container {
-        width: 287mm;
+        width: 287mm; /* Standard A4 Landscape width */
         min-height: 200mm;
         padding: 10mm;
         margin: 20px auto;
         background: white;
         color: black;
-        font-family: 'Segoe UI', Arial, sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         border: 1px solid #ccc;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     .report-header {
@@ -109,7 +120,7 @@
         }
 
     .font-handwriting {
-        font-family: 'Comic Sans MS', cursive;
+        font-family: 'Consolas', 'Courier New', monospace; /* More reliable than Comic Sans for technical reports */
         color: #1a237e;
         font-weight: 600;
         font-size: 12px;
@@ -123,127 +134,140 @@
 
     .sign-line {
         border-top: 1px solid black;
-        width: 200px;
+        width: 220px;
         margin-top: 50px;
         text-align: center;
         font-size: 12px;
+        font-weight: bold;
     }
 </style>
 
-@* --- NAVIGATION CONSOLE --- *@
-<div class="no-print pa-4" style="background: #f5f5f5; border-bottom: 1px solid #ddd;">
+@* --- NAVIGATION CONSOLE (Hidden on Print) --- *@
+<div class="no-print pa-4" style="background: #f8f9fa; border-bottom: 2px solid #0d47a1;">
     <MudGrid Justify="Justify.Center" Class="align-center">
-        <MudItem xs="12" md="3"><MudText Typo="Typo.h6"><b>Daily Report Console</b></MudText></MudItem>
-        <MudItem xs="6" md="2"><MudDatePicker Label="Previous Day" @bind-Date="_prevDate" Variant="Variant.Outlined" Color="Color.Secondary" /></MudItem>
-        <MudItem xs="6" md="2"><MudDatePicker Label="Today" @bind-Date="_todayDate" Variant="Variant.Outlined" Color="Color.Primary" /></MudItem>
+        <MudItem xs="12" md="3">
+            <MudText Typo="Typo.h6" Color="Color.Primary"><b>Daily Report Console</b></MudText>
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudDatePicker Label="Previous Day" @bind-Date="_prevDate" Variant="Variant.Outlined" Color="Color.Secondary" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudDatePicker Label="Today" @bind-Date="_todayDate" Variant="Variant.Outlined" Color="Color.Primary" />
+        </MudItem>
         <MudItem xs="12" md="4" Class="d-flex gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" StartIcon="@Icons.Material.Filled.Sync">Refresh Data</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="HandlePrint" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Report</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" Disabled="_loading" StartIcon="@Icons.Material.Filled.Sync">Refresh</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="HandlePrint" Disabled="_loading" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Preview</MudButton>
         </MudItem>
     </MudGrid>
 </div>
 
-<div class="a4-container">
-    <header class="report-header">
-        <img src="_content/OIL.Shared/imgs/oil.png" style="height: 60px;" alt="OIL" />
-        <div class="title-area">
-            <h3>Instrumentation Department, Field Headquarters</h3>
-            <h5>यांत्रिकीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</h5>
-            <h4 style="margin: 5px 0; letter-spacing: 2px;">DAILY MAINTENANCE REPORT</h4>
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Info" Indeterminate="true" Class="my-7" />
+}
+else
+{
+    @* --- PRINTABLE AREA --- *@
+    <div class="a4-container" id="printable-report">
+        <header class="report-header">
+            <img src="_content/OIL.Shared/imgs/oil.png" style="height: 60px;" alt="OIL" />
+            <div class="title-area">
+                <h3>Instrumentation Department, Field Headquarters</h3>
+                <h5>यांत्रिकीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</h5>
+                <h4 style="margin: 5px 0; letter-spacing: 2px; font-weight: 800;">DAILY MAINTENANCE REPORT</h4>
+            </div>
+            <div style="font-size: 12px; text-align: right; line-height: 1.6;">
+                <p><strong>Report Date:</strong> @(_todayDate?.ToString("dd-MM-yyyy"))</p>
+                <p><strong>Field:</strong> Duliajan (Assam)</p>
+            </div>
+        </header>
+
+        @* --- PREVIOUS DAY SECTION --- *@
+        <div class="section-header">
+            <span>PREVIOUS DAY JOBS CARRIED OUT</span>
+            <span>DATE: @(_prevDate?.ToString("dd-MM-yyyy"))</span>
         </div>
-        <div style="font-size: 12px; text-align: right; line-height: 1.6;">
-            <p><strong>Report Date:</strong> @(_todayDate?.ToString("dd-MM-yyyy"))</p>
-            <p><strong>Field:</strong> Duliajan (Assam)</p>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">SL</th>
+                    <th style="width: 180px;">INSTALLATION</th>
+                    <th>EQUIPMENT / FIELD REPORT</th>
+                    <th style="width: 220px;">PERSONNEL</th>
+                    <th style="width: 150px;">REMARKS</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{
+                    int sl1 = 1;
+                }
+                @foreach (var item in _prevDayEntries)
+                {
+                    <tr>
+                        <td style="text-align: center;">@(sl1++)</td>
+                        <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
+                        <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
+                        <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
+                        <td>@item.JobActionRemarks</td>
+                    </tr>
+                }
+                @if (!_prevDayEntries.Any())
+                {
+                    <tr><td colspan="5" style="text-align:center; padding: 20px;">No records found for previous day.</td></tr>
+                }
+            </tbody>
+        </table>
+
+        @* --- TODAY SECTION --- *@
+        <div class="section-header" style="background: #2980b9;">
+            <span>TODAY'S ACTIVITY / PLANNED JOBS</span>
+            <span>DATE: @(_todayDate?.ToString("dd-MM-yyyy"))</span>
         </div>
-    </header>
-
-    @* --- PREVIOUS DAY TABLE --- *@
-    <div class="section-header">
-        <span>PREVIOUS DAY JOBS CARRIED OUT</span>
-        <span>DATE: @(_prevDate?.ToString("dd-MM-yyyy"))</span>
-    </div>
-    <table class="report-table">
-        <thead>
-            <tr>
-                <th style="width: 45px;">SL</th>
-                @* <th style="width: 80px;">SHIFT</th> *@
-                <th style="width: 200px;">INSTALLATION</th>
-                <th>EQUIPMENT / FIELD REPORT</th>
-                <th style="width: 220px;">PERSONNEL</th>
-                <th style="width: 160px;">REMARKS</th>
-            </tr>
-        </thead>
-        <tbody>
-            @{
-                int sl1 = 1;
-            }
-            @foreach (var item in _prevDayEntries)
-            {
+        <table class="report-table">
+            <thead>
                 <tr>
-                    <td style="text-align: center;">@(sl1++)</td>
-                    @* <td style="text-align: center;">@item.ShiftName</td> *@
-                    <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
-                    <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
-                    <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
-                    <td>@item.JobActionRemarks</td>
+                    <th style="width: 40px;">SL</th>
+                    <th style="width: 180px;">INSTALLATION</th>
+                    <th>EQUIPMENT / TASK DESCRIPTION</th>
+                    <th style="width: 100px;">VEHICLE</th>
+                    <th style="width: 220px;">PERSONNEL</th>
+                    <th style="width: 150px;">REMARKS</th>
                 </tr>
-            }
-            @if (!_prevDayEntries.Any())
-            {
-                <tr><td colspan="6" style="text-align:center; padding: 20px;">No records found for previous day.</td></tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @{
+                    int sl2 = 1;
+                }
+                @foreach (var item in _todayEntries)
+                {
+                    <tr>
+                        <td style="text-align: center;">@(sl2++)</td>
+                        <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
+                        <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
+                        <td style="text-align: center;">@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
+                        <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
+                        <td>@item.JobActionRemarks</td>
+                    </tr>
+                }
+                @if (!_todayEntries.Any())
+                {
+                    <tr><td colspan="6" style="text-align:center; padding: 20px;">No records found for today.</td></tr>
+                }
+            </tbody>
+        </table>
 
-    @* --- TODAY TABLE --- *@
-    <div class="section-header" style="background: #2980b9;">
-        <span>TODAY'S ACTIVITY / PLANNED JOBS</span>
-        <span>DATE: @(_todayDate?.ToString("dd-MM-yyyy"))</span>
+        <div class="footer-sign">
+            <div class="sign-line">Checked By (Supervisor)</div>
+            <div class="sign-line">Approved By (HOD)</div>
+        </div>
     </div>
-    <table class="report-table">
-        <thead>
-            <tr>
-                <th style="width: 45px;">SL</th>
-               @*  <th style="width: 80px;">SHIFT</th> *@
-                <th style="width: 200px;">INSTALLATION</th>
-                <th>EQUIPMENT / TASK DESCRIPTION</th>
-                <th style="width: 100px;">VEHICLE</th>
-                <th style="width: 220px;">PERSONNEL</th>
-                <th style="width: 160px;">REMARKS</th>
-            </tr>
-        </thead>
-        <tbody>
-            @{
-                int sl2 = 1;
-            }
-            @foreach (var item in _todayEntries)
-            {
-                <tr>
-                    <td style="text-align: center;">@(sl2++)</td>
-                    @* <td style="text-align: center;">@item.ShiftName</td> *@
-                    <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
-                    <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
-                    <td style="text-align: center;">@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
-                    <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
-                    <td>@item.JobActionRemarks</td>
-                </tr>
-            }
-            @if (!_todayEntries.Any())
-            {
-                <tr><td colspan="7" style="text-align:center; padding: 20px;">No records found for today.</td></tr>
-            }
-        </tbody>
-    </table>
-
-    <div class="footer-sign">
-        <div class="sign-line">Checked By (Supervisor)</div>
-        <div class="sign-line">Approved By (HOD)</div>
-    </div>
-</div>
+}
 
 @code {
     private DateTime? _prevDate = DateTime.Today.AddDays(-1);
     private DateTime? _todayDate = DateTime.Today;
+    private bool _loading = true;
+
     private List<Assignment> _prevDayEntries = new(), _todayEntries = new();
     private List<Driver> _drivers = new();
     private List<Job> _jobs = new();
@@ -254,26 +278,35 @@
 
     private async Task RefreshData()
     {
-        _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
-        _jobs = (await SupabaseClient.From<Job>().Get()).Models;
-        _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
-        _locations = (await SupabaseClient.From<Location>().Get()).Models;
-
-        var prevStr = _prevDate?.ToString("yyyy-MM-dd");
-        var todayStr = _todayDate?.ToString("yyyy-MM-dd");
-        var nextStr = _todayDate?.AddDays(1).ToString("yyyy-MM-dd");
-
-        _prevDayEntries = (await SupabaseClient.From<Assignment>()
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayStr)
-            .Get()).Models;
-
-        _todayEntries = (await SupabaseClient.From<Assignment>()
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, nextStr)
-            .Get()).Models;
-
+        _loading = true;
         StateHasChanged();
+
+        try
+        {
+            _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
+            _jobs = (await SupabaseClient.From<Job>().Get()).Models;
+            _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
+            _locations = (await SupabaseClient.From<Location>().Get()).Models;
+
+            var prevStr = _prevDate?.ToString("yyyy-MM-dd");
+            var todayStr = _todayDate?.ToString("yyyy-MM-dd");
+            var nextStr = _todayDate?.AddDays(1).ToString("yyyy-MM-dd");
+
+            _prevDayEntries = (await SupabaseClient.From<Assignment>()
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayStr)
+                .Get()).Models;
+
+            _todayEntries = (await SupabaseClient.From<Assignment>()
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, nextStr)
+                .Get()).Models;
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
     }
 
     private string GetLocationName(Guid jobId)
@@ -286,6 +319,7 @@
 
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
 
+    /* --- DATA MODELS --- */
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {

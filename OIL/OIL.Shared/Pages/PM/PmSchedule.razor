@@ -52,7 +52,7 @@
                     </MudText>
                 </MudTd>
                 <MudTd DataLabel="Cycle">@context.CyclicityLabel</MudTd>
-                <MudTd DataLabel="Last Generated">
+                <MudTd DataLabel="Last PM Date">
                     @(context.LastGeneratedDate?.ToString("yyyy-MM-dd") ?? "N/A")
                 </MudTd>
             </RowTemplate>
@@ -93,7 +93,7 @@
                 <MudTh>Installation</MudTh>
                 <MudTh>Cycle</MudTh>
                 <MudTh>Freq (Days)</MudTh>
-                <MudTh>Last Generated</MudTh>
+                <MudTh>Last PM Date</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Force">

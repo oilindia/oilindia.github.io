@@ -7,6 +7,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
     @if (!_isExecuting)
@@ -167,14 +168,25 @@
     }
 
     private async Task StartJobExecution(Job job) {
+        // _selectedJob = job;
+        // _isExecuting = true;
+        // if (job.JobType == "preventive" && job.LocationId.HasValue) {
+        //     var loc = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId.Value).Get();
+        //     _detectedType = loc.Models.FirstOrDefault()?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+        //     _filteredChecklist = _allMasterTasks.Where(x => x.InstallationType.ToUpper() == _detectedType)
+        //         .Select(x => new ChecklistItem { TaskDescription = x.TaskDescription }).ToList();
+        // }
+
+        if (job.JobType?.ToLower() == "preventive")
+        {
+            // Navigate to the specific PM execution page, passing the Job ID
+            Navigation.NavigateTo($"/pmexecution");
+            return;
+        }
+
+        // Default logic for other job types (e.g., Breakdown)
         _selectedJob = job;
         _isExecuting = true;
-        if (job.JobType == "preventive" && job.LocationId.HasValue) {
-            var loc = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId.Value).Get();
-            _detectedType = loc.Models.FirstOrDefault()?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
-            _filteredChecklist = _allMasterTasks.Where(x => x.InstallationType.ToUpper() == _detectedType)
-                .Select(x => new ChecklistItem { TaskDescription = x.TaskDescription }).ToList();
-        }
     }
 
     private void HandleFileUpload(IBrowserFile file) { if (file != null) _uploadedFiles.Add(file); }

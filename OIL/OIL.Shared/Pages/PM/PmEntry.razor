@@ -12,7 +12,7 @@
     <MudPaper Class="pa-8" Elevation="3" Style="background-color: #f9f9f9;">
         <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-6" Style="font-weight: bold;">
             <MudIcon Icon="@Icons.Material.Filled.AppRegistration" Class="mr-2" />
-            PM EXECUTION PORTAL (@_detectedType)
+            PM EXECUTION (@_detectedType)
         </MudText>
 
         @* --- STEP 1: JOB & PERMIT INFO --- *@
@@ -224,7 +224,10 @@
     protected override async Task OnInitializedAsync() => await LoadInitialData();
 
     private async Task LoadInitialData() {
-        var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending").Get();
+        var jobRes = await SupabaseClient.From<Job>()
+    .Where(x => x.Status == "pending")
+    .Where(x => x.JobType == "preventive") // Add this line
+    .Get();
         _pendingJobs = jobRes.Models;
         var checkRes = await SupabaseClient.From<ChecklistItem>().Get();
         _allMasterTasks = checkRes.Models;
