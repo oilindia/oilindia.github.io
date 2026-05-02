@@ -9,7 +9,7 @@
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
     <MudText Typo="Typo.h4" Class="mb-6" Color="Color.Primary" Style="font-weight: bold;">
-        Field Maintnance Policies
+        Field Maintnance Policies & SOP
     </MudText>
 
     <MudPaper Class="pa-4 mb-4 bg-light shadow-none border">
@@ -49,7 +49,7 @@
                 <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@policy.Category</MudChip>
             </MudTd>
             <MudTd DataLabel="Policy Name"><b>@policy.PolicyName</b></MudTd>
-            <MudTd DataLabel="Effective Date">@policy.EffectiveDate.ToShortDateString()</MudTd>
+            <MudTd DataLabel="Upload Date">@policy.EffectiveDate.ToShortDateString()</MudTd>
             <MudTd DataLabel="Version">v@{
                 @policy.Version
             }
