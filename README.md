@@ -1,7 +1,7 @@
 # Personal Portfolio ⚡️ 
 > A clean, beautiful, responsive portfolio template for Software Developers!
 
-<!--> https://oilindia.github.io -->
+<!-- https://oilindia.github.io -->
 
 ![GitHub stars](https://img.shields.io/github/stars/varadbhogayata/varadbhogayata.github.io) 
 ![GitHub forks](https://img.shields.io/github/forks/varadbhogayata/varadbhogayata.github.io)
@@ -13,7 +13,8 @@
 ### Website Preview
 <p align="center"> 
   <kbd>
-    <a href="https://oilindia.github.io" target="_blank"><img src="examples/preview.gif">
+    <!--<a href="https://oilindia.github.io" target="_blank">-->
+    <img src="examples/preview.gif">
   </a>
   </kbd>
 </p>
