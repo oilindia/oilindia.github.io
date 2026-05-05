@@ -1,8 +1,14 @@
+@* <h1>Hello OIL</h1> *@
+
+
+
 @using Microsoft.AspNetCore.Components.Authorization
 
-<CascadingAuthenticationState>
-    <Routes />
-</CascadingAuthenticationState>
+<ErrorBoundary>
+    <CascadingAuthenticationState>
+        <Routes />
+    </CascadingAuthenticationState>
+</ErrorBoundary>
 
 @code {
     // No extra code needed here

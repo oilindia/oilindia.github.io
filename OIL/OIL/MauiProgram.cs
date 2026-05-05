@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
+﻿using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
 using MudBlazor.Services;
 using MudBlazor.Services;
@@ -25,9 +26,13 @@ public static class MauiProgram
         var supabaseUrl = "https://pmwutokmedbbphpwxafo.supabase.co";
         var supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtd3V0b2ttZWRiYnBocHd4YWZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NjYxNzksImV4cCI6MjA5MTA0MjE3OX0.5CyPUDvZiFVj47HimhKuXFFuvt0noAwR3VrYly9q-og"; // Your key
 
+
+        //builder.Services.AddBlazoredLocalStorage();
         builder.Services.AddMudServices();
 
         builder.Services.AddMauiBlazorWebView();
+
+        builder.Services.AddBlazoredLocalStorage(); // ADD THIS
 
         //builder.RootComponents.Add<SharedProject.App>("app");
 
@@ -37,28 +42,47 @@ public static class MauiProgram
         builder.Services.AddSingleton<AuthenticationStateProvider>(s =>
             s.GetRequiredService<CustomAuthStateProvider>());
 
-        // Register Supabase WITHOUT calling BuildServiceProvider()
-        builder.Services.AddSingleton(async sp =>
-        {
-            var client = new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
-            {
-                AutoRefreshToken = true,
-                AutoConnectRealtime = true
-            });
+        //// Register Supabase WITHOUT calling BuildServiceProvider()
+        //builder.Services.AddSingleton(async sp =>
+        //{
+        //    var client = new Supabase.Client(supabaseUrl, supabaseKey, new SupabaseOptions
+        //    {
+        //        AutoRefreshToken = true,
+        //        AutoConnectRealtime = true
+        //    });
 
-            await client.InitializeAsync();
+        //    await client.InitializeAsync();
+        //    return client;
+        //});
+
+
+        // Supabase
+        builder.Services.AddSingleton<Supabase.Client>(sp =>
+        {
+            var client = new Supabase.Client(
+                supabaseUrl,
+                supabaseKey,
+                new SupabaseOptions
+                {
+                    AutoRefreshToken = true,
+                    AutoConnectRealtime = true
+                });
+
+            //client.InitializeAsync().Wait();
+
             return client;
         });
+
 
         builder.Services.AddSingleton<AuthService>();
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
 
-        
 
-        
+
+
         //builder.Services.AddMauiBlazorWebView();
         //builder.Services.AddScoped<GeminiService>();
-      
+
 
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
