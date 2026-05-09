@@ -431,8 +431,18 @@
                 var paths = photos.Models.Select(p => p.StoragePath).ToList();
                 await SupabaseClient.From<JobPhotoModel>().Where(x => x.JobId == job.Id).Delete();
                 if (paths.Any()) await SupabaseClient.Storage.From("job-photos").Remove(paths);
-                await SupabaseClient.From<JobModel>().Where(x => x.Id == job.Id).Delete();
-                Snackbar.Add("Job deleted", Severity.Info);
+
+                // Update the status column to "dltd" for the specific Job ID
+                await SupabaseClient
+                    .From<JobModel>()
+                    .Where(x => x.Id == job.Id)
+                    .Set(x => x.Status, "Deleted")
+                    .Update();
+
+                Snackbar.Add("Job marked as deleted", Severity.Info);
+
+                // await SupabaseClient.From<JobModel>().Where(x => x.Id == job.Id).Delete();
+                // Snackbar.Add("Job deleted", Severity.Info);
                 await LoadData();
             } catch (Exception ex) { Snackbar.Add("Delete Error: " + ex.Message, Severity.Error); }
         }
