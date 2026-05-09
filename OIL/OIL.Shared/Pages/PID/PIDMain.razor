@@ -7,199 +7,188 @@
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
 
-<div id="full-page-container" style="background: inherit;">
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudGrid>
-        @* --- TOP CONTROLS --- *@
-        <MudItem xs="12">
-            <MudPaper Elevation="3" Class="pa-4 d-flex align-center gap-4">
-                <MudSelect T="string" Label="Field Type" Value="_selectedFieldType" ValueChanged="OnFieldTypeChanged" Variant="Variant.Outlined" Style="width: 180px;">
-                    <MudSelectItem Value="@("Eastern Fields")" />
-                    <MudSelectItem Value="@("Western Fields")" />
-                    <MudSelectItem Value="@("Other")" />
-                </MudSelect>
+<div id="full-page-container" class="@(_isFull ? "fullscreen-bg" : "")" style="background: inherit;">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2 mt-md-4">
+        <MudGrid Spacing="2">
 
-                <MudSelect T="Location" Label="Select Installation" @bind-Value="_tempLocation" ToStringFunc="@(l => l?.InstallationName)" Variant="Variant.Outlined" Class="flex-grow-1">
-                    @foreach (var loc in _filteredLocations)
-                    {
-                        <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
-                    }
-                </MudSelect>
-
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="LoadDrawing" Disabled="@(_tempLocation == null)">Go</MudButton>
-
-                <MudDivider Vertical="true" FlexItem="true" />
-
-                <MudToggleGroup T="bool" @bind-Value="_isMappingMode" Color="Color.Error" Outline="true" Size="Size.Small">
-                    <MudToggleItem Value="false" Text="View Mode" />
-                    <MudToggleItem Value="true" Text="Edit Mode" />
-                </MudToggleGroup>
-
-                    <MudDivider Vertical="true" FlexItem="true" />
-
-                    @* NEW FULLSCREEN BUTTON *@
-                    <MudIconButton Icon="@(_isFull ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)"
-                                   Color="Color.Inherit"
-                                   OnClick="ToggleFullScreen"
-                                   Title="Toggle Fullscreen" />
-            </MudPaper>
-        </MudItem>
-
-        @if (_currentLocation != null)
-        {
-            @* --- ENLARGED P&ID DRAWING AREA --- *@
+            @* --- RESPONSIVE HEADER CONTROLS --- *@
             <MudItem xs="12">
-                @* Changed height to 80vh and set background to a neutral dark *@
-                <div @ref="_mapScrollContainer" style="width: 100%; height: 80vh; overflow: auto; border: 2px solid #444; background: #1a1a1a; position: relative; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-                    
-                    @* Floating Controls *@
-                    <div style="position: sticky; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 8px;">
-                        
-                                                
-                        <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="() => _zoomLevel += 0.15" />
-                        <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" Size="Size.Small" OnClick="() => _zoomLevel = Math.Max(0.1, _zoomLevel - 0.15)" />
-                        <MudFab Color="Color.Info" StartIcon="@Icons.Material.Filled.FullscreenExit" Size="Size.Small" OnClick="() => _zoomLevel = 1.0" Tooltip="Reset View" />
+                <MudPaper Elevation="3" Class="pa-2 pa-md-4 d-flex flex-wrap align-center gap-2 rounded-lg">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect T="string" Label="Field Type" Value="_selectedFieldType" ValueChanged="OnFieldTypeChanged" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" FullWidth="true">
+                            <MudSelectItem Value="@("Eastern Fields")" />
+                            <MudSelectItem Value="@("Western Fields")" />
+                            <MudSelectItem Value="@("Other")" />
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudSelect T="Location" Label="Installation" @bind-Value="_tempLocation" ToStringFunc="@(l => l?.InstallationName ?? string.Empty)" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" FullWidth="true">
+                            @foreach (var loc in _filteredLocations)
+                            {
+                                <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <div class="d-flex align-center gap-2 flex-grow-1">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="LoadDrawing" Disabled="@(_tempLocation == null)">Go</MudButton>
+                        <MudSpacer />
+                        <MudToggleGroup T="bool" @bind-Value="_isMappingMode" Color="Color.Error" Outline="true" Size="Size.Small" CheckMark="false">
+                            <MudToggleItem Value="false" Text="View" />
+                            <MudToggleItem Value="true" Text="Edit/Pin" />
+                        </MudToggleGroup>
                     </div>
+                </MudPaper>
+            </MudItem>
 
-                    <div id="pid-map-container" @onclick="HandleImageClick" style="@GetZoomStyle()" class="@(_isMappingMode ? "mapping-active" : "")">
-                        <img @ref="myImage" src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
+            @if (_currentLocation != null)
+            {
+                @* --- INTERACTIVE P&ID VIEWPORT --- *@
+                <MudItem xs="12">
+                    <div @ref="_mapScrollContainer" class="pid-viewport" style="position: relative; overflow: auto; border: 2px solid #333; background: #121212; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
 
-                            @* Conditional Style: If this is the active marker, make it Red, otherwise Green *@
+                        @* Floating Action Buttons for Zoom/Navigation *@
+                        <div style="position: sticky; top: 10px; left: 10px; z-index: 100; display: flex; flex-direction: column; gap: 8px;">
+                            <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="() => _zoomLevel += 0.2" />
+                            <MudFab Color="Color.Surface" StartIcon="@Icons.Material.Filled.Remove" Size="Size.Small" OnClick="() => _zoomLevel = Math.Max(0.2, _zoomLevel - 0.2)" />
+                            <MudFab Color="Color.Info" StartIcon="@Icons.Material.Filled.Fullscreen" Size="Size.Small" OnClick="ToggleFullScreen" Class="d-sm-none" />
+                        </div>
+
+                        <div id="pid-map-container" @onclick="HandleImageClick" style="@GetZoomStyle()" class="@(_isMappingMode ? "mapping-cursor" : "")">
+                            <img @ref="myImage" src="@_currentLocation.ImageUrl" style="width: 100%; height: auto; display: block; pointer-events: none;" />
 
                             @foreach (var m in _markers.Where(x => x.CoordX.HasValue && x.CoordY.HasValue))
                             {
-                                <div style="position: absolute; top: @($"{m.CoordY}%"); left: @($"{m.CoordX}%"); transform: translate(-50%, -50%);">
-                                    <MudTooltip Text="@($"{m.TagNumber} | {m.MakeModelType}")">
+                                <div style="position: absolute; top: @($"{m.CoordY}%"); left: @($"{m.CoordX}%"); transform: translate(-50%, -50%); z-index: 10;">
+                                    <MudTooltip Text="@($"{m.TagNumber}")">
                                         <MudIconButton Icon="@Icons.Material.Filled.LocationOn"
-                                                       
-                                                       Style="@((_activeMarkerId == m.Id)
-                                                                                           ? "color: #FF0000; filter: drop-shadow(0px 0px 8px rgba(255,0,0,0.8)); scale: 2.3;"
-                                                                                           : "color: #00C853; filter: drop-shadow(0px 0px 4px rgba(0,0,0,0.8));")"
+                                                       Style="@GetMarkerStyle(m.Id)"
                                                        Size="Size.Medium"
                                                        OnClick="() => OpenEdit(m)" />
                                     </MudTooltip>
                                 </div>
                             }
+                        </div>
                     </div>
-                </div>
-            </MudItem>
+                </MudItem>
 
-            @* --- MARKER DATA TABLE --- *@
-            <MudItem xs="12" Class="mt-4">
-                <MudTable Items="@_markers" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="3" Height="300px" FixedHeader="true">
-                    <HeaderContent>
-                        <MudTh>Tag Number</MudTh>
-                        <MudTh>Type</MudTh>
-                        <MudTh>Make/Model</MudTh>
-                        <MudTh>Range</MudTh>
-                        <MudTh Style="text-align:right">Actions</MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="m">
-                        <MudTd><b>@m.TagNumber</b></MudTd>
-                        <MudTd>@m.InstrumentType</MudTd>
-                        <MudTd>@m.MakeModelType</MudTd>
-                        <MudTd>@m.Range</MudTd>
-                        <MudTd Style="text-align:right">
-                            <MudIconButton Icon="@Icons.Material.Filled.MyLocation" Color="Color.Info" Size="Size.Small" OnClick="() => LocateMarker(m)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => OpenEdit(m)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteMarker(m)" />
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudItem>
-        }
-    </MudGrid>
-</MudContainer>
+                @* --- ASSET INVENTORY: Mobile Responsive Table --- *@
+                <MudItem xs="12">
+                    <MudTable Items="@_markers" Dense="true" Hover="true" Elevation="4" Height="300px" FixedHeader="true" Class="rounded-lg">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.subtitle1"><b>Asset Inventory</b></MudText>
+                            <MudSpacer />
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Tag</MudTh>
+                            <MudTh Class="d-none d-sm-table-cell">Type</MudTh>
+                            <MudTh Class="d-none d-md-table-cell">Range</MudTh>
+                            <MudTh>Last PM</MudTh>
+                            <MudTh Style="text-align:right">Action</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="m">
+                            <MudTd><b>@m.TagNumber</b></MudTd>
+                            <MudTd Class="d-none d-sm-table-cell">@m.InstrumentType</MudTd>
+                            <MudTd Class="d-none d-md-table-cell">@m.Range</MudTd>
+                            <MudTd>@(_locationPmConfig?.LastGeneratedDate?.ToString("dd-MMM-yy") ?? "N/A")</MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudIconButton Icon="@Icons.Material.Filled.CenterFocusStrong" Color="Color.Info" Size="Size.Small" OnClick="() => LocateMarker(m)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => OpenEdit(m)" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
 
-@* --- DRAWER REMAINS SAME --- *@
-<MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="400px" Variant="DrawerVariant.Temporary">
-    <MudDrawerHeader Class="pa-4"><MudText Typo="Typo.h6">Marker Configuration</MudText></MudDrawerHeader>
-    <div class="pa-4">
-        @if (_selectedMarker != null)
-        {
-            <MudStack Spacing="3">
-                <MudTextField @bind-Value="_selectedMarker.TagNumber" Label="Tag Number" Variant="Variant.Outlined" />
-                <MudTextField @bind-Value="_selectedMarker.InstrumentType" Label="Instrument Type" Variant="Variant.Outlined" />
-                <MudTextField @bind-Value="_selectedMarker.MakeModelType" Label="Make & Model" Variant="Variant.Outlined" />
-                <MudTextField @bind-Value="_selectedMarker.Range" Label="Range" Variant="Variant.Outlined" />
-                <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Class="mt-4">Save</MudButton>
+    @* --- FULL ASSET INTELLIGENCE DRAWER (Mobile Responsive) --- *@
+    <MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="@(_isMobile ? "100%" : "450px")" Variant="DrawerVariant.Temporary" Elevation="5">
+        <MudDrawerHeader Class="pa-4 bg-primary mud-theme-primary">
+            <MudText Typo="Typo.h6" Color="Color.Inherit">Asset Configuration</MudText>
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" OnClick="() => _drawerOpen = false" />
+        </MudDrawerHeader>
+        <div class="pa-6">
+            @if (_selectedMarker != null)
+            {
+                <MudStack Spacing="4">
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 800">Technical Specifications</MudText>
 
-                    <MudDivider Class="my-4" />
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_selectedMarker.TagNumber" Label="Tag Number" Variant="Variant.Outlined" Required="true" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_selectedMarker.InstrumentType" Label="Instrument Type" Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_selectedMarker.MakeModelType" Label="Make & Model" Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_selectedMarker.Range" Label="Range" Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudTextField @bind-Value="_selectedMarker.Serial_number" Label="Serial No" Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                    </MudGrid>
 
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-n2">Device Info :</MudText>
-                    <div class="d-flex justify-space-between">
-                        <MudText Typo="Typo.body2" Color="Color.Primary">Device_location:</MudText>
-                        <MudText Typo="Typo.body2" Class="fw-bold">
-                            @(_selectedMarker?.Device_location ?? "Not Recorded")
-                        </MudText>
-                    </div>
+                    <MudDivider Class="my-2" />
 
-                    <div class="d-flex justify-space-between">
-                        <MudText Typo="Typo.body2" Color="Color.Primary">Serial_number:</MudText>
-                        <MudText Typo="Typo.body2" Class="fw-bold">
-                            @(_selectedMarker?.Serial_number ?? "Not Recorded")
-                        </MudText>
-                    </div>
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 800">Maintenance & Logistics</MudText>
 
-                    <div class="d-flex justify-space-between">
-                        <MudText Typo="Typo.body2" Color="Color.Primary">Replacement_cost:</MudText>
-                        <MudText Typo="Typo.body2" Class="fw-bold">
-                            @(_selectedMarker?.Replacement_cost.ToString() ?? "Not Recorded")
-                        </MudText>
-                    </div>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="_selectedMarker.Replacement_cost" Label="Part Price (₹)" Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudTextField Label="PM Frequency" Value="@($"{_locationPmConfig?.FrequencyDays ?? 0} Days")" ReadOnly="true" Variant="Variant.Outlined" Dense="true" />
+                        </MudItem>
+                    </MudGrid>
 
-
-                    @* --- PM Configuration Read-Only Info --- *@
-                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-n2">Maintenance Schedule :</MudText>
-                    <MudPaper Variant="Variant.Outlined" Class="pa-4" Style="background: rgba(0,0,0,0.05);">
-                        <MudStack Spacing="1">
-                            <div class="d-flex justify-space-between">
-                                <MudText Typo="Typo.body2" Color="Color.Primary">Last PM Done On:</MudText>
-                                <MudText Typo="Typo.body2" Class="fw-bold">
-                                    @(_locationPmConfig?.LastGeneratedDate?.ToString("dd-MMM-yyyy") ?? "Not Recorded")
-                                </MudText>
-                            </div>
-                            <div class="d-flex justify-space-between">
-                                <MudText Typo="Typo.body2" Color="Color.Primary">PM Repeats Every:</MudText>
-                                <MudText Typo="Typo.body2" Class="fw-bold">
-                                    @(_locationPmConfig != null ? $"{_locationPmConfig.FrequencyDays} days" : "N/A")
-                                </MudText>
-                            </div>
-                            @* <div class="d-flex justify-space-between">
-                                <MudText Typo="Typo.body2" Color="Color.Primary">Cyclicity:</MudText>
-                                <MudText Typo="Typo.body2" Class="fw-bold">
-                                    @(_locationPmConfig?.CyclicityLabel ?? "N/A")
-                                </MudText>
-                            </div> *@
-                             <div class="d-flex justify-space-between">
-                            <MudText Typo="Typo.body2" Color="Color.Primary" Class="mb-n1">Asset QR (Tag Number)</MudText>
-
-                            @* Dynamic Image: Uses the GetQrCodeUrl helper *@
-                            <img src="@GetQrCodeUrl(_selectedMarker.TagNumber)"
-                                 alt="QR Code for @_selectedMarker.TagNumber"
-                                 style="width: 150px; height: 150px; border: 4px solid white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s ease;" />
-                            </div>
-                             </MudStack>
+                    <MudPaper Variant="Variant.Outlined" Class="pa-4 d-flex align-center gap-4 mt-2" Style="background: #f8f9fa; border-style: dashed;">
+                        <img src="@GetQrCodeUrl(_selectedMarker.TagNumber)" style="width: 100px; height: 100px;" />
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Field Tag QR</MudText>
+                            <MudText Typo="Typo.body2"><b>Last PM:</b><br />@(_locationPmConfig?.LastGeneratedDate?.ToString("d MMM yyyy") ?? "Not Scheduled")</MudText>
+                        </div>
                     </MudPaper>
 
-
-            </MudStack>
-        }
-    </div>
-</MudDrawer>
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Save" Class="mt-4">Update Database</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="() => DeleteMarker(_selectedMarker)" FullWidth="true" Size="Size.Small">Delete Marker</MudButton>
+                </MudStack>
+            }
+        </div>
+    </MudDrawer>
 </div>
 
+<style>
+    .pid-viewport {
+        height: 55vh;
+    }
+    @@media (min-width: 960px) {
+        .pid-viewport {
+            height: 75vh;
+        }
+    }
+
+    .mapping-cursor {
+        cursor: crosshair !important;
+    }
+
+    .fullscreen-bg {
+        background-color: #1a1a1a !important;
+        min-height: 100vh;
+    }
+</style>
 
 @code {
-
-    // 2. You MUST declare this variable here
-    // This is what the error "does not exist in current context" is looking for
     private ElementReference myImage;
-
     private ElementReference _mapScrollContainer;
     private Location _tempLocation;
     private Location _currentLocation;
-    private double _zoomLevel = 1.0; // Starts at 100% width
+    private double _zoomLevel = 1.0;
     private bool _isMappingMode = false;
     private bool _drawerOpen = false;
     private string _selectedFieldType;
@@ -207,6 +196,10 @@
     private List<Location> _filteredLocations = new();
     private List<Marker> _markers = new();
     private Marker _selectedMarker;
+    private long? _activeMarkerId;
+    private bool _isFull = false;
+    private bool _isMobile = false;
+    private PmConfiguration _locationPmConfig;
 
     [Table("locations")]
     public class Location : BaseModel
@@ -217,21 +210,10 @@
         [Column("image_url")] public string ImageUrl { get; set; }
     }
 
-    [Table("pm_configurations")]
-    public class PmConfiguration : BaseModel
-    {
-        [Column("id")] public long Id { get; set; }
-        [Column("location_id")] public long LocationId { get; set; }
-        [Column("last_generated_date")] public DateTime? LastGeneratedDate { get; set; }
-        [Column("cyclicity_label")] public string CyclicityLabel { get; set; }
-        [Column("frequency_days")] public int FrequencyDays { get; set; }
-    }
-
     [Table("pid_markers")]
     public class Marker : BaseModel
     {
-        [PrimaryKey("id", false)]
-        public long? Id { get; set; }
+        [PrimaryKey("id", false)] public long? Id { get; set; }
         [Column("location_id")] public long LocationId { get; set; }
         [Column("tag_number")] public string TagNumber { get; set; }
         [Column("instrument_type")] public string InstrumentType { get; set; }
@@ -239,288 +221,106 @@
         [Column("range")] public string Range { get; set; }
         [Column("coord_x")] public double? CoordX { get; set; }
         [Column("coord_y")] public double? CoordY { get; set; }
-        [Column("device_location")] public string? Device_location { get; set; }
         [Column("serial_number")] public string? Serial_number { get; set; }
         [Column("replacement_cost")] public long? Replacement_cost { get; set; }
     }
 
-    private double _zoomLevellocal = 1.0;
-    private bool _isFull = false;
-
-    private PmConfiguration _locationPmConfig;
-
-    private string GetQrCodeUrl(string tagNumber)
+    [Table("pm_configurations")]
+    public class PmConfiguration : BaseModel
     {
-        if (string.IsNullOrWhiteSpace(tagNumber)) return string.Empty;
-
-        // Uses goqr.me API to generate a 200x200 QR code
-        // and ensures the tagNumber is URL-safe using Uri.EscapeDataString
-        return $"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={Uri.EscapeDataString(tagNumber)}";
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("last_generated_date")] public DateTime? LastGeneratedDate { get; set; }
+        [Column("frequency_days")] public int FrequencyDays { get; set; }
     }
-
-    private async Task ToggleFullScreen()
-    {
-        try
-        {
-            if (!_isFull)
-            {
-                // Requests fullscreen for the main container
-                await JS.InvokeVoidAsync("eval", "document.getElementById('full-page-container').requestFullscreen()");
-                _isFull = true;
-            }
-            else
-            {
-                // Exits fullscreen
-                await JS.InvokeVoidAsync("eval", "if(document.fullscreenElement) document.exitFullscreen()");
-                _isFull = false;
-            }
-        }
-        catch (Exception ex)
-        {
-             Snackbar.Add("Fullscreen not supported or blocked", Severity.Error);
-        }
-    }
-
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var res = await SupabaseClient.From<Location>().Get();
+        var res = await SupabaseClient.From<Location>().Get();
         _allLocations = res.Models;
-
-    }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
-        }
     }
 
     private void OnFieldTypeChanged(string t)
-{try
-{
+    {
         _selectedFieldType = t;
-        _filteredLocations = _allLocations.Where(x => x.FieldType != null && x.FieldType.Equals(t, StringComparison.OrdinalIgnoreCase)).ToList();
-        _tempLocation = null;
-
-    }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
-        }
+        _filteredLocations = _allLocations.Where(x => x.FieldType?.Equals(t, StringComparison.OrdinalIgnoreCase) ?? false).ToList();
     }
 
     private async Task LoadDrawing()
     {
-        try
-        {
         _currentLocation = _tempLocation;
-        _zoomLevel = 1.0; // Adjust zoom to 1.0 or lower to see full image vertically
         await RefreshMarkers();
-
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
-        }
     }
 
-
-    // FIX 1: Use Match with the correct type (long instead of string if possible)
-    // and ensure the list is cleared before reloading to avoid UI ghosts.
     private async Task RefreshMarkers()
     {
         if (_currentLocation == null) return;
+        var res = await SupabaseClient.From<Marker>().Where(x => x.LocationId == _currentLocation.Id).Get();
+        _markers = res.Models;
 
-        try
-        {
-            // Fetch ALL markers associated with this location ID
-            var res = await SupabaseClient
-            .From<Marker>()
-            .Where(x => x.LocationId == _currentLocation.Id)
-            .Get();
+        var pmRes = await SupabaseClient.From<PmConfiguration>().Where(x => x.LocationId == _currentLocation.Id).Get();
+        _locationPmConfig = pmRes.Models.FirstOrDefault();
+        StateHasChanged();
+    }
 
-            // Overwrite the old list with the fresh data from the DB
-            _markers = res.Models ?? new List<Marker>();
-
-
-            // Fetch PM Config for this location
-            var pmRes = await SupabaseClient.From<PmConfiguration>()
-                .Where(x => x.LocationId == _currentLocation.Id).Get();
-            _locationPmConfig = pmRes.Models.FirstOrDefault();
-
-
-            // Force Blazor to re-render the overlay and the table
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Error loading markers: " + ex.Message, Severity.Error);
-        }
+    private void OpenEdit(Marker m)
+    {
+        _selectedMarker = m;
+        _drawerOpen = true;
     }
 
     private async Task HandleImageClick(MouseEventArgs e)
     {
-        try{
+        if (!_isMappingMode) return;
+        var dims = await JS.InvokeAsync<Dimensions>("eval", "(() => { const el = document.querySelector('img'); return { Width: el.clientWidth, Height: el.clientHeight }; })()");
 
-
-
-
-            if (!_isMappingMode) return;
-
-
-
-            
-            if (myImage.Id != null)
-            {
-                // Pass the ElementReference 'myImage' directly
-                var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", myImage);
-                Console.WriteLine($"Width: {dims.Width}");
-
-
-                // FIX 2: Check for nulls and ensure dimensions are captured correctly
-                //var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
-                if (dims.Width <= 0 || dims.Height <= 0) return;
-
-                _selectedMarker = new Marker
-                {
-                    // Forces the 'Insert' logic in Supabase Upsert
-                    LocationId = _currentLocation.Id,
-                    CoordX = (e.OffsetX / dims.Width) * 100,
-                    CoordY = (e.OffsetY / dims.Height) * 100,
-                    TagNumber = "NEW-TAG",
-                    InstrumentType = "",
-                    MakeModelType = "",
-                    Range = ""
-                };
-
-                _drawerOpen = true;
-            }
-
-
-
-            
-
-
-        }
-        catch (Exception ex)
+        _selectedMarker = new Marker
         {
-            Console.WriteLine("Error handling click: " + ex.Message, Severity.Error);
-            return;
-        }
-
-        
+            LocationId = _currentLocation.Id,
+            CoordX = (e.OffsetX / dims.Width) * 100,
+            CoordY = (e.OffsetY / dims.Height) * 100,
+            TagNumber = "NEW-TAG"
+        };
+        _drawerOpen = true;
     }
 
     private async Task SaveMarker()
     {
-        if (_selectedMarker == null) return;
+        await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
+        _drawerOpen = false;
+        await RefreshMarkers();
+        Snackbar.Add("Asset Updated", Severity.Success);
+    }
 
-        try
-        {
-            // FIX 3: Ensure ID is handled correctly for Upsert
-            // If it's a new marker, ID is 0, Supabase will generate a new one.
-            var response = await SupabaseClient.From<Marker>().Insert(_selectedMarker);
-
-           
-
-            _drawerOpen = false;
-
-            //Task.Delay(1000);
-            
-            // Re-fetch everything from DB to ensure the UI is in sync with truth
-            await RefreshMarkers();
-            
-            Snackbar.Add("Marker Saved Successfully", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Save Failed: " + ex.Message, Severity.Error);
-        }
+    private async Task LocateMarker(Marker m)
+    {
+        _activeMarkerId = m.Id;
+        _zoomLevel = 1.5;
+        StateHasChanged();
+        await Task.Delay(100);
+        await JS.InvokeVoidAsync("eval", $"document.getElementById('pid-map-container').parentElement.scrollTo({m.CoordX * 10}, {m.CoordY * 10})");
     }
 
     private async Task DeleteMarker(Marker m)
     {
-        try
-        {
-            // FIX 4: Explicitly delete by ID to ensure RLS doesn't block it
-            await SupabaseClient.From<Marker>().Where(x => x.Id == m.Id).Delete();
-            
-            // Refresh to ensure it's gone from view
-            await RefreshMarkers();
-            Snackbar.Add("Marker Removed", Severity.Warning);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Delete Failed: " + ex.Message, Severity.Error);
-        }
+        if (m.Id == null) return;
+        await SupabaseClient.From<Marker>().Where(x => x.Id == m.Id).Delete();
+        _drawerOpen = false;
+        await RefreshMarkers();
+        Snackbar.Add("Marker Removed", Severity.Warning);
     }
 
+    private string GetMarkerStyle(long? id) => (_activeMarkerId == id)
+        ? "color: #ff1744; scale: 2.2; filter: drop-shadow(0 0 8px #ff1744); transition: all 0.3s;"
+        : "color: #00e676; filter: drop-shadow(0 0 3px black); transition: all 0.3s;";
 
+    private string GetZoomStyle() => $"position: relative; width: {(_zoomLevel * 100)}%; transition: width 0.3s;";
+    private string GetQrCodeUrl(string tag) => !string.IsNullOrEmpty(tag) ? $"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={tag}" : "";
 
-
-
-
-
-    // private async Task RefreshMarkers()
-    // {
-    //     if (_currentLocation == null) return;
-    //     var res = await SupabaseClient.From<Marker>().Match(new Dictionary<string, string> { { "location_id", _currentLocation.Id.ToString() } }).Get();
-    //     _markers = res.Models;
-    //     StateHasChanged();
-    // }
-
-    // private async Task HandleImageClick(MouseEventArgs e)
-    // {
-    //     if (!_isMappingMode) return;
-    //     var dims = await JS.InvokeAsync<Dimensions>("getElementDimensions", "pid-map-container");
-    //     _selectedMarker = new Marker
-    //     {
-    //         LocationId = _currentLocation.Id,
-    //         CoordX = (e.OffsetX / dims.Width) * 100,
-    //         CoordY = (e.OffsetY / dims.Height) * 100,
-    //         TagNumber = "TAG-" + (_markers.Count + 1)
-    //     };
-    //     _drawerOpen = true;
-    // }
-
-    // private async Task SaveMarker()
-    // {
-    //     await SupabaseClient.From<Marker>().Upsert(_selectedMarker);
-    //     _drawerOpen = false;
-    //     await RefreshMarkers();
-    //     Snackbar.Add("Updated Successfully", Severity.Success);
-    // }
-    private long? _activeMarkerId;
-
-
-    private async Task LocateMarker(Marker m)
+    private async Task ToggleFullScreen()
     {
-        if (!m.CoordX.HasValue || !m.CoordY.HasValue) return;
-        
-
-        // Set the active marker ID to trigger the color change
-        _activeMarkerId = m.Id;
-
-        _zoomLevel = 1.2;
-
-        StateHasChanged();
-
-
-        await Task.Delay(100);
-        await JS.InvokeVoidAsync("scrollToMarker", "pid-map-container", m.CoordX.Value, m.CoordY.Value);
-
-
+        _isFull = !_isFull;
+        await JS.InvokeVoidAsync("eval", _isFull ? "document.documentElement.requestFullscreen()" : "document.exitFullscreen()");
     }
 
-    // private async Task DeleteMarker(Marker m)
-    // {
-    //     await SupabaseClient.From<Marker>().Delete(m);
-    //     _markers.Remove(m);
-    //     Snackbar.Add("Deleted", Severity.Warning);
-    // }
-
-    private void OpenEdit(Marker m) { _selectedMarker = m; _drawerOpen = true; }
-    private string GetZoomStyle() => $"position: relative; display: inline-block; width: {(_zoomLevel * 100)}%; transition: width 0.2s ease; transform-origin: top left;";
     public class Dimensions { public double Width { get; set; } public double Height { get; set; } }
 }

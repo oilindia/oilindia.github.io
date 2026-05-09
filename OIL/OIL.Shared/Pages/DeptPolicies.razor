@@ -8,64 +8,97 @@
 @inject Supabase.Client SupabaseClient
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
-    <MudText Typo="Typo.h4" Class="mb-6" Color="Color.Primary" Style="font-weight: bold;">
-        Field Maintnance Policies & SOP
-    </MudText>
+    <div class="d-flex align-center mb-6">
+        <MudIcon Icon="@Icons.Material.Filled.Policy" Color="Color.Primary" Size="Size.Large" Class="mr-3" />
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight: bold;">Field Maintenance Policies & SOP</MudText>
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Official guidelines, calibration standards, and safety protocols</MudText>
+        </div>
+    </div>
 
-    <MudPaper Class="pa-4 mb-4 bg-light shadow-none border">
-        <MudGrid Spacing="2">
-            @* Category Filter *@
+    @* --- Search & Filter Section --- *@
+    <MudPaper Elevation="2" Class="pa-5 mb-6" Style="border-radius: 12px; border-left: 6px solid var(--mud-palette-primary);">
+        <MudGrid Spacing="3" Justify="Justify.Center">
             <MudItem xs="12" sm="4">
-                <MudSelect T="string" Label="Policy Category" @bind-Value="_searchCategory" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem Value="@((string)null)">All Categories</MudSelectItem>
-                    <MudSelectItem Value="@("HR")">Maintenance</MudSelectItem>
-                    <MudSelectItem Value="@("IT")">Calibration</MudSelectItem>
-                    <MudSelectItem Value="@("Safety")">SOP</MudSelectItem>
-                    <MudSelectItem Value="@("Finance")">Spares</MudSelectItem>
+                <MudSelect T="string" Label="Department/Category" @bind-Value="_searchCategory"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           AdornmentIcon="@Icons.Material.Filled.FilterList" AdornmentColor="Color.Primary">
+                    <MudSelectItem Value="@((string)null)">All Departments</MudSelectItem>
+                    <MudSelectItem Value="@("Maintenance")">General Maintenance</MudSelectItem>
+                    <MudSelectItem Value="@("Calibration")">Instrumentation & Calibration</MudSelectItem>
+                    <MudSelectItem Value="@("SOP")">Standard Operating Procedures</MudSelectItem>
+                    <MudSelectItem Value="@("Safety")">Safety & Environment</MudSelectItem>
+                    <MudSelectItem Value="@("Spares")">Spares & Inventory</MudSelectItem>
                 </MudSelect>
             </MudItem>
 
-            @* Search Text *@
             <MudItem xs="12" sm="5">
-                <MudTextField @bind-Value="_searchText" Placeholder="Search by policy name..." Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+                <MudTextField @bind-Value="_searchText" Placeholder="Search by policy title or keyword..."
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
             </MudItem>
 
             <MudItem xs="12" sm="3" Class="d-flex align-center">
-                <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData" Color="Color.Primary" Variant="Variant.Filled" FullWidth="true">Refresh List</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData"
+                           Color="Color.Primary" Variant="Variant.Filled" FullWidth="true"
+                           Disabled="@_loading" Style="height: 40px; border-radius: 8px;">
+                    @(_loading ? "Refreshing..." : "Refresh List")
+                </MudButton>
             </MudItem>
         </MudGrid>
     </MudPaper>
 
-    <MudTable Items="@FilteredPolicies" Hover="true" Loading="@_loading" Dense="false" FixedHeader="true" Height="600px" Elevation="4">
+    @* --- Results Table --- *@
+    <MudTable Items="@FilteredPolicies" Hover="true" Loading="@_loading" Dense="false"
+              FixedHeader="true" Height="650px" Elevation="4" Class="rounded-lg"
+              Bordered="false" Striped="true">
         <HeaderContent>
             <MudTh>Category</MudTh>
-            <MudTh>Policy Name</MudTh>
+            <MudTh>Document Name</MudTh>
             <MudTh>Effective Date</MudTh>
             <MudTh>Version</MudTh>
-            <MudTh Style="text-align:right">Download</MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
         </HeaderContent>
         <RowTemplate Context="policy">
             <MudTd DataLabel="Category">
-                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@policy.Category</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="@GetCategoryColor(policy.Category)" Variant="Variant.Filled">
+                    @policy.Category
+                </MudChip>
             </MudTd>
-            <MudTd DataLabel="Policy Name"><b>@policy.PolicyName</b></MudTd>
-            <MudTd DataLabel="Upload Date">@policy.EffectiveDate.ToShortDateString()</MudTd>
-            <MudTd DataLabel="Version">v@{
-                @policy.Version
-            }
-        </MudTd>
-        <MudTd DataLabel="Download" Style="text-align:right">
-            <MudIconButton Icon="@Icons.Material.Filled.FileDownload"
-                           Color="Color.Info"
-                           Size="Size.Medium"
-                           OnClick="@(() => DownloadPolicy(policy))"
-                           Title="Download PDF" />
-        </MudTd>
-    </RowTemplate>
-    <NoRecordsContent>
-        <MudText>No policies found matching your criteria.</MudText>
-    </NoRecordsContent>
-</MudTable>
+            <MudTd DataLabel="Policy Name">
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body1" Style="font-weight: 600;">@policy.PolicyName</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @policy.Id.Substring(0, 8)...</MudText>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Effective Date">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-2" Color="Color.Secondary" />
+                    @policy.EffectiveDate.ToString("dd-MMM-yyyy")
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Version">
+                <MudBadge Content="@("v" + policy.Version)" Color="Color.Info" Overlap="false" Bordered="true" />
+            </MudTd>
+            <MudTd DataLabel="Download" Style="text-align:center">
+                <MudTooltip Text="Download PDF">
+                    <MudIconButton Icon="@Icons.Custom.FileFormats.FilePdf"
+                                   Color="Color.Error"
+                                   Size="Size.Medium"
+                                   OnClick="@(() => DownloadPolicy(policy))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Error" />
+                <MudText Typo="Typo.h6" Color="Color.Error">No matching policies found</MudText>
+            </div>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
+        </PagerContent>
+    </MudTable>
 </MudContainer>
 
 @code {
@@ -74,28 +107,15 @@
     private string? _searchText;
     private List<PolicyDoc> _policies = new();
 
-    // Data Model matching your Supabase Table 'policies_metadata'
     [Table("policies_metadata")]
     public class PolicyDoc : BaseModel
     {
-        [PrimaryKey("id", false)]
-        public string Id { get; set; } = "";
-
+        [PrimaryKey("id", false)] public string Id { get; set; } = "";
         [Column("category")] public string Category { get; set; } = "";
-
         [Column("policy_name")] public string PolicyName { get; set; } = "";
-
         [Column("effective_date")] public DateTime EffectiveDate { get; set; }
-
         [Column("version")] public string Version { get; set; } = "1.0";
-
-        [Column("storage_path")] public string StoragePath { get; set; } = ""; // e.g., "hr/leave-policy.pdf"
-
-        // Update with your actual project reference URL
-        // public string GetDownloadUrl() =>
-        //     $"https://pmwutokmedbbphpwxafo.supabase.co/storage/v1/object/public/policies/{StoragePath}";
-
-        public string GetDownloadUrl() =>  StoragePath; // e.g., "hr/leave-policy.pdf"
+        [Column("storage_path")] public string StoragePath { get; set; } = "";
     }
 
     protected override async Task OnInitializedAsync() => await LoadData();
@@ -105,12 +125,15 @@
         try
         {
             _loading = true;
-            var result = await SupabaseClient.From<PolicyDoc>().Get();
+            // Fetch sorted by most recent effective date
+            var result = await SupabaseClient.From<PolicyDoc>()
+                                            .Order("effective_date", Supabase.Postgrest.Constants.Ordering.Descending)
+                                            .Get();
             _policies = result.Models;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading policies: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Sync Error: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -126,13 +149,29 @@
     {
         try
         {
-            // Using JS Interop to open the public URL in a new tab which triggers download
-            await JS.InvokeVoidAsync("open", policy.GetDownloadUrl(), "_blank");
-            Snackbar.Add($"Downloading {policy.PolicyName}...", Severity.Info);
+            // PRO TIP: Use CreateSignedUrl for better security if your bucket is private
+            // This creates a temporary link valid for 60 seconds
+            var signedUrl = await SupabaseClient.Storage
+                .From("policies")
+                .CreateSignedUrl(policy.StoragePath, 60);
+
+            await JS.InvokeVoidAsync("open", signedUrl, "_blank");
+            Snackbar.Add($"Opening {policy.PolicyName}", Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Download failed.", Severity.Error);
+            Snackbar.Add("Unable to retrieve document link.", Severity.Error);
+            Console.WriteLine(ex.Message);
         }
     }
+
+    private Color GetCategoryColor(string category) => category switch
+    {
+        "Maintenance" => Color.Primary,
+        "Calibration" => Color.Secondary,
+        "SOP" => Color.Tertiary,
+        "Safety" => Color.Success,
+        "Spares" => Color.Warning,
+        _ => Color.Default
+    };
 }

@@ -1,18 +1,18 @@
-﻿@page "/fmorganodpt"
+﻿@page "/fmorganodpt2"
 @using MudBlazor
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-10 mb-10">
-    <MudText Typo="Typo.h3" Align="Align.Center" Class="mud-text-primary font-weight-bold responsive-title">Field Maintenance Organogram</MudText>
-    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-4 mb-md-8">Departmental Hierarchy & Asset Allocation</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10 mb-10">
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mud-text-primary font-weight-bold">Field Maintenance Organogram</MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-8">Departmental Hierarchy & Asset Allocation</MudText>
 
-    <div class="org-outer-shell">
+    <div class="org-scroll-container">
         <div class="org-tree">
 
             @* --- LEVEL 1: HOD --- *@
             <div class="node-group">
                 <MudPaper Elevation="8" Class="pa-4 node-card root-node">
                     <MudText Typo="Typo.h6"><b>Chinmay Kumar Sarma</b></MudText>
-                    <MudText Typo="Typo.caption">HOD (Instrumentation)</MudText>
+                    <MudText Typo="Typo.caption">HOD</MudText>
                 </MudPaper>
 
                 <div class="connector-v"></div>
@@ -21,45 +21,41 @@
                 <div class="node-group">
                     <MudPaper Elevation="6" Class="pa-4 node-card gm-node">
                         <MudText Typo="Typo.subtitle1"><b>Partha Pratim Adhyapak</b></MudText>
-                        <MudText Typo="Typo.caption">GM (Field Maintenance)</MudText>
+                        <MudText Typo="Typo.caption">GM</MudText>
                     </MudPaper>
 
                     <div class="connector-v"></div>
 
-                    @* --- LEVEL 3: MANAGERS --- *@
+                    @* --- LEVEL 3: MANAGERS (Static Distribution) --- *@
                     <div class="node-children">
                         @foreach (var manager in StaticManagers)
                         {
-                            <div class="node-group manager-wrapper">
+                            <div class="node-group">
                                 <div class="connector-h-branch"></div>
                                 <MudPaper Elevation="4" Class="pa-4 node-card manager-node">
-                                    <div class="d-flex align-center gap-2 mb-3">
-                                        <MudAvatar Color="Color.Error" Variant="Variant.Filled" Size="Size.Small">
-                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                                        </MudAvatar>
+                                    <div class="d-flex align-center gap-2 mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Error" Size="Size.Small" />
                                         <div class="text-start">
                                             <MudText Typo="Typo.body1"><b>@manager.Name</b></MudText>
-                                            <MudText Typo="Typo.caption" Class="d-block text-uppercase" Style="font-size: 0.7rem; color: #666;">@manager.Designation</MudText>
+                                            <MudText Typo="Typo.caption" Class="d-block">@manager.Designation</MudText>
                                         </div>
                                     </div>
 
                                     <div class="asset-list-box">
-                                        <div class="asset-grid">
-                                            @foreach (var loc in manager.Locations)
-                                            {
-                                                <div class="asset-row">
-                                                    <span class="asset-dot"></span>
-                                                    <span class="asset-name">@loc</span>
-                                                </div>
-                                            }
-                                        </div>
+                                        @foreach (var loc in manager.Locations)
+                                        {
+                                            <div class="asset-row">
+                                                <span class="asset-dot"></span>
+                                                <span class="asset-name">@loc</span>
+                                            </div>
+                                        }
                                     </div>
 
                                     <div class="mt-auto pt-3">
                                         <MudDivider Class="mb-2" />
-                                        <div class="d-flex justify-space-between align-center px-2">
-                                            <MudText Typo="Typo.caption" Style="font-weight: 700;">Managed Assets</MudText>
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Text" Class="fw-900">@manager.Locations.Count</MudChip>
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudText Typo="Typo.caption" Style="font-weight: 700;">Total Assets:</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Error" Style="font-weight: 900;">@manager.Locations.Count</MudText>
                                         </div>
                                     </div>
                                 </MudPaper>
@@ -69,32 +65,29 @@
                 </div>
             </div>
         </div>
-    </div>
+    
+    
+    
+        <div>
+            <br />
+            <MudText Typo="Typo.caption" Style="font-weight: 700; font-size: 1.25rem;">
+                Total Manpower: 23 Employees
+            </MudText>
+            <br />
+            <MudText Typo="Typo.caption" Style="font-weight: 700; font-size: 1.25rem;">
+                Round the clock maintenance support is provided in 2 shifts.
+            </MudText>
+        </div>
 
-    @* --- FOOTER STATS --- *@
-    <MudPaper Elevation="0" Class="mt-8 pa-6 d-flex flex-column flex-md-row justify-center gap-8 align-center" Style="background: #f1f5f9; border-radius: 12px;">
-        <div class="d-flex align-center gap-3">
-            <MudIcon Icon="@Icons.Material.Filled.Groups" Color="Color.Primary" Size="Size.Large" />
-            <div>
-                <MudText Typo="Typo.h5" Class="fw-900">23 Employees</MudText>
-                <MudText Typo="Typo.caption">Total Manpower Strength</MudText>
-            </div>
-        </div>
-        <MudDivider Vertical="true" FlexItem="true" Class="d-none d-md-block" />
-        <div class="d-flex align-center gap-3">
-            <MudIcon Icon="@Icons.Material.Filled.HistoryToggleOff" Color="Color.Error" Size="Size.Large" />
-            <div>
-                <MudText Typo="Typo.h5" Class="fw-900">24/7 Operations</MudText>
-                <MudText Typo="Typo.caption">2 Shifts Round-the-Clock Support</MudText>
-            </div>
-        </div>
-    </MudPaper>
+       
+
+    </div>
 </MudContainer>
 
 <style>
-    .org-outer-shell {
+    .org-scroll-container {
         overflow-x: auto;
-        padding: 40px 10px;
+        padding: 60px 20px;
         background: #f8fafc;
         border-radius: 16px;
         border: 1px solid #e2e8f0;
@@ -104,41 +97,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        /* Desktop minimum width for tree view */
-        min-width: 1550px;
-    }
-
-    /* Flip to vertical on Mobile/Tablet */
-    @@media (max-width: 1549px) {
-        .org-outer-shell {
-            overflow-x: hidden;
-        }
-
-        .org-tree {
-            min-width: 100%;
-        }
-
-        .node-children {
-            flex-direction: column !important;
-            align-items: center !important;
-            padding-top: 0 !important;
-            gap: 40px !important;
-        }
-
-            .node-children::before {
-                display: none;
-            }
-        /* Hide horizontal connector */
-        .connector-h-branch {
-            width: 2px !important;
-            height: 40px !important;
-            background: #94a3b8 !important;
-            margin-bottom: -1px;
-        }
-
-        .responsive-title {
-            font-size: 1.8rem !important;
-        }
+        min-width: 1600px;
     }
 
     .node-group {
@@ -154,8 +113,8 @@
         justify-content: center;
         align-items: flex-start;
         position: relative;
-        padding-top: 35px;
-        gap: 15px;
+        padding-top: 30px;
+        gap: 20px;
     }
 
     .connector-v {
@@ -164,19 +123,18 @@
         background: #94a3b8;
     }
 
-    /* The horizontal line connecting all managers on desktop */
     .node-children::before {
         content: "";
         position: absolute;
         top: 0;
-        left: 145px;
-        right: 145px;
+        left: 15px;
+        right: 15px;
         height: 2px;
         background: #94a3b8;
     }
 
     .node-card {
-        width: 280px;
+        width: 250px;
         text-align: center;
         z-index: 2;
         border-bottom: 5px solid transparent;
@@ -185,6 +143,7 @@
 
     .root-node {
         border-bottom-color: #1e293b;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     }
 
     .gm-node {
@@ -194,38 +153,34 @@
     .manager-node {
         border-bottom-color: #dc2626;
         width: 290px;
-        min-height: 650px;
+        min-height: 720px; /* High min-height to ensure all 20+ locations fit */
         display: flex;
         flex-direction: column;
         background: white;
-        transition: transform 0.2s;
+        transition: all 0.3s ease;
     }
 
         .manager-node:hover {
             transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
         }
 
     .asset-list-box {
         text-align: left;
-        background: #fafafa;
+        background: #fdfdfd;
         border: 1px solid #f1f5f9;
         border-radius: 8px;
         padding: 12px;
         flex-grow: 1;
     }
 
-    .asset-grid {
-        display: grid;
-        grid-template-columns: 1fr; /* Single column for clarity */
-        gap: 2px;
-    }
-
     .asset-row {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 3px 0;
-        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #f8fafc;
+        padding-bottom: 2px;
     }
 
     .asset-dot {
@@ -237,14 +192,10 @@
     }
 
     .asset-name {
-        font-size: 10.5px;
+        font-size: 11px;
         color: #334155;
-        font-weight: 600;
+        font-weight: 500;
         line-height: 1.2;
-    }
-
-    .fw-900 {
-        font-weight: 900;
     }
 </style>
 
@@ -262,6 +213,7 @@
     {
         var allLocations = GetManualLocations();
 
+        // Define exactly 5 managers as per your requirement
         StaticManagers = new List<ManagerData> {
             new ManagerData { Name = "Satya Ranjan Chetia", Designation = "SUPERINTENDING ENGINEER" },
             new ManagerData { Name = "Rahul Pal", Designation = "SUPERINTENDING ENGINEER" },
@@ -270,6 +222,7 @@
             new ManagerData { Name = "Tolan Boruah", Designation = "DEPUTY CHIEF ENGINEER" }
         };
 
+        // Distribute 102 locations across 5 managers (~20 each)
         int perManager = allLocations.Count / StaticManagers.Count;
         int remainder = allLocations.Count % StaticManagers.Count;
         int currentIdx = 0;
