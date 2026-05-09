@@ -7,18 +7,12 @@
 @inject IJSRuntime JS
 
 <style>
-    /* --- PRINT LOGIC --- */
+    /* --- PRINT OPTIMIZATION --- */
     @@media print {
-        /* Hide UI elements but keep the report container */
-        .no-print,
-        .mud-appbar,
-        .mud-drawer,
-        .mud-nav-menu,
-        .mud-overlay,
-        .mud-dialog-container {
+        .no-print, .mud-appbar, .mud-drawer, .mud-nav-menu, .mud-overlay {
             display: none !important;
         }
-        /* Reset MudBlazor layout offsets */
+
         .mud-main-content {
             margin-top: 0 !important;
             padding: 0 !important;
@@ -27,17 +21,15 @@
         body, html {
             background: white !important;
             margin: 0 !important;
-            padding: 0 !important;
             width: 100%;
         }
 
         .a4-container {
             width: 100% !important;
             margin: 0 !important;
+            padding: 5mm !important;
             border: none !important;
             box-shadow: none !important;
-            padding: 5mm !important;
-            display: block !important;
         }
 
         @@page {
@@ -46,219 +38,253 @@
         }
     }
 
-    /* --- SCREEN STYLES --- */
+    /* --- LAYOUT STYLES --- */
     .a4-container {
-        width: 287mm; /* Standard A4 Landscape width */
+        width: 287mm;
         min-height: 200mm;
         padding: 10mm;
-        margin: 20px auto;
+        margin: 10px auto;
         background: white;
         color: black;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        border: 1px solid #ccc;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+        border: 1px solid #000;
     }
 
-    .report-header {
-        display: flex;
-        justify-content: space-between;
-        border: 2px solid black;
-        padding: 15px;
-        margin-bottom: 20px;
-        align-items: center;
+    /* --- HEADER --- */
+    .header-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid black;
     }
 
-    .title-area {
+        .header-table td {
+            border: 1px solid black;
+            padding: 5px;
+            vertical-align: middle;
+        }
+
+    .logo-box {
+        width: 15%;
         text-align: center;
-        flex-grow: 1;
     }
 
-        .title-area h3 {
-            margin: 0;
-            font-size: 18px;
-            text-transform: uppercase;
-        }
+    .title-box {
+        width: 60%;
+        text-align: center;
+    }
 
-        .title-area h5 {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #444;
-        }
+    .meta-box {
+        width: 25%;
+        font-size: 11px;
+        line-height: 1.4;
+        text-align: left;
+        padding-left: 10px;
+    }
 
-    .section-header {
-        background: #2c3e50;
-        color: white;
-        padding: 8px 12px;
+    /* --- BANNERS --- */
+    .section-banner {
+        background: #f2f2f2;
+        border: 1px solid black;
+        border-top: none;
+        padding: 5px 15px;
         font-weight: bold;
-        margin-top: 25px;
-        font-size: 14px;
-        border-radius: 4px 4px 0 0;
+        font-size: 12px;
         display: flex;
         justify-content: space-between;
     }
 
+    /* --- DATA TABLES --- */
     .report-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 10px;
+        border: 1px solid black;
         table-layout: fixed;
-        border: 1px solid #000;
     }
 
         .report-table th, .report-table td {
             border: 1px solid black;
-            padding: 8px;
-            font-size: 11px;
+            padding: 4px;
+            font-size: 10px;
+            text-align: center;
             word-wrap: break-word;
             vertical-align: middle;
         }
 
         .report-table th {
-            background: #f2f2f2;
-            text-align: center;
+            background: #f9f9f9;
             font-weight: bold;
+            text-transform: uppercase;
         }
 
-    .font-handwriting {
-        font-family: 'Consolas', 'Courier New', monospace; /* More reliable than Comic Sans for technical reports */
-        color: #1a237e;
-        font-weight: 600;
-        font-size: 12px;
+    .text-left {
+        text-align: left !important;
+        padding-left: 5px !important;
     }
 
-    .footer-sign {
-        margin-top: 40px;
+    /* --- FOOTER (Matches image_bbf7a3.png) --- */
+    .footer-container {
         display: flex;
         justify-content: space-between;
+        margin-top: 15px;
+        align-items: flex-start;
     }
 
-    .sign-line {
-        border-top: 1px solid black;
-        width: 220px;
-        margin-top: 50px;
-        text-align: center;
-        font-size: 12px;
+    .signature-section {
+        border: 1px solid black;
+        border-radius: 15px;
+        padding: 15px;
+        width: 65%;
+        min-height: 100px;
+        line-height: 2;
+    }
+
+    .stats-card {
+        border: 1px solid black;
+        border-radius: 15px;
+        padding: 15px;
+        width: 30%;
         font-weight: bold;
+    }
+
+    .handwritten {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        text-decoration: underline;
     }
 </style>
 
-@* --- NAVIGATION CONSOLE (Hidden on Print) --- *@
-<div class="no-print pa-4" style="background: #f8f9fa; border-bottom: 2px solid #0d47a1;">
+@* --- NAVIGATION CONSOLE (With Date Selectors & Refresh) --- *@
+<div class="no-print pa-4" style="background: #e3f2fd; border-bottom: 3px solid #1565c0;">
     <MudGrid Justify="Justify.Center" Class="align-center">
         <MudItem xs="12" md="3">
-            <MudText Typo="Typo.h6" Color="Color.Primary"><b>Daily Report Console</b></MudText>
+            <MudDatePicker Label="Select Previous Day" @bind-Date="_prevDate" Variant="Variant.Outlined" Color="Color.Secondary" Margin="Margin.Dense" />
         </MudItem>
-        <MudItem xs="6" md="2">
-            <MudDatePicker Label="Previous Day" @bind-Date="_prevDate" Variant="Variant.Outlined" Color="Color.Secondary" />
-        </MudItem>
-        <MudItem xs="6" md="2">
-            <MudDatePicker Label="Today" @bind-Date="_todayDate" Variant="Variant.Outlined" Color="Color.Primary" />
+        <MudItem xs="12" md="3">
+            <MudDatePicker Label="Select Today's Date" @bind-Date="_todayDate" Variant="Variant.Outlined" Color="Color.Primary" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" md="4" Class="d-flex gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" Disabled="_loading" StartIcon="@Icons.Material.Filled.Sync">Refresh</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="HandlePrint" Disabled="_loading" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Preview</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" StartIcon="@Icons.Material.Filled.Sync">Refresh Data</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="HandlePrint" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Report</MudButton>
         </MudItem>
     </MudGrid>
 </div>
 
 @if (_loading)
 {
-    <MudProgressLinear Color="Color.Info" Indeterminate="true" Class="my-7" />
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
 }
 else
 {
-    @* --- PRINTABLE AREA --- *@
-    <div class="a4-container" id="printable-report">
-        <header class="report-header">
-            <img src="_content/OIL.Shared/imgs/oil.png" style="height: 60px;" alt="OIL" />
-            <div class="title-area">
-                <h3>Instrumentation Department, Field Headquarters</h3>
-                <h5>यांत्रिकीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</h5>
-                <h4 style="margin: 5px 0; letter-spacing: 2px; font-weight: 800;">DAILY MAINTENANCE REPORT</h4>
-            </div>
-            <div style="font-size: 12px; text-align: right; line-height: 1.6;">
-                <p><strong>Report Date:</strong> @(_todayDate?.ToString("dd-MM-yyyy"))</p>
-                <p><strong>Field:</strong> Duliajan (Assam)</p>
-            </div>
-        </header>
+    <div class="a4-container">
+        @* --- HEADER --- *@
+        <table class="header-table">
+            <tr>
+                <td class="logo-box">
+                    <img src="oil_logo.png" style="height: 45px;" /><br />
+                    <b style="font-size: 9px;">OIL INDIA</b>
+                </td>
+                <td class="title-box">
+                    <div style="font-size: 14px; font-weight: bold;">Instrumentation Department, Field Headquarters [cite: 8]</div>
+                    <div style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान [cite: 8]</div>
+                    <div style="font-size: 15px; font-weight: 800; margin-top: 5px;">दैनिक रिपोर्ट / DAILY REPORT [cite: 9]</div>
+                </td>
+                <td class="meta-box">
+                    Date: <b>@(_todayDate?.ToString("dd-MM-yyyy"))</b><br />
+                    Ref. No.: <b>INST/FM-WF/@(_todayDate?.ToString("ddMMyy"))</b><br />
+                    Field: <b>Western Field</b><br />
+                    Generated: <b>@DateTime.Now.ToString("dd-MM-yyyy HH:mm")</b>
+                </td>
+            </tr>
+        </table>
 
         @* --- PREVIOUS DAY SECTION --- *@
-        <div class="section-header">
-            <span>PREVIOUS DAY JOBS CARRIED OUT</span>
-            <span>DATE: @(_prevDate?.ToString("dd-MM-yyyy"))</span>
+        <div class="section-banner">
+            <span>Previous Day Job Carried Out: @(_prevDate?.ToString("dd-MM-yyyy"))</span>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 40px;">SL</th>
-                    <th style="width: 180px;">INSTALLATION</th>
-                    <th>EQUIPMENT / FIELD REPORT</th>
-                    <th style="width: 220px;">PERSONNEL</th>
-                    <th style="width: 150px;">REMARKS</th>
+                    <th style="width: 30px;">SL</th>
+                    <th style="width: 40px;">SHIFT</th>
+                    <th style="width: 80px;">NOTIF. NO.</th>
+                    <th style="width: 140px;">INSTALLATION</th>
+                    <th style="width: 100px;">EQUIPMENT</th>
+                    <th style="width: 50px;">DEVICE</th>
+                    <th style="width: 60px;">TAG NO.</th>
+                    <th class="text-left">FIELD REPORT</th>
+                    <th>JOB DONE</th>
+                    <th style="width: 70px;">REMARKS</th>
                 </tr>
             </thead>
             <tbody>
-                @{
-                    int sl1 = 1;
-                }
-                @foreach (var item in _prevDayEntries)
+                @foreach (var (item, index) in _prevDayEntries.Select((v, i) => (v, i)))
                 {
                     <tr>
-                        <td style="text-align: center;">@(sl1++)</td>
-                        <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
-                        <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
-                        <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
-                        <td>@item.JobActionRemarks</td>
+                        <td>@(index + 1)</td>
+                        <td>@item.ShiftName</td>
+                        <td>@item.NotificationNo</td>
+                        <td class="text-left">@GetLocationName(item.JobIds.FirstOrDefault())</td>
+                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        <td>@item.DeviceType</td>
+                        <td>@item.TagNo</td>
+                        <td class="text-left">@item.FieldReport</td>
+                        <td class="text-left">@item.JobDoneDetails</td>
+                        <td></td>
                     </tr>
-                }
-                @if (!_prevDayEntries.Any())
-                {
-                    <tr><td colspan="5" style="text-align:center; padding: 20px;">No records found for previous day.</td></tr>
                 }
             </tbody>
         </table>
 
-        @* --- TODAY SECTION --- *@
-        <div class="section-header" style="background: #2980b9;">
-            <span>TODAY'S ACTIVITY / PLANNED JOBS</span>
-            <span>DATE: @(_todayDate?.ToString("dd-MM-yyyy"))</span>
+        @* --- TODAY'S PLANNED SECTION --- *@
+        <div class="section-banner" style="margin-top: 15px;">
+            <span>Today's Planned Jobs: @(_todayDate?.ToString("dd-MM-yyyy"))</span>
         </div>
         <table class="report-table">
             <thead>
                 <tr>
-                    <th style="width: 40px;">SL</th>
-                    <th style="width: 180px;">INSTALLATION</th>
-                    <th>EQUIPMENT / TASK DESCRIPTION</th>
-                    <th style="width: 100px;">VEHICLE</th>
-                    <th style="width: 220px;">PERSONNEL</th>
-                    <th style="width: 150px;">REMARKS</th>
+                    <th style="width: 30px;">SL</th>
+                    <th style="width: 40px;">SHIFT</th>
+                    <th style="width: 80px;">NOTIF. NO.</th>
+                    <th style="width: 140px;">INSTALLATION</th>
+                    <th style="width: 100px;">EQUIPMENT</th>
+                    <th style="width: 80px;">DEVICE</th>
+                    <th class="text-left">FIELD REPORT</th>
+                    <th style="width: 80px;">VEHICLE</th>
+                    <th style="width: 150px;">PERSON</th>
+                    <th style="width: 70px;">REMARKS</th>
                 </tr>
             </thead>
             <tbody>
-                @{
-                    int sl2 = 1;
-                }
-                @foreach (var item in _todayEntries)
+                @foreach (var (item, index) in _todayEntries.Select((v, i) => (v, i)))
                 {
                     <tr>
-                        <td style="text-align: center;">@(sl2++)</td>
-                        <td>@string.Join(", ", item.JobIds.Select(GetLocationName).Distinct())</td>
-                        <td class="font-handwriting">@string.Join(" | ", item.JobIds.Select(id => _jobs.FirstOrDefault(j => j.Id == id)?.JobName ?? ""))</td>
-                        <td style="text-align: center;">@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
-                        <td>@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
-                        <td>@item.JobActionRemarks</td>
+                        <td>@(index + 1)</td>
+                        <td>@item.ShiftName</td>
+                        <td>@item.NotificationNo</td>
+                        <td class="text-left">@GetLocationName(item.JobIds.FirstOrDefault())</td>
+                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        <td>@item.DeviceType</td>
+                        <td class="text-left">@item.PlannedTask</td>
+                        <td>@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
+                        <td class="text-left">@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
+                        <td></td>
                     </tr>
-                }
-                @if (!_todayEntries.Any())
-                {
-                    <tr><td colspan="6" style="text-align:center; padding: 20px;">No records found for today.</td></tr>
                 }
             </tbody>
         </table>
 
-        <div class="footer-sign">
-            <div class="sign-line">Checked By (Supervisor)</div>
-            <div class="sign-line">Approved By (HOD)</div>
+        @* --- FOOTER (Matches image_bbe915.png) --- *@
+        <div class="footer-container">
+            <div class="signature-section">
+                <div><b>Prepared By:</b> <span class="handwritten">R. Pal</span></div>
+                <div><b>Signature:</b> <span class="handwritten">Rahul Pal</span></div>
+                <div><b>Date:</b> <span class="handwritten">@(_todayDate?.ToString("dd/MM/yy"))</span></div>
+            </div>
+
+            <div class="stats-card">
+                <div style="font-size: 16px;">Today's Jobs: @_todayEntries.Count</div>
+                <div style="font-size: 16px; margin-top: 10px;">Notification Pending: 4</div>
+            </div>
         </div>
     </div>
 }
@@ -279,8 +305,6 @@ else
     private async Task RefreshData()
     {
         _loading = true;
-        StateHasChanged();
-
         try
         {
             _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
@@ -288,18 +312,18 @@ else
             _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
             _locations = (await SupabaseClient.From<Location>().Get()).Models;
 
-            var prevStr = _prevDate?.ToString("yyyy-MM-dd");
             var todayStr = _todayDate?.ToString("yyyy-MM-dd");
-            var nextStr = _todayDate?.AddDays(1).ToString("yyyy-MM-dd");
+            var prevStr = _prevDate?.ToString("yyyy-MM-dd");
 
+            // Logic to fetch based on specific selected dates
             _prevDayEntries = (await SupabaseClient.From<Assignment>()
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
                 .Get()).Models;
 
             _todayEntries = (await SupabaseClient.From<Assignment>()
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, nextStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
                 .Get()).Models;
         }
         finally
@@ -309,17 +333,11 @@ else
         }
     }
 
-    private string GetLocationName(Guid jobId)
-    {
-        var locId = _jobs.FirstOrDefault(j => j.Id == jobId)?.LocationId;
-        return _locations.FirstOrDefault(l => l.Id == locId)?.InstallationName ?? "N/A";
-    }
-
+    private string GetLocationName(Guid jobId) => _locations.FirstOrDefault(l => l.Id == _jobs.FirstOrDefault(j => j.Id == jobId)?.LocationId)?.InstallationName ?? "N/A";
+    private string GetJobName(Guid jobId) => _jobs.FirstOrDefault(j => j.Id == jobId)?.JobName ?? "N/A";
     private string GetEngineerName(long id) => _engineers.FirstOrDefault(e => e.Id == id)?.FullName ?? "N/A";
-
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
 
-    /* --- DATA MODELS --- */
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {
@@ -329,24 +347,17 @@ else
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("driver_id")] public long? DriverId { get; set; }
-        [Column("job_action_remarks")] public string JobActionRemarks { get; set; }
+        [Column("notification_no")] public string NotificationNo { get; set; }
+        [Column("device_type")] public string DeviceType { get; set; }
+        [Column("tag_no")] public string TagNo { get; set; }
+        [Column("field_report")] public string FieldReport { get; set; }
+        [Column("job_done_details")] public string JobDoneDetails { get; set; }
+        [Column("planned_task")] public string PlannedTask { get; set; }
     }
 
-    [Table("locations")]
-    public class Location : BaseModel
-    {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("installation_name")] public string InstallationName { get; set; }
-    }
-
-    [Table("jobs")]
-    public class Job : BaseModel
-    {
-        [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("job_name")] public string JobName { get; set; }
-        [Column("location_id")] public long? LocationId { get; set; }
-    }
-
+    /* Keep existing models for Driver, Job, Engineer, Location */
+    [Table("locations")] public class Location : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("installation_name")] public string InstallationName { get; set; } }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } [Column("location_id")] public long? LocationId { get; set; } }
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } }
 }
