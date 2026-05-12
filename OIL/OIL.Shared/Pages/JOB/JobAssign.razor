@@ -12,27 +12,110 @@
 @inject IJSRuntime JSRuntime
 @inject OIL.Shared.Services.AttendanceService AttendanceData
 
+@using Supabase.Postgrest.Attributes;
+@using Supabase.Postgrest.Models;
+@using System.Runtime.Serialization;
+
 <style>
-    .mud-table-cell { padding: 2px 4px !important; font-size: 0.75rem !important; height: 32px !important; text-align: center !important; }
-    .grid-scroll-container { width: 100%; overflow-x: auto; border: 1px solid #e0e0e0; border-radius: 4px; background: white; }
-    .native-select { border: none; background: transparent; width: 40px; text-align: center; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
-    .native-select.modified { background-color: #fff9c4; border-radius: 2px; } /* Highlight unsaved cells */
-    .sticky-col { position: sticky; left: 0; z-index: 10; background: #f9f9f9 !important; min-width: 120px; font-weight: 700; border-right: 2px solid #ddd !important; text-align: left !important; }
-    .header-cell { min-width: 45px; background: #f5f5f5 !important; font-weight: bold; border-bottom: 2px solid #594ae2 !important; }
-    .sunday-cell { background-color: #fff1f0 !important; color: #cf1322; }
-    .today-focus { background-color: #e6f7ff !important; border: 1px solid #1890ff !important; }
-    .save-bar { position: fixed; bottom: 20px; right: 20px; z-index: 100; }
+    /* Container & Layout */
+    .grid-scroll-container {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        background: white;
+    }
+
+    /* Table Cells */
+    .mud-table-cell {
+        padding: 2px 4px !important;
+        font-size: 0.75rem !important;
+        text-align: center !important;
+    }
+
+    .header-cell {
+        min-width: 45px;
+        background: #f5f5f5 !important;
+        font-weight: bold;
+        border-bottom: 2px solid #594ae2 !important;
+    }
+
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        background: #f9f9f9 !important;
+        min-width: 120px;
+        font-weight: 700;
+        border-right: 2px solid #ddd !important;
+        text-align: left !important;
+    }
+
+    /* Input Stack */
+    .cell-input-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .native-select {
+        border: none;
+        background: transparent;
+        width: 40px;
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .remark-input {
+        border: 1px solid #eee;
+        width: 45px;
+        font-size: 0.6rem;
+        border-radius: 2px;
+        padding: 1px;
+    }
+
+        .remark-input:focus {
+            width: 80px;
+            border-color: #594ae2;
+            outline: none;
+            position: absolute;
+            z-index: 100;
+            background: white;
+        }
+
+    /* State Styling */
+    .modified {
+        background-color: #fff9c4 !important;
+        border-radius: 2px;
+    }
+
+    .sunday-cell {
+        background-color: #fff1f0 !important;
+        color: #cf1322;
+    }
+
+    .today-focus {
+        background-color: #e6f7ff !important;
+        border: 1px solid #1890ff !important;
+    }
+
+    .save-bar {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+    }
 </style>
 
-@* --- PLACE IT HERE --- *@
 <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
     <div class="d-flex flex-column align-items-center">
         <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
         <MudText Typo="Typo.h6" Color="Color.Inherit" Class="mt-4">Syncing with Database...</MudText>
     </div>
 </MudOverlay>
-
-
 
 @if (AttendanceData.IsDataReady)
 {
@@ -48,22 +131,21 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="2">
                     <MudDateRangePicker Label="Dates" @bind-DateRange="_bulkRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12" md="2">
                     <MudSelect T="string" Label="Status" @bind-Value="_bulkStatus" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense">
                         @foreach (var s in _shiftCodes)
                         {
-                            <MudSelectItem Value="@s">@s
-                            </MudSelectItem>                                     
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="Reason/Remark" @bind-Value="_bulkReason" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
                 <MudItem xs="12" md="2">
-
-                   
-
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyBulkUpdate" FullWidth="true">Apply</MudButton>
                 </MudItem>
             </MudGrid>
@@ -79,10 +161,8 @@
         </div>
     }
 
-    
-
     <MudGrid Spacing="1" Class="px-2 pb-16">
-        @* Engineers Table *@
+        @* Side-by-Side Layout: lg="6" ensures two columns on wide screens *@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
             <div class="grid-scroll-container">
@@ -91,9 +171,7 @@
                         <MudTh Class="sticky-col">Name</MudTh>
                         @foreach (var day in _daysInMonth)
                         {
-                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day
-                                <br/><small>@day.ToString("ddd")
-                                </small></MudTh>                             
+                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
                         }
                     </HeaderContent>
                     <RowTemplate>
@@ -102,17 +180,20 @@
                         {
                             var d = day; var m = context;
                             <MudTd Class="@GetCellClass(d)">
-                                <select value="@GetStatus(m.UniqueId, d)" 
-                                class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")" 
-                                @onchange="@(e => OnStatusChanged(m, d, e.Value?.ToString()))">
-                                    <option value=""></option>
-                                    @foreach (var s in _shiftCodes)
-                                    {
-                                        <option value="@s
-                                        ">@s
-                                        </option>                                     
-                                    }
-                                </select>
+                                <div class="cell-input-stack">
+                                    <select value="@GetStatus(m.UniqueId, d)"
+                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
+                                        <option value="">--</option>
+                                        @foreach (var s in _shiftCodes)
+                                        {
+                                            <option value="@s">@s</option>
+                                        }
+                                    </select>
+                                    <input type="text" class="remark-input" placeholder="..."
+                                           value="@GetReason(m.UniqueId, d)"
+                                           @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
+                                </div>
                             </MudTd>
                         }
                     </RowTemplate>
@@ -120,7 +201,6 @@
             </div>
         </MudItem>
 
-        @* Drivers Table *@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Secondary">DRIVERS</MudText>
             <div class="grid-scroll-container">
@@ -129,9 +209,7 @@
                         <MudTh Class="sticky-col">Name</MudTh>
                         @foreach (var day in _daysInMonth)
                         {
-                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day
-                                <br/><small>@day.ToString("ddd")
-                                </small></MudTh>                             
+                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
                         }
                     </HeaderContent>
                     <RowTemplate>
@@ -140,17 +218,20 @@
                         {
                             var d = day; var m = context;
                             <MudTd Class="@GetCellClass(d)">
-                                <select value="@GetStatus(m.UniqueId, d)" 
-                                class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")" 
-                                @onchange="@(e => OnStatusChanged(m, d, e.Value?.ToString()))">
-                                    <option value=""></option>
-                                    @foreach (var s in _shiftCodes)
-                                    {
-                                        <option value="@s
-                                        ">@s
-                                        </option>                                     
-                                    }
-                                </select>
+                                <div class="cell-input-stack">
+                                    <select value="@GetStatus(m.UniqueId, d)"
+                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
+                                        <option value="">--</option>
+                                        @foreach (var s in _shiftCodes)
+                                        {
+                                            <option value="@s">@s</option>
+                                        }
+                                    </select>
+                                    <input type="text" class="remark-input" placeholder="..."
+                                           value="@GetReason(m.UniqueId, d)"
+                                           @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
+                                </div>
                             </MudTd>
                         }
                     </RowTemplate>
@@ -158,7 +239,6 @@
             </div>
         </MudItem>
     </MudGrid>
-
 }
 else
 {
@@ -166,6 +246,7 @@ else
         <MudProgressCircular Indeterminate="true" Size="Size.Large" Color="Color.Primary" />
     </div>
 }
+
 
 
 
@@ -575,189 +656,114 @@ else
     private List<DateTime> _daysInMonth = new();
     private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL" };
     private Dictionary<string, AttendanceScheduleModel> _pendingChanges = new();
-
+    private bool _isSaving = false;
+    private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
     private Member _bulkMember;
     private DateRange _bulkRange = new(DateTime.Today, DateTime.Today.AddDays(7));
     private string _bulkStatus = "P";
+    private string _bulkReason = "";
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
-
-
         var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-        var end = start.AddMonths(1).AddDays(-1);
-        for (var dt = start; dt <= end; dt = dt.AddDays(1)) _daysInMonth.Add(dt);
+        for (var dt = start; dt <= start.AddMonths(1).AddDays(-1); dt = dt.AddDays(1)) _daysInMonth.Add(dt);
 
         if (!AttendanceData.IsDataReady)
         {
             await AttendanceData.InitializeAsync(SupabaseClient);
-            StateHasChanged();
         }
+
+        LoadData();
     }
 
     private string GetStatus(string id, DateTime date) =>
-        AttendanceData.AttendanceCache.TryGetValue($"{id}_{date:yyyyMMdd}", out var s) ? s : "";
+        _pendingChanges.TryGetValue($"{id}_{date:yyyyMMdd}", out var pending) ? pending.Status :
+        (AttendanceData.AttendanceCache.TryGetValue($"{id}_{date:yyyyMMdd}", out var s) ? s : "");
 
-    private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
+    private string GetReason(string id, DateTime date) =>
+        _pendingChanges.TryGetValue($"{id}_{date:yyyyMMdd}", out var pending) ? pending.Reason :
+        (AttendanceData.RemarksCache.TryGetValue($"{id}_{date:yyyyMMdd}", out var r) ? r : "");
 
-    private void OnStatusChanged(Member m, DateTime date, string status)
+    private bool IsModified(string key) => _pendingChanges.ContainsKey(key);
+
+    private void OnEntryChanged(Member m, DateTime date, string status, string reason)
     {
-        var key = $"{m.UniqueId}_{date:yyyyMMdd}";
+        var cleanDate = new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        var key = $"{m.UniqueId}_{cleanDate:yyyyMMdd}";
 
-        // Track the change locally
         _pendingChanges[key] = new AttendanceScheduleModel
         {
-            WorkDate = date,
+            WorkDate = cleanDate,
             Status = status,
+            Reason = reason,
             EmployeeCode = m.Role == "Engineer" ? m.UniqueId : null,
             DriverId = m.Role == "Driver" ? m.DbId : null
         };
-
-        // Update UI cache immediately for visual feedback
-        AttendanceData.AttendanceCache[key] = status;
     }
 
-    private bool _isSaving = false;
     private async Task SaveChanges()
     {
         if (!_pendingChanges.Any()) return;
-
         try
         {
             _isSaving = true;
-
             var toUpdate = _pendingChanges.Values.ToList();
             await SupabaseClient.From<AttendanceScheduleModel>()
-            .Upsert(toUpdate, new Supabase.Postgrest.QueryOptions { OnConflict = "work_date, employee_code, driver_id" });
+                .Upsert(toUpdate, new Supabase.Postgrest.QueryOptions { OnConflict = "work_date, employee_code, driver_id" });
 
-            // CRITICAL: Reset the service state before re-initializing
+            _pendingChanges.Clear();
             AttendanceData.ResetState();
-
-            // Re-fetch everything from Supabase
             await AttendanceData.InitializeAsync(SupabaseClient);
-
-            Snackbar.Add("Data synced successfully", Severity.Success);
-
-            // Force the component to re-render with the new data from AttendanceData
-            StateHasChanged();
-
-            _isSaving = false;
-
-
-           
+            Snackbar.Add("Database sync complete", Severity.Success);
         }
-        catch (Exception ex)
-        {
-            _isSaving = false;
-            // 3. Notify Blazor to re-render the grid
-            StateHasChanged();
-            Snackbar.Add($"Save failed: {ex.Message}", Severity.Error);
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
+        finally { _isSaving = false; }
     }
 
     private async Task CancelChanges()
     {
-        try
-        {
-            _pendingChanges.Clear();
-            AttendanceData.ResetState();
-            await AttendanceData.InitializeAsync(SupabaseClient);
-            Snackbar.Add("Changes discarded. Data refreshed.", Severity.Info);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            _isSaving = false;
-            // 3. Notify Blazor to re-render the grid
-            StateHasChanged();
-            Snackbar.Add("Failed to refresh data.", Severity.Error);
-        }
+        _pendingChanges.Clear();
+        AttendanceData.ResetState();
+        await AttendanceData.InitializeAsync(SupabaseClient);
+        Snackbar.Add("Changes discarded", Severity.Info);
     }
 
-    private async Task ApplyBulkUpdate()
+    private void ApplyBulkUpdate()
     {
         if (_bulkMember == null || _bulkRange.Start == null || _bulkRange.End == null) return;
-
-        try
+        
+        for (var dt = _bulkRange.Start.Value.Date; dt <= _bulkRange.End.Value.Date; dt = dt.AddDays(1))
         {
-            _isSaving = true;
-            StateHasChanged();
-
-
-           
-
-            // Update UI Cache immediately
-           // AttendanceData.AttendanceCache[key] = _bulkStatus;
-
-
-            var updates = new List<AttendanceScheduleModel>();
-
-            for (var dt = _bulkRange.Start.Value; dt <= _bulkRange.End.Value; dt = dt.AddDays(1))
-            {
-                
-                // Inside ApplyBulkUpdate loop
-                var memberId = _bulkMember.Role == "Engineer" ? _bulkMember.UniqueId : _bulkMember.DbId.ToString();
-                var key = $"{memberId}_{dt:yyyyMMdd}";
-                
-                //var key = $"{_bulkMember.UniqueId}_{dt:yyyyMMdd}";
-
-                // 1. UPDATE THE LOCAL UI CACHE IMMEDIATELY
-                // This is what the grid actually looks at to render the cell text/color
-                AttendanceData.AttendanceCache[key] = _bulkStatus;
-
-                updates.Add(new AttendanceScheduleModel
-                {
-                    WorkDate = dt,
-                    Status = _bulkStatus,
-                    EmployeeCode = _bulkMember.Role == "Engineer" ? _bulkMember.UniqueId : null,
-                    DriverId = _bulkMember.Role == "Driver" ? _bulkMember.DbId : null
-                });
-            }
-
-            // 2. Push to Database
-            await SupabaseClient.From<AttendanceScheduleModel>()
-                .Upsert(updates, new Supabase.Postgrest.QueryOptions { OnConflict = "work_date, employee_code, driver_id" });
-
-
-            _isSaving = false;
-            // 3. Notify Blazor to re-render the grid
-            StateHasChanged();
-
-            Snackbar.Add("UI Updated", Severity.Success);
+            OnEntryChanged(_bulkMember, dt, _bulkStatus, _bulkReason);
         }
-        catch (Exception ex)
-        {
-            _isSaving = false;
-            // 3. Notify Blazor to re-render the grid
-            StateHasChanged();
-            Snackbar.Add($"Update failed: {ex.Message}", Severity.Error);
-        }
+        Snackbar.Add("Bulk updates staged (pending save)", Severity.Info);
     }
 
     private string GetHeaderClass(DateTime d) => d.DayOfWeek == DayOfWeek.Sunday ? "sunday-cell" : "";
     private string GetCellClass(DateTime d) => (d.Date == DateTime.Today ? "today-focus " : "") + (d.DayOfWeek == DayOfWeek.Sunday ? "sunday-cell" : "");
+
     // --- DATABASE MODELS ---
 
     [Table("attendance_schedule")]
     public class AttendanceScheduleModel : BaseModel
     {
-        //[PrimaryKey("id",  shouldInsert: false)] public int? Id { get; set; }
-        [Column("employee_code")] public string EmployeeCode { get; set; }
+        [Column("employee_code")] public string? EmployeeCode { get; set; }
         [Column("driver_id")] public long? DriverId { get; set; }
+        [Column("status")] public string? Status { get; set; }
+        [Column("reason")] public string? Reason { get; set; }
+        [Column("work_date")] public string WorkDateString { get; set; }
+        [IgnoreDataMember] public DateTime WorkDate { set => WorkDateString = value.ToString("yyyy-MM-dd"); }
+    }
 
-        [Column("work_date")]
-        public DateTime WorkDate
-        {
-            get => _workDate;
-            set => _workDate = DateTime.SpecifyKind(value.Date, DateTimeKind.Unspecified);
-        }
-        private DateTime _workDate;
-
-
-        // [Column("work_date")] public DateTime WorkDate { get; set; }
-        [Column("status")] public string Status { get; set; }
-        [Column("reason")] public string Reason { get; set; }
+    [Table("latest_attendance")]
+    public class LatestAttendanceViewModel : BaseModel
+    {
+        [PrimaryKey("id", shouldInsert: false)] public long Id { get; set; }
+        [Column("employee_code")] public string? EmployeeCode { get; set; }
+        [Column("driver_id")] public long? DriverId { get; set; }
+        [Column("work_date")] public DateTime WorkDate { get; set; }
+        [Column("status")] public string? Status { get; set; }
+        [Column("reason")] public string? Reason { get; set; }
     }
 
     [Table("employees_engineers")]
@@ -772,34 +778,6 @@ else
     {
         [PrimaryKey("id")] public long Id { get; set; }
         [Column("full_name")] public string FullName { get; set; }
-    }
-
-    [Table("latest_attendance")] // Matches the SQL VIEW name exactly
-    public class LatestAttendanceViewModel : BaseModel
-    {
-        [PrimaryKey("id", shouldInsert: false)]
-        public long Id { get; set; }
-
-        [Column("employee_code")]
-        public string? EmployeeCode { get; set; }
-
-        [Column("driver_id")]
-        public long? DriverId { get; set; }
-
-        [Column("work_date")]
-        public DateTime WorkDate { get; set; }
-
-        [Column("status")]
-        public string? Status { get; set; }
-
-        [Column("shift_type")]
-        public string? ShiftType { get; set; }
-
-        [Column("reason")]
-        public string? Reason { get; set; }
-
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; }
     }
 
     public class Member

@@ -85,12 +85,14 @@
 
   <ItemGroup>
     <Content Remove="wwwroot\404.html" />
-    <Content Remove="wwwroot\index - Copy.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="BACKUP\index - Copy.html" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="wwwroot\404.html" />
-    <EmbeddedResource Include="wwwroot\index - Copy.html" />
   </ItemGroup>
 
   <ItemGroup>

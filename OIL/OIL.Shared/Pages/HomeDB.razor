@@ -3,8 +3,41 @@
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 
-@* The ThemeProvider is usually in MainLayout, but kept here for local style safety *@
+
+@* Standard Providers *@
 <MudThemeProvider Theme="_brandTheme" DefaultScrollbar="true" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    @* --- TOP BAR (AppBar) --- *@
+    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true">
+        @* SIDE MENU BUTTON *@
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => _drawerOpen = !_drawerOpen)" />
+
+        <MudText Typo="Typo.h6" Class="ml-3" Style="color: var(--oil-black); font-weight: bold;">
+            Field Maintenance Systems
+        </MudText>
+
+        <MudSpacer />
+
+        @* LOGOUT BUTTON *@
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Logout" Color="Color.Primary" Class="fw-bold">
+            LOGOUT
+        </MudButton>
+    </MudAppBar>
+
+    @* --- SIDE MENU (Drawer) --- *@
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6">Navigation</MudText>
+        </MudDrawerHeader>
+        @* Add your NavMenu items here *@
+    </MudDrawer>
+
+
+    @* --- MAIN CONTENT --- *@
+    <MudMainContent>
 
 <div id="full-page-container" class="dashboard-root">
     <div class="dashboard-shell">
@@ -207,6 +240,9 @@
         </div>
     </div>
 </div>
+
+    </MudMainContent>
+</MudLayout>
 
 <style>
     :root {
@@ -453,4 +489,8 @@
     public record KpiModel(string Value, string Label, string SubText);
     public record OpModel(string Title, string Icon, string Color, Color MudColor, string Goal, string[] Items);
     public record PresenceModel(string Area, string Details, string Icon);
+
+    // 1. ADD THIS LINE HERE
+    private bool _drawerOpen = false;
+
 }
