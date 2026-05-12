@@ -1,6 +1,5 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
-@using OIL.Shared.Services
 
 <MudThemeProvider Theme="_currentTheme" />
 <MudPopoverProvider />
@@ -9,81 +8,59 @@
 
 <AuthorizeView>
     <Authorized>
-
         <MudLayout>
-
             <!-- APP BAR -->
-            <MudAppBar Elevation="1"
-                       Style="background-color: white; color: black; z-index: 1400;">
-                <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                               Color="Color.Primary"
-                               Edge="Edge.Start"
-                               OnClick="ToggleDrawer" />
-
-                <MudText Typo="Typo.h6" Class="ms-2">
-                    Field Maintenance Systems
-                </MudText>
-
+            <MudAppBar Elevation="1" Style="background-color: white; color: black; z-index: 1400;">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Primary" Edge="Edge.Start" OnClick="ToggleDrawer" />
+                <MudText Typo="Typo.h6" Class="ms-2" Style="font-weight:700;">Field Maintenance Systems</MudText>
                 <MudSpacer />
-
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Inherit"
-                           OnClick="Logout">
-                    Logout
-                </MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="Logout">Logout</MudButton>
             </MudAppBar>
 
-            <!-- DRAWER (IMPORTANT FIX HERE) -->
+            <!-- DRAWER -->
             <MudDrawer @bind-Open="_drawerOpen"
                        Variant="DrawerVariant.Responsive"
-                       Breakpoint="Breakpoint.Sm"
-                       Elevation="16"
-                       Anchor="Anchor.Start"
-                       Style="z-index: 99999 !important; position: fixed;">
+                       Breakpoint="Breakpoint.Md"
+                       Elevation="2"
+                       ClipMode="DrawerClipMode.Always">
                 <NavMenu />
             </MudDrawer>
 
-            <!-- MAIN CONTENT -->
-            <MudMainContent Style="overflow-x:hidden; position:relative; z-index:1;">
-                <div class="pa-4">
-                    @Body
-                </div>
+            <!-- MAIN CONTENT - Removed nested padding div to fix MAUI scroll jump -->
+            <MudMainContent>
+                @Body
             </MudMainContent>
-
         </MudLayout>
-
     </Authorized>
 
     <NotAuthorized>
-        <div class="d-flex align-center justify-center" style="height:100vh;">
+        <div class="d-flex align-center justify-center" style="min-height:100vh;">
             @Body
         </div>
     </NotAuthorized>
 </AuthorizeView>
 
 @code {
-    private bool _drawerOpen = false;
+    private bool _drawerOpen = true; // Default open for better desktop feel
 
-    [Inject] private AuthService AuthService { get; set; }
     [Inject] private NavigationManager Nav { get; set; }
 
     private void Logout()
     {
-        AuthService.Logout();
+        // Add your specific logout logic here
         Nav.NavigateTo("login");
     }
 
-    private void ToggleDrawer()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
 
     private MudTheme _currentTheme = new MudTheme()
     {
         PaletteLight = new PaletteLight()
         {
-            Primary = "#D32F2F",
-            AppbarBackground = "#D32F2F"
+            Primary = "#E21E26",
+            AppbarBackground = "#ffffff",
+            DrawerBackground = "#ffffff",
+            Surface = "#ffffff"
         }
     };
 }

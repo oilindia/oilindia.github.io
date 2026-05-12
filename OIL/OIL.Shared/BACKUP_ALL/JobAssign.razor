@@ -23,7 +23,7 @@
                 <MudSelect T="string" Label="Select Shift" Variant="Variant.Outlined" @bind-Value="_selectedShift" AnchorOrigin="Origin.BottomCenter">
                     <MudSelectItem Value="@("Morning")">Morning</MudSelectItem>
                     <MudSelectItem Value="@("Evening")">Evening</MudSelectItem>
-                    <MudSelectItem Value="@("Night")">Night</MudSelectItem>
+                    @* <MudSelectItem Value="@("Night")">Night</MudSelectItem> *@
                 </MudSelect>
             </MudPaper>
         </MudItem>
@@ -149,12 +149,13 @@
 @if (_isPreviewOpen)
 {
     <div class="print-overlay">
-        <div class="print-actions no-print pa-4 d-flex justify-center" style="margin-top: 10px;">
+        <div class="print-actions no-print pa-4 d-flex justify-center" style="margin-top: 30px;">
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="() => _isPreviewOpen = false" Class="mr-2">Exit Preview</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintNow" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Job Card</MudButton>
         </div>
 
         <div id="job-card-to-print" class="job-card-main">
+            @* --- HEADER SECTION --- *@
             <div class="header-grid">
                 <div class="logo-box d-flex align-center pa-2">
                     <div class="logo-container">
@@ -167,26 +168,34 @@
                     </div>
                 </div>
                 <div class="dept-box pa-1 text-center">
-                    <MudText Style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</MudText>
-                    <MudText Typo="Typo.body2" Style="font-weight: bold;">Instrumentation Department, Field Headquarter, Duliajan</MudText>
-                    <MudText Style="font-size: 11px;">कार्य आवंटन पर्ची</MudText>
-                    <MudText Typo="Typo.button" Style="font-weight: bold; letter-spacing: 2px;">JOB CARD</MudText>
+                    <MudText Style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</MudText> 
+                    <MudText Typo="Typo.body2" Style="font-weight: bold;">Instrumentation Department, Field Headquarter, Duliajan</MudText> 
+                    <MudText Style="font-size: 11px;">कार्य आवंटन पर्ची</MudText> 
+                    <MudText Typo="Typo.button" Style="font-weight: bold; letter-spacing: 2px;">JOB CARD</MudText> 
                 </div>
                 <div class="doc-box pa-1">
-                    <MudText Style="font-size: 10px;">Doc No: <b>@ActiveJobData.DocNumber</b></MudText>
+                    <MudText Style="font-size: 10px;">Doc No: <b>@ActiveJobData.DocNumber</b></MudText> 
                     <div class="mt-1" style="border-top: 1px solid black;">
-                        <MudText Style="font-size: 10px;">Date: <b>@ActiveJobData.Date.ToString("dd/MM/yy")</b></MudText>
+                        <MudText Style="font-size: 10px;">Date: <b>@ActiveJobData.Date.ToString("dd/MM/yy")</b></MudText> 
                     </div>
                 </div>
             </div>
 
+            @* --- ASSIGNMENT SECTION --- *@
             <div class="row-flex border-top">
-                <div class="col-30 pa-1 border-right">Job Assigned by:</div>
-                <div class="col-70 pa-1 font-handwriting">Instrumentation Supervisor</div>
+                <div class="col-30 pa-1 border-right">Job Assigned by:</div> 
+                <div class="col-70 pa-1 font-handwriting">Instrumentation Executive</div>
             </div>
 
-            <div class="row-flex border-top" style="min-height: 380px;">
-                <div class="col-30 pa-2 border-right font-handwriting">Oil Field Headquarter / Duliajan</div>
+            @* --- MAIN JOB TABLE --- *@
+            <div class="row-flex border-top header-row-bg">
+                <div class="col-30 pa-1 border-right text-center"><b>Location/Unit/Notification</b></div> 
+                <div class="col-70 pa-1 text-center"><b>Job Description</b></div> 
+            </div>
+            <div class="row-flex border-top" style="min-height: 300px;">
+                <div class="col-30 pa-2 border-right font-handwriting">
+                    Oil Field Headquarter / Duliajan
+                </div>
                 <div class="col-70 pa-2 font-handwriting">
                     @foreach (var task in ActiveJobData.Tasks)
                     {
@@ -195,38 +204,76 @@
                 </div>
             </div>
 
-            <div class="pa-1 border-top bg-light"><b>Details of Personnel and Vehicle Assigned :</b></div>
+            @* --- INTERLOCK / SETPOINT SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Details of any interlock bypass or Setpoint Change:</b></div>
+            <div class="row-flex border-top" style="min-height: 60px;">
+                <div class="col-70 border-right pa-2"></div>
+                <div class="col-30 pa-1 text-center" style="font-size: 9px;">
+                    Signature of Change Requestor & Name 
+                </div>
+            </div>
+
+            @* --- PERSONNEL & VEHICLE SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Details of Personnel and Vehicle Assigned:</b></div> 
             <div class="row-flex border-top">
                 <div class="col-50 border-right pa-2 font-handwriting" style="min-height: 80px;">
+                    <b>Personnel:</b><br />
                     @string.Join(", ", ActiveJobData.Personnel)
                 </div>
                 <div class="col-50 pa-2">
-                    <div class="font-handwriting">@ActiveJobData.Vehicle</div>
-                    <div class="d-flex mt-2 border-top-dotted">
-                        <MudText Style="font-size: 9px;" Class="mr-4">Opening KMS: ______</MudText>
-                        <MudText Style="font-size: 9px;">Closing KMS: ______</MudText>
+                    <div class="font-handwriting"><b>Vehicle:</b> @ActiveJobData.Vehicle</div> 
+                    <div class="d-flex mt-4 border-top-dotted">
+                        <MudText Style="font-size: 9px;" Class="mr-4">Opening KMS: ______</MudText> 
+                        <MudText Style="font-size: 9px;">Closing KMS: ______</MudText> 
                     </div>
                 </div>
             </div>
 
-            <div class="pa-2 border-top bg-light"><b>Tool Box Talk Record :</b></div>
-            <div class="pa-2 border-top" style="font-size: 10px; line-height: 1.4;">
+            @* --- TOOL BOX TALK SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Tool Box Talk Record:</b></div> 
+            <div class="pa-2 border-top" style="font-size: 9px; line-height: 1.2;">
                 <div class="row-flex">
-                    <div class="col-50">1. Job Specific PPE worn.</div>
-                    <div class="col-50">2. Appropriate permit taken.</div>
+                    <div class="col-50">1. Job Specific PPE to be worn including coveralls.</div> 
+                    <div class="col-50">2. Appropriate work permit to be taken at the installation.</div> 
                 </div>
                 <div class="row-flex">
-                    <div class="col-50">3. Operator informed.</div>
-                    <div class="col-50">4. Safety meeting conducted.</div>
+                    <div class="col-50">3. Operator in-charge to be informed before starting job.</div> 
+                    <div class="col-50">4. Operator in-charge to be informed after finishing job.</div> 
+                </div>
+                <div class="row-flex">
+                    <div class="col-50">5. Set point change or interlock bypass done to be recorded and operator to be informed.</div> 
+                    <div class="col-50">6. Others: __________________________</div> 
                 </div>
             </div>
 
-            <div class="pa-6 border-top text-center">
-                <div style="border-top: 1px solid black; width: 250px; margin: auto;">
-                    <MudText Style="font-size: 10px;">Signature of Attendees</MudText>
+            @* --- SIGNATURE SECTION --- *@
+            @* --- SIGNATURE SECTION (Triple Height & Closing Line) --- *@
+            <div class="pa-4 border-top border-bottom text-center" style="min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
+                <MudText Style="font-size: 9px;">
+                    Certified that Tool Box meeting has been conducted to execute job safely.
+                </MudText>
+
+                <div class="mt-auto mb-4">
+                    <div style="border-top: 1px solid black; width: 250px; margin: auto;">
+                        <MudText Style="font-size: 9px;">Signature of attendees </MudText>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <style>
+                .header-row-bg {
+                    background-color: #f5f5f5;
+                    font-size: 11px;
+                }
+
+                .border-top-dotted {
+                    border-top: 1px dotted black;
+                }
+        </style>
+    
+    
+    
     </div>
 }
 
@@ -280,6 +327,12 @@
         border: 2px solid black;
         background: white;
         color: black;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid black;
     }
 
     .header-grid {
@@ -365,7 +418,15 @@
 
     public JobCardModel ActiveJobData { get; set; } = new();
 
-    protected override async Task OnInitializedAsync() => await LoadData();
+    protected override async Task OnInitializedAsync()
+    {
+        // Set default shift based on 11:00 AM threshold
+        _selectedShift = DateTime.Now.Hour < 11 ? "Morning" : "Evening";
+        await LoadData();
+    }
+
+
+    //protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
     {

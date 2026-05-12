@@ -58,7 +58,7 @@ builder.Services.AddAuthorizationCore(); // REQUIRED
 builder.Services.AddScoped<CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredService<CustomAuthStateProvider>());
 builder.Services.AddScoped<AuthService>();
-
+builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<GeminiService>();
 
 // 4. MudBlazor Services
