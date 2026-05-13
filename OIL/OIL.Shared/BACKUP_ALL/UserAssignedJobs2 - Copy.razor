@@ -1,4 +1,4 @@
-﻿@page "/userassignedjobs"
+﻿@page "/userassignedjobs3"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -95,7 +95,7 @@
                     <MudItem xs="12">
                         <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" Lines="3" @bind-Value="_workDone" Required="true" />
                     </MudItem>
-                    <MudItem xs="12" sm="3">
+                    <MudItem xs="12" sm="6">
                         <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileUpload" Accept="image/*" capture="camera" id="photo-up">
                             <ButtonTemplate>
                                 <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PhotoCamera" for="photo-up">Capture Photo</MudButton>
@@ -103,22 +103,10 @@
                         </MudFileUpload>
                         @foreach (var file in _uploadedFiles) { <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip> }
                     </MudItem>
-                    <MudItem xs="12" sm="4">
+                    <MudItem xs="12" sm="6">
                         <MudSwitch T="bool" Value="@_partReplaced" ValueChanged="@((v) => { _partReplaced = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any part replaced?" />
                     </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudSwitch T="bool" Value="@_overtime" ValueChanged="@((v) => { _overtime = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any overtime worked?" />
-                    </MudItem>
                     
-                    @if (_overtime)
-                    {
-                        <MudNumericField @bind-Value="_currentOvertime" Label="Overtime Hours"
-                                         Variant="Variant.Outlined" Adornment="Adornment.End"
-                                         AdornmentIcon="@Icons.Material.Filled.AccessTime" />
-                    }
-
-
-
                     @if (_partReplaced)
                     {
                         <MudItem xs="12">
@@ -127,100 +115,73 @@
                             {
                                 <MudPaper Class="pa-4 mb-4" Outlined="true">
                                     <MudGrid Spacing="2">
-                                        @* Location Selection *@
+                                        @* 1. Device Location *@
                                         <MudItem xs="12" sm="3">
                                             @if (!entry.IsManualLocation)
                                             {
-                                                <MudSelect T="string" Label="Device Location"
-                                                           Value="entry.DeviceLocation"
-                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "location"))"
-                                                           AnchorOrigin="Origin.BottomCenter"
-                                                           AdornmentIcon="@Icons.Material.Filled.Search">
+                                                <MudSelect T="string" Label="Device Location" Value="entry.DeviceLocation"
+                                                           ValueChanged="@((v) => OnFieldChanged(entry, v, "location"))">
                                                     @foreach (var loc in _availableLocations)
                                                     {
                                                         <MudSelectItem Value="@loc">@loc</MudSelectItem>
                                                     }
-                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth="true" Color="Color.Primary">+ Add New Location</MudButton>
+                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth Color="Color.Primary">+ New Location</MudButton>
                                                 </MudSelect>
                                             }
                                             else
                                             {
-                                                <MudTextField Label="New Location Name" @bind-Value="entry.DeviceLocation"
-                                                              AdornmentIcon="@Icons.Material.Filled.Edit"
-                                                              OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
+                                                <MudTextField Label="Manual Location" @bind-Value="entry.DeviceLocation"
+                                                              AdornmentIcon="@Icons.Material.Filled.Clear" OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
                                             }
                                         </MudItem>
 
-                                        @* Tag Selection *@
+                                        @* 2. Tag Number *@
                                         <MudItem xs="12" sm="3">
-                                            @if (!entry.IsManualLocation)
+                                            @if (!entry.IsManualTag)
                                             {
-                                                <MudSelect T="string" Label="Tag Selection"
-                                                           Value="entry.TagNumber"
-                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "tag"))"
-                                                           AnchorOrigin="Origin.BottomCenter"
-                                                           AdornmentIcon="@Icons.Material.Filled.Search">
-                                                    @foreach (var tag in _availableTags)
+                                                <MudSelect T="string" Label="Tag Number" Value="entry.TagNumber"
+                                                           Disabled="@(string.IsNullOrEmpty(entry.DeviceLocation))"
+                                                           ValueChanged="@((v) => OnFieldChanged(entry, v, "tag"))">
+                                                    @foreach (var tag in entry.FilteredTags)
                                                     {
                                                         <MudSelectItem Value="@tag">@tag</MudSelectItem>
                                                     }
-                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth="true" Color="Color.Primary">+ Add New Location</MudButton>
+                                                    <MudButton OnClick="@(() => entry.IsManualTag = true)" FullWidth Color="Color.Primary">+ New Tag</MudButton>
                                                 </MudSelect>
                                             }
                                             else
                                             {
-                                                <MudTextField Label="New Location Name" @bind-Value="entry.TagNumber"
-                                                              AdornmentIcon="@Icons.Material.Filled.Edit"
-                                                              OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
+                                                <MudTextField Label="Manual Tag #" @bind-Value="entry.TagNumber"
+                                                              AdornmentIcon="@Icons.Material.Filled.Clear" OnAdornmentClick="@(() => entry.IsManualTag = false)" />
                                             }
                                         </MudItem>
 
-
-                                        @* Instrument Type Selection *@
+                                        @* 3. Instrument Type *@
                                         <MudItem xs="12" sm="3">
                                             @if (!entry.IsManualType)
                                             {
-                                                <MudSelect T="string" Label="Instrument Type"
-                                                           Value="entry.InstrumentType"
-                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "type"))">
-                                                    @foreach (var type in _availableTypes)
+                                                <MudSelect T="string" Label="Instrument Type" Value="entry.InstrumentType"
+                                                           Disabled="@(string.IsNullOrEmpty(entry.TagNumber))"
+                                                           ValueChanged="@((v) => OnFieldChanged(entry, v, "type"))">
+                                                    @foreach (var type in entry.FilteredTypes)
                                                     {
                                                         <MudSelectItem Value="@type">@type</MudSelectItem>
                                                     }
-                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth="true" Color="Color.Primary">+ Add New Type</MudButton>
+                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth Color="Color.Primary">+ New Type</MudButton>
                                                 </MudSelect>
                                             }
                                             else
                                             {
-                                                <MudTextField Label="New Instrument Type" @bind-Value="entry.InstrumentType" />
+                                                <MudTextField Label="Manual Type" @bind-Value="entry.InstrumentType"
+                                                              AdornmentIcon="@Icons.Material.Filled.Clear" OnAdornmentClick="@(() => entry.IsManualType = false)" />
                                             }
                                         </MudItem>
 
-                                        @* Old Data Display *@
+                                        @* 4. Old Data Display *@
                                         <MudItem xs="12" sm="3">
-                                            <MudField Label="Old Data (Fetched)" Variant="Variant.Text" InnerPadding="false">
-                                                @(string.IsNullOrEmpty(entry.OldMakeModel) ? "No existing record" : $"{entry.OldMakeModel}  {entry.OldRange}")
+                                            <MudField Label="Old Data" Variant="Variant.Outlined" InnerPadding="false">
+                                                @(string.IsNullOrEmpty(entry.OldMakeModel) ? "N/A" : $"{entry.OldMakeModel} ({entry.OldRange})")
                                             </MudField>
-                                        </MudItem>
-
-                                        @* New Data Inputs *@
-                                        <MudItem xs="12" sm="3">
-                                            <MudTextField Label="New Make/Model" @bind-Value="entry.NewMakeModel" Variant="Variant.Outlined" />
-                                        </MudItem>
-
-                                        <MudItem xs="12" sm="3">
-                                            <MudTextField Label="New Tag No" @bind-Value="entry.TagNumber" Variant="Variant.Outlined" />
-                                        </MudItem>
-
-
-                                        <MudItem xs="12" sm="3">
-                                            <MudTextField Label="New Range" @bind-Value="entry.NewRange" Variant="Variant.Outlined" />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="3">
-                                            <MudTextField Label="New Serial #" @bind-Value="entry.NewSerialNumber" Variant="Variant.Outlined" />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="3">
-                                            <MudNumericField Label="Approx Cost" @bind-Value="entry.ApproxCost" Variant="Variant.Outlined" />
                                         </MudItem>
                                     </MudGrid>
                                 </MudPaper>
@@ -230,7 +191,7 @@
                     }
                 
 
-                   
+
 
 </MudGrid>
             }
@@ -240,7 +201,7 @@
 
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ProcessJobSubmission" StartIcon="@Icons.Material.Filled.MarkChatRead">Further Review</MudButton>
 
-                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="HandleSubmit" StartIcon="@Icons.Material.Filled.CheckCircle">Finalize & Submit</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitJob" StartIcon="@Icons.Material.Filled.CheckCircle">Finalize & Submit</MudButton>
                 <MudButton Variant="Variant.Text" OnClick="CancelExecution">Cancel</MudButton>
             </div>
         </MudPaper>
@@ -309,11 +270,6 @@
     private string _detectedType = "";
     private string _workDone = "";
     private bool _partReplaced = false;
-    private bool _overtime = false;
-
-    //private bool _isOvertime;
-    private float? _currentOvertime;
-
     private string _spareDetails = "";
     private List<IBrowserFile> _uploadedFiles = new();
 
@@ -328,7 +284,7 @@
             _allMasterTasks = master.Models;
 
 
-
+            
 
 
         } finally { _loading = false; }
@@ -361,10 +317,10 @@
         // Default logic for other job types (e.g., Breakdown)
         _selectedJob = job;
         CurrentLocationId = _selectedJob.LocationId ?? 0; 
-
+        
         await LoadInitialDataPID();
         AddNewRow(); // Start with one empty row
-
+        
         // Set the current location for PID data loading
         _isExecuting = true;
 
@@ -382,7 +338,7 @@
     {
         try
         {
-
+           
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
@@ -472,7 +428,7 @@
 
             // Mark job as completed
             await SupabaseClient.From<Job>().Where(x => x.Id == _selectedJob.Id).Set(x => x.Status, "completed").Update();
-
+            
             Snackbar.Add("Job Submitted Successfully", Severity.Success);
             _isExecuting = false;
             await LoadInitialData();
@@ -518,6 +474,8 @@
         public string TagNumber { get; set; }
 
 
+
+
         // Old Data (Fetched)
         public string OldMakeModel { get; set; }
         public string OldRange { get; set; }
@@ -536,18 +494,16 @@
         // UI State: Toggle between dropdown and text input
         // Renamed to match the logic exactly
         public bool IsManualLocation { get; set; }
+        public bool IsManualTag { get; set; } // New
         public bool IsManualType { get; set; }
     }
-
+    
     [Parameter] public long CurrentLocationId { get; set; } // Installation ID
     [Parameter] public Guid CurrentJobAssignmentId { get; set; }
 
     private List<ReplacementEntry> _replacements = new();
     private List<string> _availableLocations = new();
     private List<string> _availableTypes = new();
-    private List<string> _availableTags = new();
-
-
     private bool _isBusy = false;
 
     // protected override async Task OnInitializedAsync()
@@ -572,12 +528,6 @@
                     .Select(x => x.InstrumentType)
                     .Distinct()
                     .ToList();
-        _availableTags = markers.Models
-                           .Select(x => x.Device_location)
-                           .Distinct()
-                           .ToList();
-
-
     }
 
     private void AddNewRow()
@@ -590,56 +540,78 @@
         if (field == "location")
         {
             entry.DeviceLocation = newVal;
-            entry.TagNumber = null; // Reset children
-            entry.InstrumentType = null;
-
-            // Filter Tags based on Location
-            var results = await SupabaseClient.From<PIDMarker>()
-                .Where(x => x.LocationId == CurrentLocationId)
-                .Where(x => x.Device_location == newVal)
-                .Get();
-
-            entry.FilteredTags = results.Models.Select(x => x.TagNumber).Distinct().ToList();
+            if (!entry.IsManualLocation) await LoadTags(entry);
         }
 
         if (field == "tag")
         {
             entry.TagNumber = newVal;
-            entry.InstrumentType = null; // Reset child
-
-            // Filter Types based on Tag
-            var results = await SupabaseClient.From<PIDMarker>()
-                .Where(x => x.LocationId == CurrentLocationId)
-                .Where(x => x.Device_location == entry.DeviceLocation)
-                .Where(x => x.TagNumber == newVal)
-                .Get();
-
-            entry.FilteredTypes = results.Models.Select(x => x.InstrumentType).Distinct().ToList();
+            if (!entry.IsManualTag) await LoadTypes(entry);
         }
 
         if (field == "type")
         {
             entry.InstrumentType = newVal;
-
-            // Final Fetch: Get specific part details
-            var match = await SupabaseClient.From<PIDMarker>()
-                .Where(x => x.LocationId == CurrentLocationId)
-                .Where(x => x.Device_location == entry.DeviceLocation)
-                .Where(x => x.TagNumber == entry.TagNumber)
-                .Where(x => x.InstrumentType == newVal)
-                .Single();
-
-            if (match != null)
-            {
-                entry.LocationId = match.Id;
-                entry.OldMakeModel = match.MakeModelType;
-                entry.OldRange = match.Range;
-            }
+            await FetchOldDetails(entry);
         }
 
         StateHasChanged();
     }
 
+    private async Task LoadTags(ReplacementEntry entry)
+    {
+        var results = await SupabaseClient.From<PIDMarker>()
+            .Where(x => x.LocationId == CurrentLocationId)
+            .Where(x => x.Device_location == entry.DeviceLocation)
+            .Get();
+        entry.FilteredTags = results.Models.Select(x => x.TagNumber).Distinct().ToList();
+    }
+
+    private async Task LoadTypes(ReplacementEntry entry)
+    {
+        var results = await SupabaseClient.From<PIDMarker>()
+            .Where(x => x.LocationId == CurrentLocationId)
+            .Where(x => x.Device_location == entry.DeviceLocation)
+            .Where(x => x.TagNumber == entry.TagNumber)
+            .Get();
+        entry.FilteredTypes = results.Models.Select(x => x.InstrumentType).Distinct().ToList();
+    }
+    private async Task FetchOldDetails(ReplacementEntry entry)
+    {
+        // We only fetch if we are NOT in manual mode for any of the key fields
+        if (!entry.IsManualLocation && !entry.IsManualTag && !entry.IsManualType &&
+            !string.IsNullOrEmpty(entry.DeviceLocation) &&
+            !string.IsNullOrEmpty(entry.TagNumber) &&
+            !string.IsNullOrEmpty(entry.InstrumentType))
+        {
+            try
+            {
+                var match = await SupabaseClient.From<PIDMarker>()
+                    .Where(x => x.LocationId == CurrentLocationId)
+                    .Where(x => x.Device_location == entry.DeviceLocation)
+                    .Where(x => x.TagNumber == entry.TagNumber)
+                    .Where(x => x.InstrumentType == entry.InstrumentType)
+                    .Single();
+
+                if (match != null)
+                {
+                    entry.LocationId = match.Id;
+                    entry.OldMakeModel = match.MakeModelType;
+                    entry.OldRange = match.Range;
+                }
+                else
+                {
+                    entry.OldMakeModel = null;
+                    entry.OldRange = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error or handle missing apikey issue discussed earlier
+                Console.WriteLine($"Error fetching details: {ex.Message}");
+            }
+        }
+    }
 
     private async Task OnLocationOrTypeChanged(ReplacementEntry entry, string newVal, string field)
     {
@@ -718,129 +690,51 @@
 
     private async Task HandleSubmit()
     {
-        if (_selectedJob == null) return;
-
         _isBusy = true;
         try
         {
-            // 1. Prepare common data
-            //var replacementJson = _partReplaced ? JsonSerializer.Serialize(_replacements) : "None";
+            // FIX: Use JsonSerializerOptions or just ensure the single-argument version is available
+            var auditJson = System.Text.Json.JsonSerializer.Serialize(_replacements);
 
-            // Use the explicit String-returning overload
-            string replacementJson = _partReplaced
-                ? System.Text.Json.JsonSerializer.Serialize<List<ReplacementEntry>>(_replacements)
-                : "None";
-
-            // Do the same for the checklist
-            //string checklistJson = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
-
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userEmail = authState.User.Identity?.Name ?? "Unknown";
-
-            // 2. Handle Preventive Maintenance (PM) specific data
-            if (_selectedJob.JobType == "preventive")
-            {
-                // var checklistJson = JsonSerializer.Serialize(_filteredChecklist);
-                // await SupabaseClient.From<PmReport>().Insert(new PmReport
-                // {
-                //     JobId = _selectedJob.Id,
-                //     ChecklistJson = checklistJson
-                // });
-            }
-
-            // 1. FETCH EXISTING OVERTIME (To add current to existing)
-            float? finalOvertime = null;
-
-            if (_overtime && _currentOvertime.HasValue)
-            {
-                var currentAssignment = await SupabaseClient.From<JobAssignment>()
-                    .Where(x => x.Id == CurrentJobAssignmentId)
-                    .Single();
-
-                // If existing is null, start at 0; then add new hours
-                float existingHours = currentAssignment?.JobOverTime ?? 0f;
-                finalOvertime = existingHours + _currentOvertime.Value;
-            }
-
-
-
-
-            // 3. Update Job Assignment (Audit & Spare details)
-            // We use the Assignment ID directly (as in your 2nd method) for precision
-            var updateRequest =  SupabaseClient.From<JobAssignment>()
+            // 1. Update Job Assignments
+            await SupabaseClient.From<JobAssignment>()
                 .Where(x => x.Id == CurrentJobAssignmentId)
+                .Set(x => x.SpareReplace, auditJson)
+                // Note: Ensure 'status' column exists in your JobAssignment.cs POCO
                 .Set(x => x.status, "Completed")
-                .Set(x => x.JobActionBy, userEmail)
-                .Set(x => x.JobActionTime, DateTime.Now)
-                .Set(x => x.JobActionRemarks, _workDone)
-                .Set(x => x.SpareReplace, replacementJson);
-            //.Update();
-
-            // Only include Overtime in the update if the switch is ON
-            if (_overtime)
-            {
-
-                // Explicitly cast to (float?) to satisfy the Nullable`1 requirement
-                updateRequest = updateRequest.Set(x => x.JobOverTime, (float?)finalOvertime);
-
-                //updateRequest = updateRequest.Set(x => x.JobOverTime, finalOvertime);
-            }
-
-            await updateRequest.Update();
-
-            // 4. Sync PID Markers (Updating the Asset Database)
-            if (_partReplaced)
-            {
-                foreach (var item in _replacements)
-                {
-                    var markerData = new PIDMarker
-                    {
-                        LocationId = CurrentLocationId,
-                        Device_location = item.DeviceLocation,
-                        TagNumber = item.TagNumber, // Added Tag Number from cascading logic
-                        InstrumentType = item.InstrumentType,
-                        MakeModelType = item.NewMakeModel,
-                        Range = item.NewRange,
-                        Serial_number = item.NewSerialNumber,
-                        Replacement_cost = item.ApproxCost
-                    };
-
-                    // Logic: Insert new if manual/not found, otherwise update existing record
-                    if (item.IsManualLocation  || item.IsManualType || item.LocationId == null)
-                    {
-                        await SupabaseClient.From<PIDMarker>().Insert(markerData);
-                    }
-                    else
-                    {
-                        markerData.Id = item.LocationId.Value;
-                        await SupabaseClient.From<PIDMarker>().Update(markerData);
-                    }
-                }
-            }
-
-            // 5. Finalize Job Status
-            await SupabaseClient.From<Job>()
-                .Where(x => x.Id == _selectedJob.Id)
-                .Set(x => x.Status, "completed")
                 .Update();
 
-            Snackbar.Add("Job Completed and Asset Database Synced!", Severity.Success);
-            await LoadInitialData(); // Refresh UI
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Submission failed: {ex.Message}", Severity.Error);
+            // 2. Sync pid_markers
+            foreach (var item in _replacements)
+            {
+                var markerUpdate = new PIDMarker
+                {
+                    LocationId = CurrentLocationId,
+                    Device_location = item.DeviceLocation,
+                    InstrumentType = item.InstrumentType,
+                    MakeModelType = item.NewMakeModel,
+                    Range = item.NewRange,
+                    Serial_number = item.NewSerialNumber,
+                    Replacement_cost = item.ApproxCost
+                };
+
+                // Logic: If manual or no ID was found during fetch, Insert. Otherwise, Update.
+                if (item.IsManualLocation || item.IsManualType || item.LocationId == null)
+                {
+                    await SupabaseClient.From<PIDMarker>().Insert(markerUpdate);
+                }
+                else
+                {
+                    markerUpdate.Id = item.LocationId.Value;
+                    await SupabaseClient.From<PIDMarker>().Update(markerUpdate);
+                }
+            }
         }
         finally
         {
             _isBusy = false;
         }
     }
-
-
-
-
-
 }
 
 
