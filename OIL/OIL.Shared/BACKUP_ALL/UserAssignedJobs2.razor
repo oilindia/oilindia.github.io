@@ -22,7 +22,11 @@
         <MudTable Items="@_pendingJobs" Hover="true" Elevation="4" Class="rounded-lg" Loading="@_loading">
             <HeaderContent>
                 <MudTh>Job Name</MudTh>
+
                 <MudTh>Type</MudTh>
+
+                <MudTh>Description</MudTh>
+
                 <MudTh>Location</MudTh>
                 <MudTh>Action</MudTh>
             </HeaderContent>
@@ -32,6 +36,21 @@
                     <MudChip T="string" Color="@(context.JobType == "preventive" ? Color.Info : Color.Warning)" Size="Size.Small">
                         @context.JobType.ToUpper()
                     </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Description" Style="white-space: pre-wrap; word-break: break-word; min-width: 350px;">
+                    <div class="mb-2">
+                        <MudText Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">USER REPORTED DESCRIPTION:</MudText>
+                        <MudText Typo="Typo.body2">@context.Description</MudText>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(context.JobActionRemarks))
+                    {
+                        <MudDivider Class="mb-2" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">ENGINEER OBSERVATIONS:</MudText>
+                        <div style="font-size: 0.85rem; color: #555;">
+                            @((MarkupString)context.JobActionRemarks.Replace("\n", "<br />"))
+                        </div>
+                    }
                 </MudTd>
                 <MudTd>@context.LocationId</MudTd>
                 <MudTd>
@@ -94,6 +113,9 @@
 
             <MudDivider Class="my-6" />
             <div class="d-flex gap-4">
+
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="ProcessJobSubmission" StartIcon="@Icons.Material.Filled.MarkChatRead">Further Review</MudButton>
+
                 <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitJob" StartIcon="@Icons.Material.Filled.CheckCircle">Finalize & Submit</MudButton>
                 <MudButton Variant="Variant.Text" OnClick="CancelExecution">Cancel</MudButton>
             </div>
@@ -109,6 +131,14 @@
         [Column("job_type")] public string JobType { get; set; } = "";
         [Column("location_id")] public long? LocationId { get; set; }
         [Column("status")] public string Status { get; set; } = "pending";
+
+        // Matches your 'description' column in SQL
+        [Column("description")] public string Description { get; set; } = "";
+
+        // We will use this to store/display the cumulative trail of remarks
+        // Note: If you don't have this column in public.jobs, you should add it
+        // or rely solely on job_assignments.job_action_remarks.
+        [Column("job_action_remarks")] public string? JobActionRemarks { get; set; }
     }
 
     [Table("job_assignments")]
@@ -192,6 +222,53 @@
     private void HandleFileUpload(IBrowserFile file) { if (file != null) _uploadedFiles.Add(file); }
     private void CancelExecution() => _isExecuting = false;
 
+    private async Task ProcessJobSubmission()
+    {
+        try
+        {
+            // You can get the engineer name from your auth context or a service
+            string engineerName = "Engineer Name";
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            // Construct the remark string as requested:
+            // engineer name - information - then information added at : datetime
+            string newObservation = $"{engineerName} - {_workDone} - added at : {timestamp}";
+
+            // Append to existing remarks with a line break for the grid display
+            string updatedRemarks = string.IsNullOrEmpty(_selectedJob?.JobActionRemarks)
+                ? newObservation
+                : $"{_selectedJob.JobActionRemarks}\n{newObservation}";
+
+            // 1. Update the Job Assignment table (finding the record containing this job ID)
+            await SupabaseClient.From<JobAssignment>()
+                .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
+                .Set(x => x.JobAction, "pending")
+                .Set(x => x.JobActionBy, engineerName)
+                .Set(x => x.JobActionTime, DateTime.Now)
+                .Set(x => x.JobActionRemarks, updatedRemarks)
+                .Update();
+
+            // 2. Update the main Jobs table
+            // We update the status (remains 'pending' if yellow button is clicked)
+            // and save the remarks so they show up in the grid immediately.
+            await SupabaseClient.From<Job>()
+                .Where(x => x.Id == _selectedJob.Id)
+                .Set(x => x.Status, "pending")
+                .Set(x => x.JobActionRemarks, updatedRemarks)
+                .Update();
+
+            Snackbar.Add("Job updated for further review", Severity.Success);
+            _isExecuting = false;
+            await LoadInitialData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+
     private async Task SubmitJob() {
         try {
             if (_selectedJob!.JobType == "preventive") {
@@ -221,4 +298,14 @@
             await LoadInitialData();
         } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
+
+
+
+
+
+
+    
+
+
+
 }

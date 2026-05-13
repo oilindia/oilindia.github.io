@@ -8,6 +8,7 @@
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@using Newtonsoft.Json
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
     @if (!_isExecuting)
@@ -100,15 +101,90 @@
                     <MudItem xs="12" sm="6">
                         <MudSwitch T="bool" Value="@_partReplaced" ValueChanged="@((v) => { _partReplaced = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any part replaced?" />
                     </MudItem>
+                    
                     @if (_partReplaced)
                     {
                         <MudItem xs="12">
-                            <MudPaper Class="pa-4 grey lighten-5" Outlined="true">
-                                <MudTextField T="string" Label="Spare Parts / Instrument Details" @bind-Value="_spareDetails" Variant="Variant.Outlined" Placeholder="Model, Make, Serial..." />
-                            </MudPaper>
+                            <MudText Typo="Typo.h6" Class="mt-4">Replacement Details</MudText>
+                            @foreach (var entry in _replacements)
+                            {
+                                <MudPaper Class="pa-4 mb-4" Outlined="true">
+                                    <MudGrid Spacing="2">
+                                        @* Location Selection *@
+                                        <MudItem xs="12" sm="4">
+                                            @if (!entry.IsManualLocation)
+                                            {
+                                                <MudSelect T="string" Label="Device Location"
+                                                           Value="entry.DeviceLocation"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "location"))"
+                                                           AnchorOrigin="Origin.BottomCenter"
+                                                           AdornmentIcon="@Icons.Material.Filled.Search">
+                                                    @foreach (var loc in _availableLocations)
+                                                    {
+                                                        <MudSelectItem Value="@loc">@loc</MudSelectItem>
+                                                    }
+                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth="true" Color="Color.Primary">+ Add New Location</MudButton>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Location Name" @bind-Value="entry.DeviceLocation"
+                                                              AdornmentIcon="@Icons.Material.Filled.Edit"
+                                                              OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
+                                            }
+                                        </MudItem>
+
+                                        @* Instrument Type Selection *@
+                                        <MudItem xs="12" sm="4">
+                                            @if (!entry.IsManualType)
+                                            {
+                                                <MudSelect T="string" Label="Instrument Type"
+                                                           Value="entry.InstrumentType"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "type"))">
+                                                    @foreach (var type in _availableTypes)
+                                                    {
+                                                        <MudSelectItem Value="@type">@type</MudSelectItem>
+                                                    }
+                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth="true" Color="Color.Primary">+ Add New Type</MudButton>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Instrument Type" @bind-Value="entry.InstrumentType" />
+                                            }
+                                        </MudItem>
+
+                                        @* Old Data Display *@
+                                        <MudItem xs="12" sm="4">
+                                            <MudField Label="Old Data (Fetched)" Variant="Variant.Text" InnerPadding="false">
+                                                @(string.IsNullOrEmpty(entry.OldMakeModel) ? "No existing record" : $"{entry.OldMakeModel} | {entry.OldRange}")
+                                            </MudField>
+                                        </MudItem>
+
+                                        @* New Data Inputs *@
+                                        <MudItem xs="12" sm="3">
+                                            <MudTextField Label="New Make/Model" @bind-Value="entry.NewMakeModel" Variant="Variant.Outlined" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudTextField Label="New Range" @bind-Value="entry.NewRange" Variant="Variant.Outlined" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudTextField Label="New Serial #" @bind-Value="entry.NewSerialNumber" Variant="Variant.Outlined" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudNumericField Label="Approx Cost" @bind-Value="entry.ApproxCost" Variant="Variant.Outlined" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+                            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="AddNewRow" Variant="Variant.Filled">Add Another Part</MudButton>
                         </MudItem>
                     }
-                </MudGrid>
+                
+
+
+
+</MudGrid>
             }
 
             <MudDivider Class="my-6" />
@@ -150,6 +226,8 @@
         [Column("job_action_by")] public string? JobActionBy { get; set; }
         [Column("job_action_remarks")] public string? JobActionRemarks { get; set; }
         [Column("spare_replace")] public string? SpareReplace { get; set; }
+        [Column("status")] public string? status { get; set; }
+
     }
 
     [Table("pm_reports")]
@@ -194,7 +272,18 @@
             _pendingJobs = res.Models;
             var master = await SupabaseClient.From<ChecklistItem>().Get();
             _allMasterTasks = master.Models;
+
+
+            await LoadInitialDataPID();
+            AddNewRow(); // Start with one empty row
+
+
         } finally { _loading = false; }
+
+
+
+
+
     }
 
     private async Task StartJobExecution(Job job) {
@@ -298,4 +387,173 @@
             await LoadInitialData();
         } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    [Table("pid_markers")]
+    public class PIDMarker : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long? Id { get; set; }
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("tag_number")] public string TagNumber { get; set; }
+        [Column("instrument_type")] public string InstrumentType { get; set; }
+        [Column("make_model_type")] public string MakeModelType { get; set; }
+        [Column("range")] public string Range { get; set; }
+        [Column("coord_x")] public double? CoordX { get; set; }
+        [Column("coord_y")] public double? CoordY { get; set; }
+        [Column("device_location")] public string? Device_location { get; set; }
+        [Column("serial_number")] public string? Serial_number { get; set; }
+        [Column("replacement_cost")] public long? Replacement_cost { get; set; }
+    }
+
+    public class ReplacementEntry
+    {
+        // Selection IDs
+        public long? LocationId { get; set; }
+        public string DeviceLocation { get; set; }
+        public string InstrumentType { get; set; }
+
+        // Old Data (Fetched)
+        public string OldMakeModel { get; set; }
+        public string OldRange { get; set; }
+
+        // New Data (User Input)
+        public string NewMakeModel { get; set; }
+        public string NewRange { get; set; }
+        public string NewSerialNumber { get; set; }
+        public long? ApproxCost { get; set; }
+
+        // UI State: Toggle between dropdown and text input
+        // Renamed to match the logic exactly
+    public bool IsManualLocation { get; set; }
+    public bool IsManualType { get; set; }
+    }
+    
+    [Parameter] public long CurrentLocationId { get; set; } // Installation ID
+    [Parameter] public Guid CurrentJobAssignmentId { get; set; }
+
+    private List<ReplacementEntry> _replacements = new();
+    private List<string> _availableLocations = new();
+    private List<string> _availableTypes = new();
+    private bool _isBusy = false;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     await LoadInitialDataPID();
+    //     AddNewRow(); // Start with one empty row
+    // }
+
+    private async Task LoadInitialDataPID()
+    {
+        // Fetch existing locations for this specific Installation from pid_markers
+        var markers = await SupabaseClient.From<PIDMarker>()
+            .Where(x => x.LocationId == CurrentLocationId)
+            .Get();
+
+        _availableLocations = markers.Models
+            .Select(x => x.Device_location)
+            .Distinct()
+            .ToList();
+
+        _availableTypes = markers.Models
+                    .Select(x => x.InstrumentType)
+                    .Distinct()
+                    .ToList();
+    }
+
+    private void AddNewRow()
+    {
+        _replacements.Add(new ReplacementEntry { LocationId = CurrentLocationId });
+    }
+
+    private async Task OnLocationOrTypeChanged(ReplacementEntry entry, string newVal, string field)
+    {
+        if (field == "location") entry.DeviceLocation = newVal;
+        if (field == "type") entry.InstrumentType = newVal;
+
+        // Fetch old data if both are selected
+        if (!entry.IsManualLocation && !entry.IsManualType &&
+            !string.IsNullOrEmpty(entry.DeviceLocation) && !string.IsNullOrEmpty(entry.InstrumentType))
+        {
+            var match = await SupabaseClient.From<PIDMarker>()
+                .Where(x => x.LocationId == CurrentLocationId)
+                .Where(x => x.Device_location == entry.DeviceLocation)
+                .Where(x => x.InstrumentType == entry.InstrumentType)
+                .Single();
+
+            if (match != null)
+            {
+                entry.LocationId = match.Id;
+                entry.OldMakeModel = match.MakeModelType;
+                entry.OldRange = match.Range;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _isBusy = true;
+        try
+        {
+            // FIX: Use JsonSerializerOptions or just ensure the single-argument version is available
+            var auditJson = System.Text.Json.JsonSerializer.Serialize(_replacements);
+
+            // 1. Update Job Assignments
+            await SupabaseClient.From<JobAssignment>()
+                .Where(x => x.Id == CurrentJobAssignmentId)
+                .Set(x => x.SpareReplace, auditJson)
+                // Note: Ensure 'status' column exists in your JobAssignment.cs POCO
+                .Set(x => x.status, "Completed")
+                .Update();
+
+            // 2. Sync pid_markers
+            foreach (var item in _replacements)
+            {
+                var markerUpdate = new PIDMarker
+                {
+                    LocationId = CurrentLocationId,
+                    Device_location = item.DeviceLocation,
+                    InstrumentType = item.InstrumentType,
+                    MakeModelType = item.NewMakeModel,
+                    Range = item.NewRange,
+                    Serial_number = item.NewSerialNumber,
+                    Replacement_cost = item.ApproxCost
+                };
+
+                // Logic: If manual or no ID was found during fetch, Insert. Otherwise, Update.
+                if (item.IsManualLocation || item.IsManualType || item.LocationId == null)
+                {
+                    await SupabaseClient.From<PIDMarker>().Insert(markerUpdate);
+                }
+                else
+                {
+                    markerUpdate.Id = item.LocationId.Value;
+                    await SupabaseClient.From<PIDMarker>().Update(markerUpdate);
+                }
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}
+
+
+
+
+
+
 }

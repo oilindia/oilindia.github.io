@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
+@inject OIL.Shared.Services.CustomAuthStateProvider customAuthStateProvider
 
 <MudThemeProvider Theme="_currentTheme" />
 <MudPopoverProvider />
@@ -45,10 +46,25 @@
 
     [Inject] private NavigationManager Nav { get; set; }
 
-    private void Logout()
+    private async void Logout()
     {
-        // Add your specific logout logic here
-        Nav.NavigateTo("login");
+        try
+        {
+            // 1. Clear the token from local storage
+            
+            customAuthStateProvider.NotifyLogout();
+
+            // Add your specific logout logic here
+            Nav.NavigateTo("login");
+            
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+
+       
     }
 
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
