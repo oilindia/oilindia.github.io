@@ -1,5 +1,4 @@
-﻿@page "/pmexecution2"
-
+﻿@page "/pmexecution4"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -9,88 +8,158 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6">
-    <MudPaper Class="pa-6" Elevation="3">
-        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.BuildCircle" Class="mr-2" />
-            PM Execution Portal
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-12">
+    <MudPaper Class="pa-8" Elevation="3" Style="background-color: #f9f9f9;">
+        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-6" Style="font-weight: bold;">
+            <MudIcon Icon="@Icons.Material.Filled.AppRegistration" Class="mr-2" />
+            PM EXECUTION (@_detectedType)
         </MudText>
 
-        @* --- STEP 1: JOB SELECTION --- *@
-        <MudSelect T="Job" Label="Select Pending PM Job"
-                   Value="_selectedJob"
-                   ValueChanged="OnJobChanged"
-                   ToStringFunc="@(j => j == null ? "" : $"{j.JobName}")"
-                   Variant="Variant.Outlined"
-                   Placeholder="Choose a job..."
-                   Class="mb-6">
-            @foreach (var job in _pendingJobs)
-            {
-                <MudSelectItem Value="@job" />
-            }
-        </MudSelect>
+        @* --- STEP 1: JOB & PERMIT INFO --- *@
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" md="4">
+                <MudSelect T="Job" Label="Select Pending Job" Value="_selectedJob" ValueChanged="OnJobChanged"
+                           ToStringFunc="@(j => j == null ? "" : $"{j.JobName}")" Variant="Variant.Outlined">
+                    @foreach (var job in _pendingJobs) { <MudSelectItem Value="@job" /> }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_workPermit" Label="Work Permit Number" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_assignedTo" Label="Job Assigned To" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
 
         @if (_isSearching)
         {
             <div class="d-flex flex-column align-center my-8">
                 <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                <MudText Typo="Typo.caption" Class="mt-2">Processing Checklist Data...</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2">Fetching Location-Specific Checklist...</MudText>
             </div>
         }
-        else if (_filteredChecklist.Any())
+        else if (_selectedJob != null)
         {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
-                Location identified as: <b>@_detectedType</b>
-            </MudAlert>
+            @* --- SECTION A: CONTROLLERS --- *@
+            <MudExpansionPanels MultiExpansion="true" Class="mb-6">
+                <MudExpansionPanel Text="(A) Controllers (Functionality/Calibration)" IsExpanded="true">
+                    @foreach (var cat in _controllerCategories)
+                    {
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mt-4"><b>@cat</b></MudText>
+                        <div class="table-responsive">
+                            <table class="report-entry-table mb-4">
+                                <thead>
+                                    <tr>
+                                        <th>Unit</th><th>Make</th><th>Model</th><th>Range</th><th>SetPoint</th><th>PSV</th><th>Status</th><th>Bands</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < 3; i++)
+                                    {
+                                        var row = GetControllerRow(cat, i);
+                                        <tr>
+                                            <td><input @bind="row.Unit" /></td>
+                                            <td><input @bind="row.Make" /></td>
+                                            <td><input @bind="row.Model" /></td>
+                                            <td><input @bind="row.Range" /></td>
+                                            <td><input @bind="row.SetPoint" /></td>
+                                            <td><input @bind="row.PsvSetting" /></td>
+                                            <td><input @bind="row.CalibrationStatus" /></td>
+                                            <td><input @bind="row.Bands" /></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </MudExpansionPanel>
 
-            <MudText Typo="Typo.subtitle1" Class="mb-2">Tasks to Complete:</MudText>
-            @foreach (var item in _filteredChecklist.OrderBy(x => x.SortOrder))
-            {
-                <MudPaper Outlined="true" Class="pa-4 my-2">
-                    <MudGrid>
-                        <MudItem xs="12" sm="1" Class="d-flex align-center">
-                            <MudCheckBox T="bool" @bind-Value="item.IsCompleted" Color="Color.Primary" />
-                        </MudItem>
-                        <MudItem xs="12" sm="5" Class="d-flex align-center">
-                            <div>
-                                <MudText Typo="Typo.body1">@item.TaskDescription</MudText>
-                                @if (item.IsMandatory)
+                @* --- SECTION B: TRANSMITTERS --- *@
+                <MudExpansionPanel Text="(B) Transmitters & Gauges">
+                    @foreach (var cat in _transmitterCategories)
+                    {
+                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mt-4"><b>@cat</b></MudText>
+                        <table class="report-entry-table mb-4">
+                            <thead>
+                                <tr>
+                                    <th>Unit</th><th>Make</th><th>Model</th><th>Range</th><th>Calib Status</th><th>Equipment Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < 2; i++)
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Error">* Mandatory Task</MudText>
+                                    var row = GetTransmitterRow(cat, i);
+                                    <tr>
+                                        <td><input @bind="row.Unit" /></td>
+                                        <td><input @bind="row.Make" /></td>
+                                        <td><input @bind="row.Model" /></td>
+                                        <td><input @bind="row.Range" /></td>
+                                        <td><input @bind="row.CalibrationStatus" /></td>
+                                        <td><input @bind="row.EquipmentUsed" /></td>
+                                    </tr>
                                 }
-                            </div>
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudTextField T="string" @bind-Value="item.ItemObservation"
-                                          Label="Item Remarks/Value"
-                                          Variant="Variant.Text"
-                                          Margin="Margin.Dense"
-                                          Placeholder="Enter reading or condition..." />
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-            }
+                            </tbody>
+                        </table>
+                    }
+                </MudExpansionPanel>
 
-            <MudTextField T="string" @bind-Value="_generalObservations"
-                          Label="Final General Observations"
-                          Lines="3"
-                          Variant="Variant.Outlined"
-                          Class="mt-6"
-                          Placeholder="Overall summary of the PM..." />
+                @* --- SECTION C: CHECKPOINTS (Filtered by OCS/GCS) --- *@
+                <MudExpansionPanel Text="@($"(C) Other Check Points ({_detectedType})")">
+                    @foreach (var item in _filteredChecklist)
+                    {
+                        <MudGrid Class="align-center border-bottom pb-2">
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">@item.TaskDescription</MudText>
+                                @if (item.IsMandatory) { <MudText Typo="Typo.caption" Color="Color.Error">* Mandatory</MudText> }
+                            </MudItem>
+                            <MudItem xs="1"><MudCheckBox @bind-Value="item.IsCompleted" Color="Color.Primary" /></MudItem>
+                            <MudItem xs="3"><MudTextField @bind-Value="item.ItemObservation" Label="Comment" Margin="Margin.Dense" /></MudItem>
+                        </MudGrid>
+                    }
+                </MudExpansionPanel>
 
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Success"
-                       OnClick="SubmitFinalReport"
-                       Class="mt-6 py-3"
-                       FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.CheckCircle">
-                Submit PM Report
+                @* --- SECTION D: SPARES --- *@
+                <MudExpansionPanel Text="(D) Spares Consumed">
+                    <table class="report-entry-table">
+                        <thead><tr><th>Instrument</th><th>Tag No</th><th>Unit</th></tr></thead>
+                        <tbody>
+                            @foreach (var spare in _sparesList)
+                            {
+                                <tr>
+                                    <td><input @bind="spare.Instrument" /></td>
+                                    <td><input @bind="spare.TagNo" /></td>
+                                    <td><input @bind="spare.Unit" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudTextField @bind-Value="_generalObservations" Label="Any other observations" Lines="3" Variant="Variant.Outlined" />
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="SubmitFinalReport" 
+                       Class="mt-6 py-4" StartIcon="@Icons.Material.Filled.CloudUpload">
+                SUBMIT FINAL PM REPORT
             </MudButton>
         }
     </MudPaper>
 </MudContainer>
 
+<style>
+    .report-entry-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .report-entry-table th { background: #e0e0e0; border: 1px solid #ccc; padding: 4px; text-align: left; }
+    .report-entry-table td { border: 1px solid #ccc; padding: 0; }
+    .report-entry-table input { width: 100%; border: none; padding: 6px; outline: none; }
+    .report-entry-table input:focus { background-color: #fff9c4; }
+</style>
+
 @code {
+    // Models for table structure
+    public class ControllerRow { public string Category { get; set; } = ""; public string SlNo { get; set; } = ""; public string Unit { get; set; } = ""; public string Make { get; set; } = ""; public string Model { get; set; } = ""; public string Range { get; set; } = ""; public string SetPoint { get; set; } = ""; public string PsvSetting { get; set; } = ""; public string CalibrationStatus { get; set; } = ""; public string Bands { get; set; } = ""; }
+    public class TransmitterRow { public string Category { get; set; } = ""; public string SlNo { get; set; } = ""; public string Unit { get; set; } = ""; public string Make { get; set; } = ""; public string Model { get; set; } = ""; public string Range { get; set; } = ""; public string CalibrationStatus { get; set; } = ""; public string EquipmentUsed { get; set; } = ""; }
+    public class SpareItem { public string Instrument { get; set; } = ""; public string TagNo { get; set; } = ""; public string Unit { get; set; } = ""; }
+
     // --- MODELS ---
     [Table("locations")]
     public class Location : BaseModel
@@ -123,137 +192,121 @@
     }
 
     [Table("pm_reports")]
-    public class PmReport : BaseModel
-    {
+    public class PmReport : BaseModel {
         [Column("job_id")] public Guid JobId { get; set; }
         [Column("location_id")] public long? LocationId { get; set; }
+        [Column("work_permit")] public string WorkPermit { get; set; } = "";
+        [Column("assigned_to")] public string AssignedTo { get; set; } = "";
         [Column("observations")] public string Observations { get; set; } = "";
         [Column("checklist_data")] public string ChecklistJson { get; set; } = "";
-        [Column("completion_date")] public DateTime CompletionDate { get; set; } = DateTime.UtcNow;
+        [Column("section_a_controllers")] public string SectionAJson { get; set; } = "[]";
+        [Column("section_b_transmitters")] public string SectionBJson { get; set; } = "[]";
+        [Column("section_d_spares")] public string SectionDJson { get; set; } = "[]";
     }
 
-    // --- STATE ---
     private List<Job> _pendingJobs = new();
     private List<ChecklistItem> _allMasterTasks = new();
     private List<ChecklistItem> _filteredChecklist = new();
     private Job? _selectedJob;
-    private string _generalObservations = "";
     private string _detectedType = "";
     private bool _isSearching = false;
 
+    private string _workPermit = "";
+    private string _assignedTo = "";
+    private string _generalObservations = "";
+    private List<ControllerRow> _sectionARows = new();
+    private List<TransmitterRow> _sectionBRows = new();
+    private List<SpareItem> _sparesList = Enumerable.Range(0, 5).Select(_ => new SpareItem()).ToList();
+
+    private string[] _controllerCategories = { "Pressure Controller", "Temperature Controller", "Level Controller" };
+    private string[] _transmitterCategories = { "Pressure Transmitter", "Temperature Transmitter", "Level Transmitter", "Pressure Gauge", "Temperature Gauge" };
+
     protected override async Task OnInitializedAsync() => await LoadInitialData();
 
-    private async Task LoadInitialData()
-    {
-        try
-        {
-            var jobRes = await SupabaseClient.From<Job>()
-                .Where(x => x.Status == "pending" && x.JobType == "preventive")
-                .Get();
-            _pendingJobs = jobRes.Models;
-
-            var checkRes = await SupabaseClient.From<ChecklistItem>().Get();
-            _allMasterTasks = checkRes.Models;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Startup Error: " + ex.Message, Severity.Error);
-        }
+    private async Task LoadInitialData() {
+        var jobRes = await SupabaseClient.From<Job>()
+    .Where(x => x.Status == "pending")
+    .Where(x => x.JobType == "preventive") // Add this line
+    .Get();
+        _pendingJobs = jobRes.Models;
+        var checkRes = await SupabaseClient.From<ChecklistItem>().Get();
+        _allMasterTasks = checkRes.Models;
     }
 
-    private async Task OnJobChanged(Job job)
-    {
+    private async Task OnJobChanged(Job job) {
         if (job == null) return;
         _selectedJob = job;
         _isSearching = true;
         _filteredChecklist.Clear();
         StateHasChanged();
 
-        try
-        {
-            if (_selectedJob.LocationId.HasValue)
-            {
-                var locResponse = await SupabaseClient.From<Location>()
-                    .Where(x => x.Id == _selectedJob.LocationId.Value)
-                    .Get();
-
-                var location = locResponse.Models.FirstOrDefault();
+        try {
+            if (_selectedJob.LocationId.HasValue) {
+                var locRes = await SupabaseClient.From<Location>().Where(x => x.Id == _selectedJob.LocationId.Value).Get();
+                var location = locRes.Models.FirstOrDefault();
                 _detectedType = (location?.InstallationType?.Trim().ToUpper() == "GCS") ? "GCS" : "OCS";
 
                 _filteredChecklist = _allMasterTasks
                     .Where(x => x.InstallationType.Trim().ToUpper() == _detectedType)
-                    .Select(x => new ChecklistItem
-                    {
-                        Id = x.Id,
-                        TaskDescription = x.TaskDescription,
-                        InstallationType = x.InstallationType,
-                        IsMandatory = x.IsMandatory,
-                        SortOrder = x.SortOrder,
-                        IsCompleted = false,
-                        ItemObservation = ""
+                    .Select(x => new ChecklistItem {
+                        Id = x.Id, TaskDescription = x.TaskDescription, InstallationType = x.InstallationType,
+                        IsMandatory = x.IsMandatory, SortOrder = x.SortOrder
                     }).ToList();
             }
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Selection Error: " + ex.Message, Severity.Error);
-        }
-        finally
-        {
-            _isSearching = false;
-            StateHasChanged();
-        }
+        finally { _isSearching = false; StateHasChanged(); }
     }
 
-    private async Task SubmitFinalReport()
-    {
-        if (_filteredChecklist.Any(x => x.IsMandatory && !x.IsCompleted))
-        {
-            Snackbar.Add("Mandatory tasks are incomplete!", Severity.Warning);
-            return;
+    private ControllerRow GetControllerRow(string cat, int index) {
+        var row = _sectionARows.FirstOrDefault(r => r.Category == cat && r.SlNo == (index + 1).ToString());
+        if (row == null) { row = new ControllerRow { Category = cat, SlNo = (index + 1).ToString() }; _sectionARows.Add(row); }
+        return row;
+    }
+
+    private TransmitterRow GetTransmitterRow(string cat, int index) {
+        var row = _sectionBRows.FirstOrDefault(r => r.Category == cat && r.SlNo == (index + 1).ToString());
+        if (row == null) { row = new TransmitterRow { Category = cat, SlNo = (index + 1).ToString() }; _sectionBRows.Add(row); }
+        return row;
+    }
+
+    private async Task SubmitFinalReport() {
+        if (_filteredChecklist.Any(x => x.IsMandatory && !x.IsCompleted)) {
+            Snackbar.Add("Mandatory tasks are incomplete!", Severity.Warning); return;
         }
 
-        bool? result = await DialogService.ShowMessageBoxAsync("Submit Report", "Confirm PM completion?", "Submit", "Cancel");
-        if (result == true)
+        try
         {
-            try
+            // CREATE A CLEAN LIST WITHOUT SUPABASE ATTRIBUTES
+            var cleanChecklist = _filteredChecklist.Select(x => new
             {
-                // Now includes both Status AND Observation for every single line item
-                var checklistSummary = _filteredChecklist.Select(x => new
-                {
-                    Task = x.TaskDescription,
-                    Done = x.IsCompleted,
-                    Notes = x.ItemObservation
-                });
+                task = x.TaskDescription,
+                done = x.IsCompleted,
+                notes = x.ItemObservation
+            }).ToList();
 
-                var json = System.Text.Json.JsonSerializer.Serialize(checklistSummary);
-
-                var report = new PmReport
-                {
-                    JobId = _selectedJob!.Id,
-                    LocationId = _selectedJob.LocationId,
-                    Observations = _generalObservations,
-                    ChecklistJson = json
-                };
-
-                await SupabaseClient.From<PmReport>().Insert(report);
-
-                await SupabaseClient.From<Job>()
-                    .Where(x => x.Id == _selectedJob.Id)
-                    .Set(x => x.Status, "completed")
-                    .Update();
-
-                Snackbar.Add("PM Report and Jobs updated successfully!", Severity.Success);
-
-                _selectedJob = null;
-                _filteredChecklist.Clear();
-                _generalObservations = "";
-                await LoadInitialData();
-            }
-            catch (Exception ex)
+            var report = new PmReport
             {
-                Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
-            }
+                JobId = _selectedJob!.Id,
+                LocationId = _selectedJob.LocationId,
+                WorkPermit = _workPermit,
+                AssignedTo = _assignedTo,
+                Observations = _generalObservations,
+                // SERIALIZE THE CLEAN LIST, NOT THE MODELS
+                ChecklistJson = System.Text.Json.JsonSerializer.Serialize(cleanChecklist),
+
+                SectionAJson = System.Text.Json.JsonSerializer.Serialize(_sectionARows.Where(r => !string.IsNullOrEmpty(r.Unit))),
+                SectionBJson = System.Text.Json.JsonSerializer.Serialize(_sectionBRows.Where(r => !string.IsNullOrEmpty(r.Unit))),
+                SectionDJson = System.Text.Json.JsonSerializer.Serialize(_sparesList.Where(s => !string.IsNullOrEmpty(s.Instrument)))
+            };
+
+            await SupabaseClient.From<PmReport>().Insert(report);
+
+            //await SupabaseClient.From<PmReport>().Insert(report);
+            await SupabaseClient.From<Job>().Where(x => x.Id == _selectedJob.Id).Set(x => x.Status, "completed").Update();
+            Snackbar.Add("Report successfully submitted!", Severity.Success);
+            _selectedJob = null;
+            await LoadInitialData();
         }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
 }

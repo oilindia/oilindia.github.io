@@ -1,0 +1,407 @@
+﻿@page "/pmexecution5"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
+@using System.Text.Json
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject OIL.Shared.Services.CustomAuthStateProvider AuthStateProvider
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-12">
+    <MudPaper Class="pa-12" Elevation="3" Style="background-color: #f9f9f9;">
+        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-6" Style="font-weight: bold;">
+            <MudIcon Icon="@Icons.Material.Filled.AppRegistration" Class="mr-2" />
+            PM EXECUTION (@(_detectedType ?? "SELECT JOB"))
+        </MudText>
+
+        @* --- STEP 1: JOB & PERMIT INFO --- *@
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" md="4">
+                <MudSelect T="Job" Label="Select Pending Job" Value="_selectedJob" ValueChanged="OnJobChanged"
+                           ToStringFunc="@(j => j == null ? "" : $"{j.JobName}")" Variant="Variant.Outlined">
+                    @foreach (var job in _pendingJobs)
+                    {
+                        <MudSelectItem Value="@job" />
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_workPermit" Label="Notification Number" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_assignedTo" Label="Job Assigned To" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        @if (_isSearching)
+        {
+            <div class="d-flex flex-column align-center my-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.caption" Class="mt-2">Fetching Location-Specific Checklist...</MudText>
+            </div>
+        }
+
+        @if (_selectedJob != null)
+        {
+            <MudExpansionPanel Text="@($"({_detectedType}) Instrument & Calibration")" IsExpanded="true">
+                <div class="table-responsive">
+                    <table class="report-entry-table mb-4">
+                        <thead>
+                            <tr>
+                                <th>Sl.No</th>
+                                <th>Unit/Location</th>
+                                <th>Instrument</th>
+                                <th>Make/Model</th>
+                                <th>Range</th>
+                                <th>Qty</th>
+                                <th>Testing Type</th>
+                                <th>Cert No</th>
+                                <th>Remarks</th>
+                                <th>Cerificates</th>
+                                <th>Save Draft</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in _ocsRows)
+                            {
+                                <tr>
+                                    <td>@row.SlNo</td>
+                                    <td>
+                                        @if (_availableMarkers.Any())
+                                        {
+                                            <select class="form-select-sm"
+                                                    value="@row.Unit"
+                                                    @onchange="@(e => OnUnitChanged(row, e.Value?.ToString()))">
+                                                <option value="">--Select Location--</option>
+                                                @foreach (var val in _availableMarkers.Select(m => m.DeviceLocation).Distinct())
+                                                {
+                                                    <option value="@val">@val</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <input @bind="row.Unit" placeholder="Manual Entry" />
+                                        }
+                                    </td>
+                                    <td>
+                                        @{ var filteredInstruments = GetFilteredInstruments(row.Unit); }
+                                        @if (filteredInstruments.Any())
+                                        {
+                                            <select class="form-select-sm"
+                                                    value="@row.Instrument"
+                                                    @onchange="@(e => OnInstrumentChanged(row, e.Value?.ToString()))">
+                                                <option value="">--Select Instrument--</option>
+                                                @foreach (var inst in filteredInstruments)
+                                                {
+                                                    <option value="@inst">@inst</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <input @bind="row.Instrument" placeholder="Manual Entry" />
+                                        }
+                                    </td>
+                                    <td><input @bind="row.MakeModel" /></td>
+                                    <td><input @bind="row.Range" /></td>
+                                    <td>
+                                        <input type="number" @bind="row.Quantity" @onblur="row.SyncResults" style="width:50px" />
+                                    </td>
+                                    <td>
+                                        @foreach (var res in row.Results)
+                                        {
+                                            <select class="form-select-sm mb-1" @bind="res.TestType">
+                                                <option value="Functionality">Functionality</option>
+                                                <option value="Calibration">Calibration</option>
+                                            </select>
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var res in row.Results)
+                                        {
+                                            <div class="mb-1 d-flex align-center" style="height: 30px;">
+                                                <MudText Typo="Typo.caption">@res.CertificateNo</MudText>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var res in row.Results)
+                                        {
+                                            <input class="mb-1" @bind="res.Remarks" placeholder="Remarks" />
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var res in row.Results)
+                                        {
+                                            <div class="mb-1 d-flex justify-center" style="height: 30px;">
+                                                @if (res.TestType == "Calibration")
+                                                {
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Color="Color.Info"
+                                                                   OnClick="() => OpenCalibration(row, res)" />
+                                                }
+                                                else
+                                                {
+                                                    <div style="width:32px;"></div>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        @foreach (var res in row.Results)
+                                        {
+                                            <div class="mb-1 d-flex justify-center" style="height: 30px;">
+                                                
+                                                    <MudIconButton Icon="@Icons.Material.Filled.SaveAs" Size="Size.Small" Color="Color.Success"
+                                                               OnClick="() => SaveDraft()" />
+                                               
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddManualRow" Color="Color.Primary">Add Manual Row</MudButton>
+            </MudExpansionPanel>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-6" OnClick="SaveDraft" StartIcon="@Icons.Material.Filled.Save">
+                Save Progress
+            </MudButton>
+        }
+    </MudPaper>
+</MudContainer>
+
+@* --- CALIBRATION DETAIL OVERLAY --- *@
+@if (_isCalibrationVisible && _activeResult != null && _activeRowRef != null)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+        <MudPaper Style="width: 900px; max-width: 95%; max-height: 90vh; overflow-y: auto; padding: 24px;" Elevation="25">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6"><b>Calibration Report:</b> @_activeResult.CertificateNo</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseCalibration" />
+            </div>
+
+            <MudGrid Class="mb-4">
+                <MudItem xs="6"><MudTextField Label="Instrument" Value="@_activeRowRef.Instrument" ReadOnly Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="6"><MudTextField Label="Range" Value="@_activeRowRef.Range" ReadOnly Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+            </MudGrid>
+
+            @if (_activeResult.Calibration is ControllerInstrumentData ctrlData)
+            {
+                @RenderControllerTable(ctrlData)
+                @RenderControllerSimulation(ctrlData)
+            }
+            else
+            {
+                @RenderStandardTable(_activeResult.Calibration as BaseInstrumentData)
+            }
+
+            <div class="d-flex justify-end mt-6">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseCalibration" Style="width:200px">Apply Calibration</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    // --- DATABASE & STATE ---
+    private List<Job> _pendingJobs = new();
+    private List<PidMarker> _availableMarkers = new();
+    private List<OcsInventoryRow> _ocsRows = new();
+    private Job? _selectedJob;
+    private string _detectedType = "";
+    private bool _isSearching = false, _isCalibrationVisible = false;
+    private string _workPermit = "", _assignedTo = "";
+    private ResultEntry? _activeResult;
+    private OcsInventoryRow? _activeRowRef;
+
+    protected override async Task OnInitializedAsync() => await LoadInitialData();
+
+    private async Task LoadInitialData()
+    {
+        var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending").Where(x => x.JobType == "preventive").Get();
+        _pendingJobs = jobRes.Models;
+
+        // Auto-fill assigned to current user (can be modified)
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userEmail = authState.User.Identity?.Name ?? "Unknown";
+
+        _assignedTo = userEmail.ToString();
+    }
+
+    private async Task OnJobChanged(Job job)
+    {
+        if (job == null) return;
+        _selectedJob = job;
+        _isSearching = true;
+        StateHasChanged();
+
+        var locRes = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId).Get();
+        var location = locRes.Models.FirstOrDefault();
+        _detectedType = location?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+
+        var markerRes = await SupabaseClient.From<PidMarker>().Where(x => x.LocationId == job.LocationId).Get();
+        _availableMarkers = markerRes.Models;
+
+        _ocsRows = _availableMarkers.Any() 
+            ? _availableMarkers.Select((m, i) => new OcsInventoryRow { 
+                SlNo = (i + 1).ToString(), Unit = m.DeviceLocation ?? "", Instrument = m.InstrumentType ?? "", 
+                MakeModel = m.MakeModelType ?? "", Range = m.Range ?? "" }).ToList()
+            : new List<OcsInventoryRow> { new() { SlNo = "1" } };
+
+        _isSearching = false;
+    }
+
+    private void AddManualRow() => _ocsRows.Add(new OcsInventoryRow { SlNo = (_ocsRows.Count + 1).ToString() });
+
+    private void OpenCalibration(OcsInventoryRow row, ResultEntry result)
+    {
+        _activeRowRef = row;
+        _activeResult = result;
+        // Initialize specific data types if null
+        if (_activeResult.Calibration == null)
+        {
+            if (row.Instrument.Contains("Controller")) _activeResult.Calibration = new ControllerInstrumentData();
+            else _activeResult.Calibration = new BaseInstrumentData();
+        }
+        _isCalibrationVisible = true;
+    }
+
+    private void CloseCalibration() => _isCalibrationVisible = false;
+
+    private List<string> GetFilteredInstruments(string unit) => 
+        _availableMarkers.Where(m => m.DeviceLocation == unit).Select(m => m.InstrumentType ?? "").Distinct().ToList();
+
+    private void OnUnitChanged(OcsInventoryRow row, string? val) { row.Unit = val ?? ""; row.Instrument = ""; }
+
+    private void OnInstrumentChanged(OcsInventoryRow row, string? val)
+    {
+        row.Instrument = val ?? "";
+        var m = _availableMarkers.FirstOrDefault(x => x.DeviceLocation == row.Unit && x.InstrumentType == row.Instrument);
+        if (m != null) { row.MakeModel = m.MakeModelType ?? ""; row.Range = m.Range ?? ""; }
+    }
+
+    private async Task SaveDraft()
+    {
+        var report = new PmReport { JobId = _selectedJob!.Id, WorkPermit = _workPermit, SectionAJson = JsonSerializer.Serialize(_ocsRows) };
+        await SupabaseClient.From<PmReport>().Upsert(report);
+        Snackbar.Add("Draft Saved", Severity.Success);
+    }
+
+    // --- RENDER FRAGMENTS ---
+    private RenderFragment RenderStandardTable(BaseInstrumentData? data) => __builder => {
+        if (data == null) return;
+        <table class="report-entry-table">
+            <thead><tr><th>Input</th><th>Input %</th><th>Expected</th><th>Actual</th><th>Remarks</th></tr></thead>
+            <tbody>
+                @foreach (var row in data.CalibrationTable) {
+                    <tr>
+                        <td><input @bind="row.InputValue" /></td>
+                        <td><input @bind="row.InputPercentage" /></td>
+                        <td><input @bind="row.ExpectedOutput" /></td>
+                        <td><input @bind="row.ActualOutput" class="highlight-input" /></td>
+                        <td><input @bind="row.CalRemarks" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderControllerTable(ControllerInstrumentData data) => __builder => {
+        <table class="report-entry-table">
+            <thead><tr><th>Input</th><th>Measured</th><th>Error</th><th>Remarks</th></tr></thead>
+            <tbody>
+                @foreach (var row in data.CalibrationTable) {
+                    <tr>
+                        <td><input @bind="row.InputValue" /></td>
+                        <td><input @bind="row.ActualOutput" class="highlight-input" /></td>
+                        <td><input @bind="row.Error" /></td>
+                        <td><input @bind="row.CalRemarks" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderControllerSimulation(ControllerInstrumentData data) => __builder => {
+        <div class="mt-4 pa-4" style="background-color: #eee;">
+            <MudGrid>
+                <MudItem xs="3"><MudTextField Label="Set Point" @bind-Value="data.SetPoint" /></MudItem>
+                <MudItem xs="3"><MudTextField Label="Action" @bind-Value="data.ActuatorAction" /></MudItem>
+            </MudGrid>
+            <table class="report-entry-table mt-2">
+                <thead><tr><th>Sim Input</th><th>Output (psi)</th></tr></thead>
+                <tbody>
+                    @foreach (var sim in data.SimulationTable) {
+                        <tr><td><input @bind="sim.ProcessInput" /></td><td><input @bind="sim.OutputPressure" /></td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    };
+
+    // --- DOMAIN MODELS ---
+    public class OcsInventoryRow {
+        public string SlNo { get; set; } = "";
+        public string Unit { get; set; } = "";
+        public string Instrument { get; set; } = "";
+        public string MakeModel { get; set; } = "";
+        public string Range { get; set; } = "";
+        public int Quantity { get; set; } = 1;
+        public List<ResultEntry> Results { get; set; } = new() { new() };
+
+        public void SyncResults() {
+            if (Quantity < 1) Quantity = 1;
+            while (Results.Count < Quantity) Results.Add(new ResultEntry { CertificateNo = $"CERT-{Guid.NewGuid().ToString()[..5].ToUpper()}" });
+            while (Results.Count > Quantity) Results.RemoveAt(Results.Count - 1);
+        }
+    }
+
+    public class ResultEntry {
+        public string TestType { get; set; } = "Functionality";
+        public string CertificateNo { get; set; } = "";
+        public string Remarks { get; set; } = "";
+        public ICalibrationData? Calibration { get; set; }
+    }
+
+    public interface ICalibrationData { string MasterCalibrator { get; set; } }
+
+    public class BaseInstrumentData : ICalibrationData {
+        public string MasterCalibrator { get; set; } = "FLUKE 718Ex";
+        public List<CalibrationRow> CalibrationTable { get; set; } = new() { new(), new(), new(), new(), new() };
+    }
+
+    public class ControllerInstrumentData : BaseInstrumentData {
+        public string SetPoint { get; set; } = "";
+        public string ActuatorAction { get; set; } = "";
+        public List<ProcessSimulationRow> SimulationTable { get; set; } = new() { new(), new() };
+    }
+
+    public class CalibrationRow {
+        public string InputValue { get; set; } = "";
+        public string InputPercentage { get; set; } = "";
+        public string ExpectedOutput { get; set; } = "";
+        public string ActualOutput { get; set; } = "";
+        public string Error { get; set; } = "";
+        public string CalRemarks { get; set; } = "";
+    }
+
+    public class ProcessSimulationRow { public string ProcessInput { get; set; } = ""; public string OutputPressure { get; set; } = ""; }
+
+    [Table("locations")] public class Location : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("installation_type")] public string? InstallationType { get; set; } }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; [Column("location_id")] public long? LocationId { get; set; } [Column("status")] public string Status { get; set; } = "pending"; [Column("job_type")] public string JobType { get; set; }  }
+    [Table("pid_markers")] public class PidMarker : BaseModel { [Column("location_id")] public long? LocationId { get; set; } [Column("device_location")] public string? DeviceLocation { get; set; } [Column("instrument_type")] public string? InstrumentType { get; set; } [Column("make_model_type")] public string? MakeModelType { get; set; } [Column("range")] public string? Range { get; set; } }
+    [Table("pm_reports")] public class PmReport : BaseModel { [PrimaryKey("job_id")] public Guid JobId { get; set; } [Column("work_permit")] public string WorkPermit { get; set; } = ""; [Column("section_a_controllers")] public string SectionAJson { get; set; } = "[]"; }
+}
+
+<style>
+    .report-entry-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .report-entry-table th { background: #e0e0e0; border: 1px solid #ccc; padding: 4px; }
+    .report-entry-table td { border: 1px solid #ccc; padding: 0; }
+    .report-entry-table input, .report-entry-table select { width: 100%; border: none; padding: 6px; outline: none; background: transparent; }
+    .highlight-input { background-color: #fffde7 !important; font-weight: bold; }
+</style>
