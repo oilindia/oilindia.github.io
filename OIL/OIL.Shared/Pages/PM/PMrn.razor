@@ -11,93 +11,8 @@
 @inject IJSRuntime JSRuntime
 @using System.Text.Json.Serialization
 
-
 <style>
-    .job-done-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: -1px; /* Overlap with previous table border */
-        font-size: 11px; /* Slightly smaller to fit landscape data */
-    }
-
-        .job-done-table th, .job-done-table td {
-            border: 1px solid #000;
-            padding: 4px;
-            vertical-align: top;
-            word-wrap: break-word;
-        }
-
-        .job-done-table th {
-            background-color: #f9f9f9;
-            font-weight: normal;
-            text-align: left;
-        }
-
-    .bold-vertical {
-        font-weight: bold;
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-        white-space: nowrap;
-        background-color: #fff !important;
-    }
-
-    /* Ensure the cells don't collapse too much in landscape */
-    .job-done-table td {
-        height: 40px;
-    }
-
-    .text-center {
-        text-align: center;
-    }
-
-
-    .report-body-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 13px;
-        table-layout: fixed;
-        border: 1px solid #000;
-    }
-
-        .report-body-table td {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            vertical-align: middle;
-        }
-
-    .inner-list-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-        .inner-list-table td {
-            border: none;
-            border-bottom: 1px solid #000;
-            padding: 4px 8px;
-        }
-
-        .inner-list-table tr:last-child td {
-            border-bottom: none;
-        }
-
-    .no-padding {
-        padding: 0 !important;
-    }
-
-    .text-right {
-        text-align: right;
-    }
-
-    .font-bold {
-        font-weight: bold;
-    }
-
-    /* Adjustments for the specific layout flow */
-    .report-body-table tr td {
-        height: 30px;
-    }
-
-    /* --- Base UI Styles --- */
+    /* --- Modal & UI Layout (Screen Only) --- */
     .modal-overlay {
         position: fixed;
         z-index: 1000;
@@ -105,92 +20,165 @@
         top: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.85);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        backdrop-filter: blur(4px);
+        background: rgba(0,0,0,0.92);
+        display: block;
         overflow-y: auto;
-        padding-bottom: 50px;
+        padding: 40px 0;
+        backdrop-filter: blur(4px);
     }
 
-    /* --- Report Container Styles --- */
+    /* --- Report Paper Styles --- */
+    .landscape-report, .portrait-report {
+        background: white !important;
+        color: black !important;
+        margin: 0 auto 40px auto;
+        font-family: 'Times New Roman', serif;
+        box-shadow: 0 0 30px rgba(0,0,0,0.7);
+        box-sizing: border-box;
+        position: relative;
+        z-index: 1001;
+        display: block;
+    }
+
+    /* Link classes to named pages for mixed orientation */
     .landscape-report {
         width: 297mm;
         min-height: 210mm;
-        background: white;
-        color: black;
         padding: 10mm;
-        margin: 20px auto;
-        font-family: 'Times New Roman', serif;
+        page: landscape-page;
     }
 
     .portrait-report {
         width: 210mm;
         min-height: 297mm;
-        background: white;
-        color: black;
-        padding: 10mm;
-        margin: 20px auto;
-        font-family: 'Times New Roman', serif;
+        padding: 20mm;
+        page: portrait-page;
     }
 
     /* --- Table Formatting --- */
-    .oil-header-table {
-        width: 100%;
-        border: 1px solid black;
-        border-bottom: none;
-    }
-
-    .report-table {
+    .report-body-table, .job-done-table, .oil-header-table, .report-table {
         width: 100%;
         border-collapse: collapse;
         table-layout: fixed;
-        color: black;
+        border: 1px solid #000;
+        background: white;
     }
 
-        .report-table th, .report-table td {
-            border: 1px solid black !important;
+        .report-body-table td, .job-done-table td, .job-done-table th, .report-table td, .report-table th {
+            border: 1px solid #000;
             padding: 5px;
-            text-align: center;
-            font-size: 11px;
+            vertical-align: middle;
             word-wrap: break-word;
+            font-size: 11px;
+            color: black !important;
         }
 
-    /* --- Print Logic --- */
+    .bold-vertical {
+        font-weight: bold;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        text-align: center;
+        background-color: #fff !important;
+        padding: 10px 2px !important;
+    }
+
+    .inner-list-table td {
+        border: none !important;
+        border-bottom: 1px solid #000 !important;
+        padding: 4px;
+    }
+
+    .inner-list-table tr:last-child td {
+        border-bottom: none !important;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .font-bold {
+        font-weight: bold;
+    }
+
+    .no-padding {
+        padding: 0 !important;
+    }
+
+    /* --- FINAL PRINT ENGINE FIX --- */
     @@media print {
-        .no-print {
-            display: none !important;
+        /* 1. Define Named Pages */
+        @@page landscape-page {
+            size: A4 landscape;
+            margin: 10mm;
         }
 
+        @@page portrait-page {
+            size: A4 portrait;
+            margin: 10mm;
+        }
+        /* 2. Brute Force Visibility */
+        /* Hide everything first */
         body * {
-            visibility: hidden;
+            visibility: hidden !important;
+        }
+        /* 3. Re-enable ONLY the report tree */
+        /* We must make the modal and printable area visible or their children stay hidden */
+        .modal-overlay,
+        #printable-area,
+        #printable-area *,
+        .landscape-report,
+        .portrait-report {
+            visibility: visible !important;
+        }
+        /* 4. Flatten the layout for the print engine */
+        html, body {
+            height: auto !important;
+            overflow: visible !important;
+            background: white !important;
         }
 
-        #printable-area, #printable-area * {
-            visibility: visible;
+        .modal-overlay {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            overflow: visible !important;
         }
 
         #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-        }
-        /* Orientation Logic */
-        .print-landscape {
-            size: A4 landscape;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
         }
 
-        .print-portrait {
-            size: A4 portrait;
+        .landscape-report, .portrait-report {
+            box-shadow: none !important;
+            margin: 0 !important;
+            width: 100% !important;
+            border: none !important;
+            /* Ensure page breaks trigger orientation change */
+            break-after: page;
         }
-
-        .page-break {
-            page-break-after: always;
+        /* Hide UI buttons and framework extras */
+        .no-print, .mud-appbar, .mud-drawer, .mud-overlay {
+            display: none !important;
         }
     }
 </style>
+
+
+
+
+
+
+
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
     <MudPaper Elevation="3" Class="pa-4">
@@ -215,39 +203,37 @@
 @if (_isGcsModalOpen)
 {
     <div class="modal-overlay">
-        <div class="no-print pa-4 sticky-top d-flex justify-center bg-dark" style="width: 100%; gap: 10px;">
-            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">Print GCS Summary</MudButton>
-            <MudButton OnClick="() => _isGcsModalOpen = false" Variant="Variant.Filled" Color="Color.Error">Close</MudButton>
-        </div>
+        
+            <div class="no-print d-flex justify-center py-4 mb-6"
+                 style="position: sticky; top: 0; z-index: 1100; background: #1a1a1a; gap: 20px; width: 100%;">
+                <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Print">
+                    PRINT REPORT
+                </MudButton>
+                <MudButton OnClick="() => _isGcsModalOpen = false" Variant="Variant.Outlined"
+                           Style="color: white; border-color: white;">
+                    CLOSE
+                </MudButton>
+            </div>
 
-        <div class="d-flex justify-space-between align-center mb-6 no-print" style="position: sticky; top: 0; background: #f0f0f0; z-index: 10; padding: 10px 0;">
-            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" Size="Size.Large">
-                Print Report
-            </MudButton>
-            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isGcsModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
-        </div>
-
-
-        <div id="printable-area" class="print-landscape">
+        <div id="printable-area">
             <div class="landscape-report">
                 <table class="oil-header-table">
                     <tr>
-                        <td width="20%" rowspan="3" class="logo-container">
-                            <div class="logo-placeholder">
-                                <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 40px;">
-                                <div class="logo-text-bold">ऑयल इंडिया</div>
-                                <div class="logo-text-bold">OIL INDIA</div>
-                            </div>
+                        <td width="20%" rowspan="3" class="text-center">
+                            <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 50px;">
+                            <div class="logo-text-bold">ऑयल इंडिया</div>
+                            <div class="logo-text-bold">OIL INDIA</div>
                         </td>
                         <td class="text-center header-main-title">
-                            <div>ऑयल इंडिया लिमिटेड</div>
-                            <div class="sub-dept-hindi">यंत्रीकरण विभाग</div>
-                            <div class="dept-english">INSTRUMENTATION DEPARTMENT</div>
-                            <div class="location-text">दुलियाजान / DULIAJAN</div>
-                            <div class="company-english-bold">OIL INDIA LIMITED</div>
-                            <div class="internal-use-text">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
+                            <div style="font-size: 18px; font-weight: bold;">ऑयल इंडिया लिमिटेड</div>
+                            <div style="font-size: 16px;">यंत्रीकरण विभाग</div>
+                            <div style="font-size: 14px; font-weight: bold;">INSTRUMENTATION DEPARTMENT</div>
+                            <div>दुलियाजान / DULIAJAN</div>
+                            <div class="font-bold">OIL INDIA LIMITED</div>
+                            <div style="font-style: italic; font-size: 11px;">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
                         </td>
-                        <td width="20%" class="ref-section">
+                        <td width="20%" style="padding: 10px; font-size: 12px; border-left: 1px solid black;">
                             <div><strong>Ref No:</strong> @_selectedReport.WorkPermit</div>
                             <div><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</div>
                         </td>
@@ -256,26 +242,22 @@
 
                 <table class="report-body-table">
                     <tr>
-                        <td colspan="2" width="40%"><strong>Ref no:</strong> @_selectedReport.WorkPermit</td>
-                        <td width="25%" class="text-center"><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</td>
-                        <td width="35%"><strong>PM Date:</strong> @_selectedReport.CompletionDateLocal</td>
+                        <td colspan="2"><strong>Ref no:</strong> @_selectedReport.WorkPermit</td>
+                        <td class="text-center"><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</td>
+                        <td><strong>PM Date:</strong> @_selectedReport.CompletionDateLocal</td>
                     </tr>
-
                     <tr>
                         <td colspan="4"><strong>Notification Number:</strong> @_selectedReport.WorkPermit</td>
                     </tr>
-
                     <tr>
                         <td colspan="2"><strong>A] Comp.Sl.No :</strong> @_selectedReport.CompSlNo</td>
                         <td colspan="2" class="text-center"><strong>Installation Name -</strong> @_selectedReport.InstallationName</td>
                     </tr>
-
                     <tr>
-                        <td colspan="4" class="text-right" style="padding-right: 15%;">
+                        <td colspan="4" class="text-right" style="padding-right: 10%;">
                             <strong>Make -</strong> @_selectedReport.MakeModel
                         </td>
                     </tr>
-
                     <tr>
                         <td width="20%" class="text-center font-bold">Visual Checking Points</td>
                         <td colspan="3" class="no-padding">
@@ -291,16 +273,16 @@
                     </tr>
                 </table>
 
-                <table class="job-done-table">
+                <table class="job-done-table" style="margin-top: -1px;">
                     <thead>
-                        <tr>
-                            <th width="5%" class="rotate-text">Job Done</th>
+                        <tr style="background-color: #f2f2f2;">
+                            <th width="5%" class="text-center">#</th>
                             <th width="15%">Unit</th>
                             <th width="15%">Instrument</th>
                             <th width="10%">Make & Model</th>
                             <th width="10%">Range</th>
-                            <th width="15%">Servicing - Cleaning/ Calibration/ Functionality Testing/ Replaced with pre Calibrated instrument</th>
-                            <th width="12%">Calibration Certificate No. (attached with this report)</th>
+                            <th width="15%">Servicing Details</th>
+                            <th width="12%">Cert No.</th>
                             <th width="18%">Remarks</th>
                         </tr>
                     </thead>
@@ -310,7 +292,7 @@
                             <tr>
                                 @if (item == _currentJobItems.First())
                                 {
-                                    <td rowspan="@_currentJobItems.Count" class="text-center bold-vertical">Job Done</td>
+                                    <td rowspan="@_currentJobItems.Count" class="bold-vertical">Job Done</td>
                                 }
                                 <td>@item.Unit</td>
                                 <td>@item.Instrument</td>
@@ -323,102 +305,33 @@
                         }
                     </tbody>
                 </table>
-
-
-                @* <table class="report-table">
-                    <tr>
-                        <td colspan="4" style="text-align:left"><strong>Installation Name:</strong> @_selectedReport.LocationName</td>
-                    </tr>
-                    <tr style="background:#f5f5f5">
-                        <th width="5%">Sl.</th>
-                        <th width="15%">Unit</th>
-                        <th width="20%">Instrument</th>
-                        <th>Status / Remarks</th>
-                    </tr> *@
-                    @* This would be a loop of your GCS specific rows *@
-                   @*  <tr>
-                        <td>1</td>
-                        <td>1st Stage Suction</td>
-                        <td>Pressure Gauge</td>
-                        <td>Calibration carried out using hand held calibrator.</td>
-                    </tr>
-                </table> *@
             </div>
-        </div>
 
-        <div id="printable-area" class="print-portrait">
-            @foreach (var cert in _jobCertificates)
+            @if (_jobCertificates != null && _jobCertificates.Any())
             {
-                <div class="portrait-report page-break">
-                    <div style="border: 2px solid black; padding: 15px;">
-                        <h2 class="text-center">OIL INDIA LIMITED</h2>
-                        <h4 class="text-center">CALIBRATION CERTIFICATE</h4>
-                        <hr style="border:1px solid black" />
-
-                        <table style="width:100%; text-align:left;">
-                            <tr>
-                                <td><strong>Certificate No:</strong> @cert.CertNo</td>
-                                <td><strong>Date:</strong> @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "N/A")</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Unit/Location:</strong> @cert.UnitId</td>
-                                <td><strong>Model:</strong> @cert.Model</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Instrument:</strong> @cert.InstrumentType</td>
-                                <td><strong>Range:</strong> @cert.InstrumentRange</td>
-                            </tr>
-                        </table>
-
-                        @* Dynamic Master Calibrator extraction from JSON *@
-                        @{
-                            var calData = cert.CalibrationDataJson?.ToString();
-                            string master = "Handheld Pressure Calibrator";
-                            if (!string.IsNullOrEmpty(calData))
-                            {
-                                try
-                                {
-                                    // Handle the escaped string if necessary
-                                    var cleanedJson = calData.StartsWith("\"") ? JsonSerializer.Deserialize<string>(calData) : calData;
-                                    using var doc = JsonDocument.Parse(cleanedJson);
-                                    master = doc.RootElement.GetProperty("MasterCalibrator").GetString() ?? master;
-                                }
-                                catch { }
-                            }
-                        }
-                        <p class="mt-4"><strong>Master Calibrator Used:</strong> @master</p>
-
-                        @* Placeholder for the 5-point calibration table *@
-                        <table class="report-table mt-4">
-                            <thead>
-                                <tr><th>Standard Input</th><th>Observed Output</th><th>Error %</th></tr>
-                            </thead>
-                            <tbody>
-                                <tr><td>0%</td><td>---</td><td>---</td></tr>
-                                <tr><td>50%</td><td>---</td><td>---</td></tr>
-                                <tr><td>100%</td><td>---</td><td>---</td></tr>
-                            </tbody>
-                        </table>
-
-                        <div class="d-flex justify-space-between mt-10">
-                            <div>
-                                <p>____________________</p>
-                                <p>Performed By: <br /> @cert.PerformedByName</p>
-                            </div>
-                            <div>
-                                <p>____________________</p>
-                                <p>Witnessed By: <br /> @cert.WitnessedByName</p>
+                @foreach (var cert in _jobCertificates)
+                {
+                    <div class="page-break"></div>
+                    <div class="portrait-report">
+                        <div style="border: 2px solid black; padding: 20px; height: 100%;">
+                            <h2 class="text-center">OIL INDIA LIMITED</h2>
+                            <h4 class="text-center">CALIBRATION CERTIFICATE</h4>
+                            <hr style="border:1px solid black" />
+                            <div style="margin-top: 20px;">
+                                <p><strong>Certificate No:</strong> @cert.CertNo</p>
+                                <p><strong>Instrument:</strong> @cert.InstrumentType</p>
                             </div>
                         </div>
                     </div>
-                </div>
+                }
             }
         </div>
-
     </div>
 }
 
-@* ========================== OCS SUMMARY MODAL (Landscape) ========================== *@
+
+
+
 @if (_isOcsModalOpen)
 {
     <div class="modal-overlay">
@@ -493,6 +406,10 @@
 
     </div>
 }
+
+
+
+
 
 @code {
     private List<SectionItem> _currentJobItems = new();
