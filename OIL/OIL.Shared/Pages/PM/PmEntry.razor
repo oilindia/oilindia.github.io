@@ -214,7 +214,7 @@
                         </MudGrid>
 
                         <MudButton StartIcon="@Icons.Material.Filled.Add"
-                                   OnClick="AddOcsRow"
+                                   OnClick="AddGcsRow"
                                    Color="Color.Secondary"
                                    Variant="Variant.Filled"
                                    Class="mt-2"
@@ -574,23 +574,7 @@
 
     }
 
-    private async Task SaveGcsReport()
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(_gcsData);
-            await SupabaseClient.From<PmReport>().Upsert(new PmReport { JobId = _selectedJob!.Id, SectionAJson = json, WorkPermit = _workPermit, SparesConsumed = _sparesConsumed });
-            Snackbar.Add("GCS Report Saved", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
-            return;
-        }
-
-
-
-    }
+    
 
     // --- OCS SPECIFIC LOGIC ---
     private void InitializeOcs(List<PidMarker> markers)
@@ -903,7 +887,111 @@
 
 
 
+    private async Task SaveGcsReport()
+    {
+        try
+        {
+            // 1. Save PM Report
+            var pmReport = new PmReport
+            {
+                JobId = _selectedJob!.Id,
+                SectionAJson = JsonSerializer.Serialize(_gcsRows),
+                WorkPermit = _workPermit
+            };
 
+            // Use Upsert with the 'return' option to get the generated ID back
+            // var response = await SupabaseClient.From<PmReport>().Upsert(pmReport);
+
+            // var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+            // 1. Save PM Report
+            var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+
+            // 2. Get the new Integer ID
+            var savedReport = response.Models.FirstOrDefault();
+            // Add the 'Return.Minimal' option
+            // var response = await SupabaseClient.From<PmReport>()
+            //     .Upsert(pmReport, new Supabase.Postgrest.QueryOptions { Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal });
+
+
+            // Supabase returns a list/collection in the response
+            //var savedReport = response.Models.FirstOrDefault();
+
+            if (savedReport == null)
+            {
+                Snackbar.Add("Error: Could not retrieve saved report ID.", Severity.Error);
+                return;
+            }
+
+            // Loop through your rows
+            foreach (var row in _gcsRows.Where(r => r.TestingType == "Calibration"))
+            {
+                var detail = new CalibrationDetail
+                {
+                    JobId = _selectedJob.Id,
+                    PmReportId = savedReport.Id, // Use the ID from the savedReport
+                    CertNo = row.CertNo,
+                    Installation = row.Installation,
+                    UnitId = row.Unit,
+                    InstrumentType = row.Instrument,
+                    Model = row.MakeModel,
+                    Range = row.Range,
+                    CalibrationDataJson = JsonSerializer.Serialize(row.CalibrationData.RECalibration),
+                    PerformedBy = _assignedTo
+                };
+
+                // Configuration to skip duplicates
+                // var options = new Supabase.Postgrest.QueryOptions
+                // {
+                //     OnConflict = "cert_no",
+                //     // Use Resolution.IgnoreDuplicates for ON CONFLICT DO NOTHING behavior
+                //     Resolution = Resolution.IgnoreDuplicates
+                // };
+
+                try
+                {
+                    // Use Upsert with the Ignore resolution
+                    // Attempt to insert the detail
+                    await SupabaseClient.From<CalibrationDetail>().Insert(detail);
+                    Snackbar.Add($"Report and Certificates Saved Successfully: {detail.CertNo}", Severity.Success);
+                }
+                catch (Exception ex) when (ex.Message.Contains("23505"))
+                {
+                    Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
+                    // Logic: If cert_no already exists, skip it and move to the next
+                    Console.WriteLine($"Skipping duplicate Certificate Number: {detail.CertNo}");
+                    continue;
+                }
+                catch (Exception detailEx)
+                {
+                    Snackbar.Add($"Save Error: {detailEx.Message}", Severity.Error);
+                    // Log other specific errors for this row but continue with other rows
+                    Console.WriteLine($"Error saving detail for Cert {detail.CertNo}: {detailEx.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Check for inner exceptions which often contain the specific Supabase error
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            Snackbar.Add($"Save Error: {msg}", Severity.Error);
+        }
+
+
+        // try
+        // {
+        //     var json = JsonSerializer.Serialize(_gcsData);
+        //     await SupabaseClient.From<PmReport>().Upsert(new PmReport { JobId = _selectedJob!.Id, SectionAJson = json, WorkPermit = _workPermit, SparesConsumed = _sparesConsumed });
+        //     Snackbar.Add("GCS Report Saved", Severity.Success);
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        //     return;
+        // }
+
+
+
+    }
 
     private async Task SaveOcsReport()
     {
@@ -1240,9 +1328,9 @@
         public bool CheckTripping { get; set; } = true;
         public bool CheckTubing { get; set; } = true;
         public bool CheckAFR { get; set; } = true;
-        public string SafetyInterlocks { get; set; } = "OK";
-        public string Hooter { get; set; } = "OK";
-        public string SparesConsumed { get; set; } = "NIL";
+        public string SafetyInterlocks { get; set; } 
+        public string Hooter { get; set; } 
+        public string SparesConsumed { get; set; } 
         public List<InstrumentEntry> Instruments { get; set; } = new();
     }
 
