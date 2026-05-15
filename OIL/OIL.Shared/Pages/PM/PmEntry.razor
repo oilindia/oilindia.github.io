@@ -69,12 +69,173 @@
                                  Label="3] Air Filter Regulators draining and servicing done." Dense="true" />
                 </div>
 
-                @RenderGcsGrid()
+                @* @RenderGcsGrid() *@
+
+                <MudExpansionPanel Text="GCS Instrument Calibration" IsExpanded="true">
+                    <MudAlert Severity="Severity.Info" Class="mb-4">Unit-wise grouping enabled for GCS workflow.</MudAlert>
+
+                    <div class="gcs-container" style="width: 100%; padding: 10px;">
+                        <MudTable Items="@_gcsRows"
+                                  Dense="true"
+                                  Bordered="false"
+                                  Elevation="0"
+                                  CustomHeader="true"
+                                  Width="100%"
+                                  Class="mud-width-full">
+                            <RowTemplate>
+                                @* --- INSTRUMENT BLOCK START --- *@
+
+                                @* SUB-ROW 1: IDENTIFICATION HEADER (Grey Background) *@
+                                @* <MudTr Style="background-color: var(--mud-palette-background-grey); font-weight: bold; border-top: 2px solid var(--mud-palette-lines-default);"> *@
+                                <MudTr Style="background-color: lightcoral;">
+                                    <MudTd colspan="3" Style="color: black;">Unit / Location</MudTd>
+                                    <MudTd colspan="2" Style="color: black;">Instrument</MudTd>
+                                    <MudTd colspan="2" Style="color: black;">Tag Number</MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 1: IDENTIFICATION DATA (White Background) *@
+                                @* <MudTr Style="background-color: var(--mud-palette-surface);"> *@
+                                <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                    <MudTd colspan="3">
+                                        <MudSelect T="string" Value="@context.Unit" ValueChanged="@(v => gcsOnUnitChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Unit">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var u in _uniqueUnits)
+                                            {
+                                                <MudSelectItem Value="@u">@u</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualUnit" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd colspan="2">
+                                        <MudSelect T="string" Value="@context.Instrument" ValueChanged="@(v => gcsOnInstrumentChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Instrument">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var i in context.AvailableInstruments)
+                                            {
+                                                <MudSelectItem Value="@i">@i</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualInstrument" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd colspan="2">
+                                        <MudSelect T="string" Value="@context.TagNumber" ValueChanged="@(v => gcsOnTagChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Tag">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var t in context.AvailableTags)
+                                            {
+                                                <MudSelectItem Value="@t">@t</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualTag" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 2: TECHNICAL HEADER (Light Blue/Alternative Background) *@
+                                <MudTr Style="background-color: lightgray">
+                                    <MudTd>Make / Model</MudTd>
+                                    <MudTd>Range</MudTd>
+                                    <MudTd>Quantity</MudTd>
+                                    <MudTd colspan="2">Testing & Calibration</MudTd>
+                                    <MudTd colspan="2">Remarks</MudTd>
+                                    <MudTd>Actions</MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 2: TECHNICAL DATA (White Background) *@
+                                <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                    <MudTd>
+                                        <MudTextField @bind-Value="context.MakeModel" Margin="Margin.Dense" />
+                                        <MudTextField @bind-Value="context.ManualMakeModel" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudTextField @bind-Value="context.Range" Margin="Margin.Dense" />
+                                        <MudTextField @bind-Value="context.ManualRange" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd><MudNumericField @bind-Value="context.Quantity" Margin="Margin.Dense" Min="1" /></MudTd>
+                                    <MudTd colspan="2">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudSelect @bind-Value="context.TestingType" Margin="Margin.Dense" Dense="true" Style="min-width: 150px;">
+                                                <MudSelectItem Value="@("Calibration")">Calibration</MudSelectItem>
+                                                <MudSelectItem Value="@("Functional")">Functional</MudSelectItem>
+                                            </MudSelect>
+                                            @if (context.TestingType == "Calibration")
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Color="Color.Info"
+                                                               OnClick="() => gcsOpenCalibration(context)" />
+                                            }
+                                        </div>
+                                    </MudTd>
+                                    <MudTd>
+                                        <div class="d-flex flex-column">
+                                            <MudSelect T="string"
+                                                       Value="@context.Remarks"
+                                                       ValueChanged="@(v => gcsOnRemarksChanged(context, v))"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Label="Select Remarks">
+                                                <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                                @foreach (var t in context.AvailableRemarks)
+                                                {
+                                                    <MudSelectItem Value="@t">@t</MudSelectItem>
+                                                }
+                                            </MudSelect>
+
+                                            <MudTextField @bind-Value="context.ManualRemarks"
+                                                          Placeholder="Manual Entry"
+                                                          Class="mt-2"
+                                                          Margin="Margin.Dense" />
+                                        </div>
+                                    </MudTd>
+                                    <MudTd>
+                                        <div class="d-flex">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" OnClick="@(() => SaveGcsReport())" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => _gcsRows.Remove(context))" />
+                                        </div>
+                                    </MudTd>
+                                </MudTr>
+
+                                @* --- GAP ROW: Creates the visual separation between entries --- *@
+                                <MudTr Style="height: 25px; border: none !important;">
+                                    <MudTd colspan="6" Style="background-color: transparent; border: none !important;"></MudTd>
+                                </MudTr>
+
+                                @* --- INSTRUMENT BLOCK END --- *@
+                            </RowTemplate>
+                        </MudTable>
+
+
+                        <MudText Typo="Typo.h6" Class="mt-4 mb-2">Parts & Spares</MudText>
+                        <MudGrid Class="mb-6">
+                            <MudItem xs="12">
+                                <MudTextField T="string"
+                                              Label="Spares Consumed"
+                                              Variant="Variant.Outlined"
+                                              Lines="5"
+                                              @bind-Value="_sparesConsumed"
+                                              Placeholder="List the spares used here..." />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddOcsRow"
+                                   Color="Color.Secondary"
+                                   Variant="Variant.Filled"
+                                   Class="mt-2"
+                                   FullWidth="true">
+                            ++ ADD NEW ROW
+                        </MudButton>
+                    </div>
+
+
+
+                    @* @RenderOcsGrid() *@
+
+                    @* <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddOcsRow" Color="Color.Primary" Class="mt-2">Add Manual OCS Row</MudButton> *@
+                </MudExpansionPanel>
+
+
 
                 <MudGrid Class="mt-4">
-                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SafetyInterlocks" Label="Safety Interlocks" /></MudItem>
-                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.Hooter" Label="Hooter Status" /></MudItem>
-                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SparesConsumed" Label="Spares Consumed" /></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SafetyInterlocks" Label="Safety Interlocks" Placeholder="Checked and found OK."/></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.Hooter" Label="Hooter Status" Placeholder="Working properly." /></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SparesConsumed" Label="Spares Consumed" Placeholder="NIL"/></MudItem>
                 </MudGrid>
             </MudExpansionPanel>
 
@@ -181,7 +342,7 @@
                                     <div class="d-flex flex-column">
                                         <MudSelect T="string"
                                                    Value="@context.Remarks"
-                                                   ValueChanged="@(v => OnTagChanged(context, v))"
+                                                   ValueChanged="@(v => OnRemarksChanged(context, v))"
                                                    Dense="true"
                                                    Margin="Margin.Dense"
                                                    Label="Select Remarks">
@@ -199,7 +360,7 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <div class="d-flex gap-1">
+                                    <div class="d-flex">
                                         <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" OnClick="@(() => SaveOcsReport())" />
                                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => _ocsRows.Remove(context))" />
                                     </div>
@@ -323,6 +484,8 @@
     private GcsReportData _gcsData = new();
     private List<OcsInstrumentRow> _ocsRows = new();
 
+    private List<GcsInstrumentRow> _gcsRows = new();
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -389,22 +552,24 @@
     // --- GCS SPECIFIC LOGIC ---
     private void InitializeGcs(List<PidMarker> markers)
     {
-        try
-        {
-            _gcsData = new GcsReportData();
-            _gcsData.Instruments = markers.Select(m => new InstrumentEntry
-            {
-                Unit = m.DeviceLocation,
-                Instrument = m.InstrumentType,
-                MakeModel = m.MakeModelType,
-                Range = m.Range
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
-            return;
-        }
+        _gcsRows.Clear();
+        AddGcsRow();
+        // try
+        // {
+        //     _gcsData = new GcsReportData();
+        //     _gcsData.Instruments = markers.Select(m => new InstrumentEntry
+        //     {
+        //         Unit = m.DeviceLocation,
+        //         Instrument = m.InstrumentType,
+        //         MakeModel = m.MakeModelType,
+        //         Range = m.Range
+        //     }).ToList();
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        //     return;
+        // }
 
 
     }
@@ -455,6 +620,19 @@
 
     }
     // --- CASCADING LOGIC ---
+    private void gcsOnUnitChanged(GcsInstrumentRow row, string unit)
+    {
+        row.Unit = unit;
+        row.Instrument = "";
+        row.TagNumber = "";
+
+        // Filter Instruments based on Unit
+        row.AvailableInstruments = _allMarkers
+            .Where(m => m.DeviceLocation == unit)
+            .Select(m => m.InstrumentType)
+            .Distinct().ToList()!;
+    }
+
 
     private void OnUnitChanged(OcsInstrumentRow row, string unit)
     {
@@ -467,6 +645,20 @@
             .Where(m => m.DeviceLocation == unit)
             .Select(m => m.InstrumentType)
             .Distinct().ToList()!;
+    }
+    private void gcsOnInstrumentChanged(GcsInstrumentRow row, string instrument)
+    {
+        row.Instrument = instrument;
+        row.TagNumber = "";
+
+        // Filter Tags based on Unit AND Instrument
+        row.AvailableTags = _allMarkers
+            .Where(m => m.DeviceLocation == row.Unit && m.InstrumentType == instrument)
+            .Select(m => m.TagNumber)
+            .Distinct().ToList()!;
+
+        row.AvailableRemarks = new List<string> { "Calibration carried out using handheld pressure calibrator.", "Controller adjustment carried out.", "Calibration carried out using handheld pressure calibrator & HART." };
+
     }
 
     private void OnInstrumentChanged(OcsInstrumentRow row, string instrument)
@@ -484,6 +676,20 @@
 
     }
 
+    private void gcsOnTagChanged(GcsInstrumentRow row, string tag)
+    {
+        row.TagNumber = tag;
+
+        // Auto-fill Make/Range from the specific P&ID marker
+        var match = _allMarkers.FirstOrDefault(m => m.DeviceLocation == row.Unit &&
+                                                   m.InstrumentType == row.Instrument &&
+                                                   m.TagNumber == tag);
+        if (match != null)
+        {
+            row.MakeModel = match.MakeModelType ?? "";
+            row.Range = match.Range ?? "";
+        }
+    }
     private void OnTagChanged(OcsInstrumentRow row, string tag)
     {
         row.TagNumber = tag;
@@ -499,9 +705,37 @@
         }
     }
 
+    private void gcsOnRemarksChanged(GcsInstrumentRow row, string remarks)
+    {
+        if (remarks != null)
+        {
+            row.Remarks = remarks;
+        }
+
+        else
+        {
+            row.Remarks = row.ManualRemarks;
+        }
+
+    }
+    private void OnRemarksChanged(OcsInstrumentRow row, string remarks)
+    {
+        if (remarks != null)
+        {
+            row.Remarks = remarks;
+        }
+        
+   else
+        {
+            row.Remarks = row.ManualRemarks;
+        }
+
+    }
 
 
     private void AddOcsRow() => _ocsRows.Add(new OcsInstrumentRow { SlNo = (_ocsRows.Count + 1).ToString() });
+
+    private void AddGcsRow() => _gcsRows.Add(new GcsInstrumentRow { SlNo = (_gcsRows.Count + 1).ToString() });
 
 
     // private OcsInstrumentRow? _activeRowRef;
@@ -545,8 +779,68 @@
 
     public class ProcessSimulationRow { public string ProcessInput { get; set; } = ""; public string OutputPressure { get; set; } = ""; public string PSRemarks { get; set; } = ""; }
 
+    private GcsInstrumentRow? _gcsactiveRowRef;
     private OcsInstrumentRow? _activeRowRef;
     private ResultEntry? _activeResult; // This will now point to the row's data
+
+
+    private async Task gcsOpenCalibration(GcsInstrumentRow row)
+    {
+        try
+        {
+            _gcsactiveRowRef = row;
+
+            // 1. Generate ID-based Cert Number if missing
+            if (string.IsNullOrEmpty(row.CertNo))
+            {
+                //Snackbar.Add("Inside: CertNo", Severity.Success);
+
+                var response = await SupabaseClient.From<CalibrationDetail>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+                int nextId = (int)response + 1;
+                row.CertNo = $"INST/{row.TagNumber}/{nextId}";
+            }
+
+            // 2. Initialize ResultEntry
+            if (row.CalibrationData == null)
+            {
+                //Snackbar.Add("Inside: CalibrationData", Severity.Success);
+                row.CalibrationData = new ResultEntry
+                {
+
+
+                    RECertificateNo = row.CertNo,
+                    REUnit = row.Unit,
+                    RERange = row.Range,
+                    REInstrumentType = row.Instrument
+                };
+            }
+
+            _activeResult = row.CalibrationData;
+
+            // 3. Polymorphic Initialization based on Instrument Name
+            if (_activeResult.RECalibration == null)
+            {
+                //Snackbar.Add("Inside: Polymorphic Initialization", Severity.Success);
+
+                string name = row.Instrument.ToLower();
+                if (name.Contains("controller"))
+                    _activeResult.RECalibration = new ControllerInstrumentData();
+                else if (name.Contains("transmitter"))
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "Druck DPI 610" };
+                else // Default for Gauges
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "FLUKE (718Ex 300G)" };
+            }
+
+            _isCalibrationVisible = true;
+            //Snackbar.Add("Inside: _isCalibrationVisible set to true", Severity.Success);
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
 
 
     private async Task OpenCalibration(OcsInstrumentRow row)
@@ -959,6 +1253,37 @@
         public string TestingType { get; set; } = "Calibration"; public string CertNo { get; set; } = "";
         public string CalRemarks { get; set; } = "";
     }
+
+    public class GcsInstrumentRow
+    {
+        public string SlNo { get; set; } = "";
+        public string Installation { get; set; } = "";
+
+        public string Unit { get; set; } = "";
+        public string ManualUnit { get; set; } = "";
+        public string Instrument { get; set; } = "";
+        public string ManualInstrument { get; set; } = "";
+        public string TagNumber { get; set; } = "";
+        public string ManualTag { get; set; } = "";
+        public string MakeModel { get; set; } = "";
+        public string ManualMakeModel { get; set; } = "";
+        public string Range { get; set; } = "";
+        public string ManualRange { get; set; } = "";
+        public int Quantity { get; set; } = 1;
+        public string TestingType { get; set; } = "Calibration";
+        public string CertNo { get; set; } = "";
+        public string Remarks { get; set; } = "";
+        public string ManualRemarks { get; set; } = "";
+
+
+        public ResultEntry CalibrationData { get; set; } = new();
+        // UI Helpers
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableInstruments { get; set; } = new();
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableTags { get; set; } = new();
+
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableRemarks { get; set; } = new();
+    }
+
 
     public class OcsInstrumentRow
     {
