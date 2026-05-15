@@ -9,430 +9,693 @@
 @inject ISnackbar Snackbar
 @inject Supabase.Client SupabaseClient
 @inject IJSRuntime JSRuntime
+@using System.Text.Json.Serialization
+
 
 <style>
-    /* 1. Screen Styles */
-    .report-paper {
-        background-color: white;
+    .job-done-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: -1px; /* Overlap with previous table border */
+        font-size: 11px; /* Slightly smaller to fit landscape data */
+    }
+
+        .job-done-table th, .job-done-table td {
+            border: 1px solid #000;
+            padding: 4px;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+
+        .job-done-table th {
+            background-color: #f9f9f9;
+            font-weight: normal;
+            text-align: left;
+        }
+
+    .bold-vertical {
+        font-weight: bold;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        background-color: #fff !important;
+    }
+
+    /* Ensure the cells don't collapse too much in landscape */
+    .job-done-table td {
+        height: 40px;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+
+    .report-body-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        table-layout: fixed;
+        border: 1px solid #000;
+    }
+
+        .report-body-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            vertical-align: middle;
+        }
+
+    .inner-list-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .inner-list-table td {
+            border: none;
+            border-bottom: 1px solid #000;
+            padding: 4px 8px;
+        }
+
+        .inner-list-table tr:last-child td {
+            border-bottom: none;
+        }
+
+    .no-padding {
+        padding: 0 !important;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .font-bold {
+        font-weight: bold;
+    }
+
+    /* Adjustments for the specific layout flow */
+    .report-body-table tr td {
+        height: 30px;
+    }
+
+    /* --- Base UI Styles --- */
+    .modal-overlay {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.85);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        backdrop-filter: blur(4px);
+        overflow-y: auto;
+        padding-bottom: 50px;
+    }
+
+    /* --- Report Container Styles --- */
+    .landscape-report {
+        width: 297mm;
+        min-height: 210mm;
+        background: white;
         color: black;
-        font-family: 'Times New Roman', Times, serif;
-        line-height: 1.4;
-        margin: 0 auto;
+        padding: 10mm;
+        margin: 20px auto;
+        font-family: 'Times New Roman', serif;
+    }
+
+    .portrait-report {
+        width: 210mm;
+        min-height: 297mm;
+        background: white;
+        color: black;
+        padding: 10mm;
+        margin: 20px auto;
+        font-family: 'Times New Roman', serif;
+    }
+
+    /* --- Table Formatting --- */
+    .oil-header-table {
+        width: 100%;
+        border: 1px solid black;
+        border-bottom: none;
     }
 
     .report-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 15px;
+        table-layout: fixed;
         color: black;
-        /* Prevents table rows from breaking across two pages */
-        page-break-inside: auto;
     }
-
-        .report-table tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-        }
 
         .report-table th, .report-table td {
             border: 1px solid black !important;
-            padding: 4px 8px;
-            text-align: left;
-            font-size: 11px; /* Slightly smaller to fit content better */
+            padding: 5px;
+            text-align: center;
+            font-size: 11px;
+            word-wrap: break-word;
         }
 
-    /* 2. ADVANCED PRINT FIXES */
+    /* --- Print Logic --- */
     @@media print {
-        /* Reset margins and allow multiple pages */
-        @@page {
-            size: A4;
-            margin: 10mm;
-        }
-        /* Hide everything by default */
-        body * {
-            visibility: hidden !important;
-        }
-        /* Essential: Un-hide the specific report and its hierarchy */
-        #printable-report,
-        #printable-report *,
-        .print-container-visible,
-        .print-content-visible {
-            visibility: visible !important;
-        }
-        /* Remove the scrollbar and height limits of the modal during print */
-        .print-container-visible {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            height: auto !important;
-            overflow: visible !important;
-            display: block !important; /* Change from flex to block for page flow */
-            background: white !important;
-        }
-
-        .print-content-visible {
-            width: 100% !important;
-            max-width: none !important;
-            height: auto !important;
-            overflow: visible !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: white !important;
-            box-shadow: none !important;
-        }
-
-        #printable-report {
-            position: static !important; /* Allow natural flow for multi-page */
-            width: 100% !important;
-            padding: 0 !important;
-            border: none !important;
-            /* Force content to fit width */
-            transform: scale(0.98);
-            transform-origin: top left;
-        }
-        /* Hide buttons */
         .no-print {
             display: none !important;
+        }
+
+        body * {
+            visibility: hidden;
+        }
+
+        #printable-area, #printable-area * {
+            visibility: visible;
+        }
+
+        #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        /* Orientation Logic */
+        .print-landscape {
+            size: A4 landscape;
+        }
+
+        .print-portrait {
+            size: A4 portrait;
+        }
+
+        .page-break {
+            page-break-after: always;
         }
     }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
     <MudPaper Elevation="3" Class="pa-4">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Primary" />
-            <MudText Typo="Typo.h5">PM Completion Reports</MudText>
-            <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">Refresh</MudButton>
-        </MudStack>
-
-        <MudGrid Class="mb-4">
-            <MudItem xs="12" sm="4">
-                <MudDateRangePicker Label="Completion Date Range" @bind-DateRange="_dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
-            </MudItem>
-            <MudItem xs="12" sm="2" Class="d-flex align-end">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="LoadData">Apply Filter</MudButton>
-            </MudItem>
-        </MudGrid>
-
+        <MudText Typo="Typo.h5" Class="mb-4">PM Completion Reports</MudText>
         <MudDataGrid T="ReportView" Items="@_reports" Loading="@_loading" Dense="true" Bordered="true">
             <Columns>
                 <TemplateColumn Title="View" HeaderStyle="width: 50px;">
                     <CellTemplate>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="@(() => OpenViewModal(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info"
+                                       OnClick="@(() => HandleViewClick(context.Item))" />
                     </CellTemplate>
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.CompletionDateLocal" Title="Date" />
                 <PropertyColumn Property="x => x.LocationName" Title="Installation" />
                 <PropertyColumn Property="x => x.WorkPermit" Title="Permit #" />
-                <PropertyColumn Property="x => x.AssignedTo" Title="Technician" />
             </Columns>
         </MudDataGrid>
     </MudPaper>
 </MudContainer>
 
-@if (_isModalOpen)
+@* ========================== GCS SUMMARY MODAL (Landscape) ========================== *@
+@if (_isGcsModalOpen)
 {
-@* The outer overlay *@
-    <div class="print-container-visible" style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-        
-        @* The inner container (the 'Paper' look) *@
-        <div class="print-content-visible" style="width: 1000px; max-width: 98%; max-height: 95vh; padding: 20px; overflow-y: auto; background-color: #f0f0f0; border-radius: 4px;">
+    <div class="modal-overlay">
+        <div class="no-print pa-4 sticky-top d-flex justify-center bg-dark" style="width: 100%; gap: 10px;">
+            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">Print GCS Summary</MudButton>
+            <MudButton OnClick="() => _isGcsModalOpen = false" Variant="Variant.Filled" Color="Color.Error">Close</MudButton>
+        </div>
 
-            <div class="d-flex justify-space-between align-center mb-6 no-print" style="position: sticky; top: 0; background: #f0f0f0; z-index: 10; padding: 10px 0;">
-                <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" Size="Size.Large">
-                    Print Report
-                </MudButton>
-                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
-            </div>
+        <div class="d-flex justify-space-between align-center mb-6 no-print" style="position: sticky; top: 0; background: #f0f0f0; z-index: 10; padding: 10px 0;">
+            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print" Size="Size.Large">
+                Print Report
+            </MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isGcsModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
+        </div>
 
-            <div id="printable-report" class="report-paper pa-10 mx-auto" style="width: 210mm; min-height: 297mm; border: 1px solid #ccc;">
 
-                <MudText Typo="Typo.h6" Align="Align.Center" Style="text-decoration: underline; font-weight: bold; text-transform: uppercase;">
-                    Preventive Maintenance Checklist (OCS, EPS, QPS, WHS & FGGS)
-                </MudText>
+        <div id="printable-area" class="print-landscape">
+            <div class="landscape-report">
+                <table class="oil-header-table">
+                    <tr>
+                        <td width="20%" rowspan="3" class="logo-container">
+                            <div class="logo-placeholder">
+                                <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 80px;">
+                                <div class="logo-text-bold">ऑयल इंडिया</div>
+                                <div class="logo-text-bold">OIL INDIA</div>
+                            </div>
+                        </td>
+                        <td class="text-center header-main-title">
+                            <div>ऑयल इंडिया लिमिटेड</div>
+                            <div class="sub-dept-hindi">यंत्रीकरण विभाग</div>
+                            <div class="dept-english">INSTRUMENTATION DEPARTMENT</div>
+                            <div class="location-text">दुलियाजान / DULIAJAN</div>
+                            <div class="company-english-bold">OIL INDIA LIMITED</div>
+                            <div class="internal-use-text">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
+                        </td>
+                        <td width="20%" class="ref-section">
+                            <div><strong>Ref No:</strong> @_selectedReport.WorkPermit</div>
+                            <div><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</div>
+                        </td>
+                    </tr>
+                </table>
 
-                <div class="mt-6 mb-4" style="font-size: 14px;">
-                    <p>Installation Name: <span class="header-field">@_viewingReport.LocationName</span> &nbsp;&nbsp;&nbsp;&nbsp; Date: <span class="header-field">@_viewingReport.CompletionDateLocal</span></p>
-                    <p class="mt-2">Work Permit Number: <span class="header-field" style="width: 75%;">@_viewingReport.WorkPermit</span></p>
-                    <p class="mt-2">Job Assigned To: <span class="header-field" style="width: 75%;">@_viewingReport.AssignedTo</span></p>
-                </div>
+                <table class="report-body-table">
+                    <tr>
+                        <td colspan="2" width="40%"><strong>Ref no:</strong> @_selectedReport.WorkPermit</td>
+                        <td width="25%" class="text-center"><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</td>
+                        <td width="35%"><strong>PM Date:</strong> @_selectedReport.CompletionDateLocal</td>
+                    </tr>
 
-                <MudText Typo="Typo.body1" Class="mt-6"><b>(A) Functionality Testing / Calibration / Replaced with pre calibrated controller</b></MudText>
-                @foreach (var cat in new[] { "Pressure Controller", "Temperature Controller", "Level Controller" })
-                {
-                    <p class="mt-4 mb-1"><b>@cat</b></p>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 40px;">Sl.NO</th>
-                                <th>Unit</th>
-                                <th>Make</th>
-                                <th>Model</th>
-                                <th>Range</th>
-                                <th>Set point</th>
-                                <th>PSV Setting</th>
-                                <th>Status</th>
-                                <th>Bands</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int i = 1; i <= 5; i++)
-                            {
-                                var row = _viewingRows.FirstOrDefault(r => r.Category == cat && r.SlNo == i.ToString());
-                                <tr>
-                                    <td>@i</td>
-                                    <td>@(row?.Unit ?? "")</td>
-                                    <td>@(row?.Make ?? "")</td>
-                                    <td>@(row?.Model ?? "")</td>
-                                    <td>@(row?.Range ?? "")</td>
-                                    <td>@(row?.SetPoint ?? "")</td>
-                                    <td>@(row?.PsvSetting ?? "")</td>
-                                    <td>@(row?.CalibrationStatus ?? "")</td>
-                                    <td>@(row?.Bands ?? "")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
+                    <tr>
+                        <td colspan="4"><strong>Notification Number:</strong> @_selectedReport.WorkPermit</td>
+                    </tr>
 
-                <MudText Typo="Typo.body1" Class="mt-6"><b>(B) Transmitters & Gauges</b></MudText>
-                @foreach (var cat in new[] { "Pressure Transmitter", "Temperature Transmitter", "Level Transmitter", "Pressure Gauge", "Temperature Gauge" })
-                {
-                    <p class="mt-4 mb-1"><b>@cat</b></p>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 40px;">Sl.NO</th>
-                                <th>Unit</th>
-                                <th>Make</th>
-                                <th>Model</th>
-                                <th>Range</th>
-                                <th>Status</th>
-                                <th>Equipment Used</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (int i = 1; i <= 3; i++)
-                            {
-                                var row = _viewingRows.FirstOrDefault(r => r.Category == cat && r.SlNo == i.ToString());
-                                <tr>
-                                    <td>@i</td>
-                                    <td>@(row?.Unit ?? "")</td>
-                                    <td>@(row?.Make ?? "")</td>
-                                    <td>@(row?.Model ?? "")</td>
-                                    <td>@(row?.Range ?? "")</td>
-                                    <td>@(row?.CalibrationStatus ?? "")</td>
-                                    <td>@(row?.EquipmentUsed ?? "")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
+                    <tr>
+                        <td colspan="2"><strong>A] Comp.Sl.No :</strong> @_selectedReport.CompSlNo</td>
+                        <td colspan="2" class="text-center"><strong>Installation Name -</strong> @_selectedReport.InstallationName</td>
+                    </tr>
 
-                <MudText Typo="Typo.body1" Class="mt-6"><b>(C) Other Check Points</b></MudText>
-                <table class="report-table">
+                    <tr>
+                        <td colspan="4" class="text-right" style="padding-right: 15%;">
+                            <strong>Make -</strong> @_selectedReport.MakeModel
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td width="20%" class="text-center font-bold">Visual Checking Points</td>
+                        <td colspan="3" class="no-padding">
+                            <table class="inner-list-table">
+                                @foreach (var point in _selectedReport.VisualPoints)
+                                {
+                                    <tr>
+                                        <td>@point.Id] @point.Description</td>
+                                    </tr>
+                                }
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="job-done-table">
                     <thead>
-                        <tr><th style="width: 40px;">Sl.No</th><th>Checking Point</th><th style="width: 80px;">Yes/No</th><th>Comment</th></tr>
+                        <tr>
+                            <th width="5%" class="rotate-text">Job Done</th>
+                            <th width="15%">Unit</th>
+                            <th width="15%">Instrument</th>
+                            <th width="10%">Make & Model</th>
+                            <th width="10%">Range</th>
+                            <th width="15%">Servicing - Cleaning/ Calibration/ Functionality Testing/ Replaced with pre Calibrated instrument</th>
+                            <th width="12%">Calibration Certificate No. (attached with this report)</th>
+                            <th width="18%">Remarks</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        @{
-                            var checkPoints = new[] {
-                            "Whether Air Filter regulators drained?",
-                            "Whether Pressure Gauges & Temperature Gauges are working properly?",
-                            "Whether Functionality of Burner Management System / Remote ignition system of fired vessels checked?",
-                            "Whether Functionality of Data acquisition panel / SRV Panel checked?",
-                            "Whether Level Transmitters cone cleaning done?",
-                            "Whether visual Inspection of cables, glands, junction box and cable trays carried out?",
-                            "Whether Instrument air tube deformation or leakage found any?",
-                            "Whether instrument label / tags readable?",
-                            "Whether any interlocks bypassed?",
-                            "Whether any static / on-line Gas Detector found faulty?",
-                            "Whether proper PPE used and tool-box talk conducted?"
-                        };
-                        }
-                        @for (int i = 0; i < checkPoints.Length; i++)
+                        @foreach (var item in _currentJobItems)
                         {
-                            var cpVal = _viewingCheckpoints.FirstOrDefault(x => x.CheckingPoint.Contains(checkPoints[i].Substring(0, 15)));
-                            <tr><td>@(i + 1)</td><td>@checkPoints[i]</td><td>@(cpVal?.Value ?? "")</td><td>@(cpVal?.Comment ?? "")</td></tr>
+                            <tr>
+                                @if (item == _currentJobItems.First())
+                                {
+                                    <td rowspan="@_currentJobItems.Count" class="text-center bold-vertical">Job Done</td>
+                                }
+                                <td>@item.Unit</td>
+                                <td>@item.Instrument</td>
+                                <td>@item.MakeModel</td>
+                                <td>@item.Range</td>
+                                <td>@item.TestingType</td>
+                                <td>@item.CertNo</td>
+                                <td>@item.Remarks</td>
+                            </tr>
                         }
                     </tbody>
                 </table>
 
-                <MudText Typo="Typo.body1" Class="mt-6"><b>(D) Spares Consumed List</b></MudText>
-                <table class="report-table">
-                    <thead><tr><th style="width: 40px;">Sl. No</th><th>Instrument</th><th>Tag No</th><th>Unit</th></tr></thead>
-                    <tbody>
-                        @for (int i = 1; i <= 5; i++)
-                        {
-                            var spare = _viewingSpares.ElementAtOrDefault(i - 1);
-                            <tr><td>@i</td><td>@(spare?.Instrument ?? "")</td><td>@(spare?.TagNo ?? "")</td><td>@(spare?.Unit ?? "")</td></tr>
-                        }
-                    </tbody>
-                </table>
 
-                <div class="mt-4">
-                    <p><b>Any other observations:</b></p>
-                    <div style="border-bottom: 1px solid black; min-height: 60px;">@_viewingReport.Observations</div>
-                </div>
-
-                <div class="mt-12">
-                    <table style="width: 100%; border: none;">
-                        <tr style="border: none;">
-                            <td style="border: none; width: 40%;"><p><b>Job Completed By</b></p><p style="margin-top: 40px;">Signatures:</p></td>
-                            <td style="border: none; width: 30%; text-align: center; vertical-align: bottom;"><div style="border-top: 1px solid black; padding-top: 5px;">Checked By</div></td>
-                            <td style="border: none; width: 30%; text-align: center; vertical-align: bottom;"><div style="border-top: 1px solid black; padding-top: 5px;">Approved By</div></td>
-                        </tr>
-                    </table>
-                </div>
+                @* <table class="report-table">
+                    <tr>
+                        <td colspan="4" style="text-align:left"><strong>Installation Name:</strong> @_selectedReport.LocationName</td>
+                    </tr>
+                    <tr style="background:#f5f5f5">
+                        <th width="5%">Sl.</th>
+                        <th width="15%">Unit</th>
+                        <th width="20%">Instrument</th>
+                        <th>Status / Remarks</th>
+                    </tr> *@
+                    @* This would be a loop of your GCS specific rows *@
+                   @*  <tr>
+                        <td>1</td>
+                        <td>1st Stage Suction</td>
+                        <td>Pressure Gauge</td>
+                        <td>Calibration carried out using hand held calibrator.</td>
+                    </tr>
+                </table> *@
             </div>
         </div>
+
+        <div id="printable-area" class="print-portrait">
+            @foreach (var cert in _jobCertificates)
+            {
+                <div class="portrait-report page-break">
+                    <div style="border: 2px solid black; padding: 15px;">
+                        <h2 class="text-center">OIL INDIA LIMITED</h2>
+                        <h4 class="text-center">CALIBRATION CERTIFICATE</h4>
+                        <hr style="border:1px solid black" />
+
+                        <table style="width:100%; text-align:left;">
+                            <tr>
+                                <td><strong>Certificate No:</strong> @cert.CertNo</td>
+                                <td><strong>Date:</strong> @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "N/A")</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Unit/Location:</strong> @cert.UnitId</td>
+                                <td><strong>Model:</strong> @cert.Model</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Instrument:</strong> @cert.InstrumentType</td>
+                                <td><strong>Range:</strong> @cert.InstrumentRange</td>
+                            </tr>
+                        </table>
+
+                        @* Dynamic Master Calibrator extraction from JSON *@
+                        @{
+                            var calData = cert.CalibrationDataJson?.ToString();
+                            string master = "Handheld Pressure Calibrator";
+                            if (!string.IsNullOrEmpty(calData))
+                            {
+                                try
+                                {
+                                    // Handle the escaped string if necessary
+                                    var cleanedJson = calData.StartsWith("\"") ? JsonSerializer.Deserialize<string>(calData) : calData;
+                                    using var doc = JsonDocument.Parse(cleanedJson);
+                                    master = doc.RootElement.GetProperty("MasterCalibrator").GetString() ?? master;
+                                }
+                                catch { }
+                            }
+                        }
+                        <p class="mt-4"><strong>Master Calibrator Used:</strong> @master</p>
+
+                        @* Placeholder for the 5-point calibration table *@
+                        <table class="report-table mt-4">
+                            <thead>
+                                <tr><th>Standard Input</th><th>Observed Output</th><th>Error %</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>0%</td><td>---</td><td>---</td></tr>
+                                <tr><td>50%</td><td>---</td><td>---</td></tr>
+                                <tr><td>100%</td><td>---</td><td>---</td></tr>
+                            </tbody>
+                        </table>
+
+                        <div class="d-flex justify-space-between mt-10">
+                            <div>
+                                <p>____________________</p>
+                                <p>Performed By: <br /> @cert.PerformedByName</p>
+                            </div>
+                            <div>
+                                <p>____________________</p>
+                                <p>Witnessed By: <br /> @cert.WitnessedByName</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@* ========================== OCS SUMMARY MODAL (Landscape) ========================== *@
+@if (_isOcsModalOpen)
+{
+    <div class="modal-overlay">
+        <div class="no-print pa-4 sticky-top d-flex justify-center bg-dark" style="width: 100%; gap: 10px;">
+            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">Print OCS Summary</MudButton>
+            <MudButton OnClick="() => _isOcsModalOpen = false" Variant="Variant.Filled" Color="Color.Error">Close</MudButton>
+        </div>
+
+        <div id="printable-area" class="print-landscape">
+            <div class="landscape-report">
+                <table class="oil-header-table">
+                    <tr>
+                        <td width="15%" rowspan="2" class="text-center">
+                            <MudImage Src="_content/OIL.Shared/imgs/oil.png"
+                                      Alt="Oil India Limited Logo"
+                                      Fluid="true"
+                                      Style="max-width: 150px; height: auto;"
+                                      Class="mb-2" />
+
+                        </td>
+                        <td class="text-center"><h3>OIL INDIA LIMITED</h3></td>
+                        <td width="20%">PM DATE: @_selectedReport.CompletionDateLocal</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center">INSTRUMENTATION DEPARTMENT - OCS</td>
+                        <td>Installation: @_selectedReport.LocationName</td>
+                    </tr>
+                </table>
+                <table class="report-table">
+                    <thead>
+                        <tr style="background:#eee">
+                            <th width="40px">Sl.</th>
+                            <th>UNIT</th>
+                            <th>INSTRUMENT</th>
+                            <th>MAKE & MODEL</th>
+                            <th>RANGE</th>
+                            <th>QUANTITY</th>
+                            <th>Calibration/Functionality Testing/Replaced with pre Calibrated Instrument</th>
+                            <th>Calibration Certificate No. (Attached with report)</th>
+                            @* <th>ACTION</th> *@
+                            <th>REMARKS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _currentJobItems)
+                        {
+                            <tr>
+                                <td>@item.SlNo</td>
+                                <td>@item.Unit</td>
+                                <td>@item.Instrument <br /> <small>@item.TagNumber</small></td>
+                                <td>@item.MakeModel</td>
+                                <td>@item.Range</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.TestingType</td>
+                                <td>@item.CertNo</td>
+                                <td>@item.Remarks</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+
+
+
     </div>
 }
 
 @code {
+    private List<SectionItem> _currentJobItems = new();
+    // Helper Classes to map your JSON data structure
+    public class SectionItem
+    {
+        [JsonPropertyName("SlNo")] public string SlNo { get; set; } = "";
+        [JsonPropertyName("Unit")] public string Unit { get; set; } = "";
+        [JsonPropertyName("Instrument")] public string Instrument { get; set; } = "";
+        [JsonPropertyName("TagNumber")] public string TagNumber { get; set; } = "";
+        [JsonPropertyName("MakeModel")] public string MakeModel { get; set; } = "";
+        [JsonPropertyName("Range")] public string Range { get; set; } = "";
+        [JsonPropertyName("Quantity")] public int Quantity { get; set; }
+        [JsonPropertyName("TestingType")] public string TestingType { get; set; } = "";
+        [JsonPropertyName("CertNo")] public string CertNo { get; set; } = "";
+        [JsonPropertyName("Remarks")] public string Remarks { get; set; } = "";
+
+    }
+
     private List<ReportView> _reports = new();
     private List<Location> _locations = new();
-    private ReportView _viewingReport = new();
-    private List<ChecklistRow> _viewingRows = new();
-    private List<OtherCheckpoint> _viewingCheckpoints = new();
-    private List<SpareItem> _viewingSpares = new();
+    private List<CalibrationDetail> _jobCertificates = new();
+    private ReportView _selectedReport = new();
 
     private bool _loading = true;
-    private bool _isModalOpen = false;
-    private DateRange _dateRange = new DateRange(DateTime.Now.AddMonths(-1), DateTime.Now);
+    private bool _isGcsModalOpen = false;
+    private bool _isOcsModalOpen = false;
 
-    [Table("pm_reports")]
-    public class PmReport : BaseModel
-    {
-        [PrimaryKey("id", false)] public Guid Id { get; set; }
-        [Column("location_id")] public long? LocationId { get; set; }
-        [Column("observations")] public string Observations { get; set; } = "";
-        [Column("work_permit")] public string? WorkPermit { get; set; }
-        [Column("assigned_to")] public string? AssignedTo { get; set; }
-        [Column("completion_date")] public DateTime CompletionDate { get; set; }
-
-        /* FIX: Columns changed to 'object' to prevent fetch-time parsing errors */
-        [Column("checklist_data")] public object? ChecklistData { get; set; }
-        [Column("section_a_controllers")] public object? SectionA { get; set; }
-        [Column("section_b_transmitters")] public object? SectionB { get; set; }
-        [Column("section_d_spares")] public object? SectionD { get; set; }
-    }
-
-    [Table("locations")]
-    public class Location : BaseModel
-    {
-        [PrimaryKey("id", false)] public long Id { get; set; }
-        [Column("installation_name")] public string? InstallationName { get; set; }
-    }
-
-    public class ReportView : PmReport
-    {
-        public string LocationName { get; set; } = "N/A";
-        public string CompletionDateLocal => CompletionDate.ToLocalTime().ToString("dd-MMM-yyyy HH:mm");
-    }
-
-    public class ChecklistRow
-    {
-        public string Category { get; set; } = ""; public string SlNo { get; set; } = "";
-        public string Unit { get; set; } = ""; public string Make { get; set; } = "";
-        public string Model { get; set; } = ""; public string Range { get; set; } = "";
-        public string SetPoint { get; set; } = ""; public string PsvSetting { get; set; } = "";
-        public string CalibrationStatus { get; set; } = ""; public string Bands { get; set; } = "";
-        public string EquipmentUsed { get; set; } = "";
-    }
-
-    public class OtherCheckpoint { public string CheckingPoint { get; set; } = ""; public string Value { get; set; } = ""; public string Comment { get; set; } = ""; }
-    public class SpareItem { public string Instrument { get; set; } = ""; public string TagNo { get; set; } = ""; public string Unit { get; set; } = ""; }
-    public class RawCheckpoint { public string Task { get; set; } = ""; public bool Done { get; set; } public string Notes { get; set; } = ""; }
+  
 
     protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task HandleViewClick(ReportView report)
+    {
+        _selectedReport = report;
+        string jobIdStr = report.JobId.ToString();
+        _currentJobItems.Clear();
+
+        try
+        {
+            // 1. Fetch the PM Report data to get the JSON sections
+            var reportRes = await SupabaseClient.From<PmReport>()
+                .Filter("id", Supabase.Postgrest.Constants.Operator.Equals, report.Id)
+                .Single();
+
+            if (reportRes != null)
+            {
+                // Parse the JSON Sections (A and B)
+                _currentJobItems.AddRange(ParseJsonSection(reportRes.SectionA));
+                _currentJobItems.AddRange(ParseJsonSection(reportRes.SectionB));
+            }
+
+            // 2. Fetch Calibration Certificates for this Job
+            var certRes = await SupabaseClient.From<CalibrationDetail>()
+                .Filter("job_id", Supabase.Postgrest.Constants.Operator.Equals, jobIdStr)
+                .Get();
+
+            _jobCertificates = certRes.Models;
+
+            // 3. Open appropriate Modal
+            if (report.LocationName.Contains("GCS", StringComparison.OrdinalIgnoreCase))
+                _isGcsModalOpen = true;
+            else
+                _isOcsModalOpen = true;
+        }
+        catch (Exception ex) { Snackbar.Add("Data Load Error: " + ex.Message, Severity.Error); }
+    }
+    // This handles the escaped string JSON in your database
+    private List<SectionItem> ParseJsonSection(object? jsonField)
+    {
+        if (jsonField == null) return new();
+        try
+        {
+            string rawJson = jsonField.ToString();
+            // Supabase sometimes returns JSON as a double-quoted string: "[{...}]"
+            if (rawJson.StartsWith("\"") && rawJson.EndsWith("\""))
+            {
+                rawJson = JsonSerializer.Deserialize<string>(rawJson) ?? "[]";
+            }
+            return JsonSerializer.Deserialize<List<SectionItem>>(rawJson) ?? new();
+        }
+        catch { return new(); }
+    }
+
+    // private async Task HandleViewClick(ReportView report)
+    // {
+    //     _selectedReport = report;
+
+    //     // --- CRITICAL FIX ---
+    //     // Passing Guid directly causes "Unknown criterion type" error.
+    //     // We MUST convert it to a string for Postgrest.
+    //     string jobIdStr = report.JobId.ToString();
+
+    //     try
+    //     {
+    //         if (report.LocationName.Contains("GCS", StringComparison.OrdinalIgnoreCase))
+    //         {
+    //             // Optionally fetch certs here if needed for GCS logic
+    //             _isGcsModalOpen = true;
+    //         }
+    //         else
+    //         {
+    //             _isOcsModalOpen = true;
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add("Selection Error: " + ex.Message, Severity.Error);
+    //     }
+    // }
 
     private async Task LoadData()
     {
         try
         {
             _loading = true;
-            string start = (_dateRange.Start ?? DateTime.Now.AddMonths(-1)).ToString("yyyy-MM-ddTHH:mm:ssZ");
-            string end = (_dateRange.End ?? DateTime.Now).ToString("yyyy-MM-ddTHH:mm:ssZ");
-
             var locRes = await SupabaseClient.From<Location>().Get();
             _locations = locRes.Models;
 
-            var res = await SupabaseClient.From<PmReport>()
-                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, start)
-                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, end)
-                .Get();
-
+            var res = await SupabaseClient.From<PmReport>().Get();
             _reports = res.Models.Select(r => new ReportView
             {
                 Id = r.Id,
+                JobId = r.JobId,
                 LocationId = r.LocationId,
-                Observations = r.Observations,
                 WorkPermit = r.WorkPermit,
-                AssignedTo = r.AssignedTo,
                 CompletionDate = r.CompletionDate,
-                ChecklistData = r.ChecklistData,
-                SectionA = r.SectionA,
-                SectionB = r.SectionB,
-                SectionD = r.SectionD,
-                LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "Unknown"
-            }).OrderByDescending(x => x.CompletionDate).ToList();
+                LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "N/A",
+                // Initialize the VisualPoints list here
+                VisualPoints = new List<VisualPoint>
+        {
+            new VisualPoint { Id = "1", Description = "Checked all tripping parameters and their settings." },
+            new VisualPoint { Id = "2", Description = "Panel inside wiring checked and found ok." },
+            new VisualPoint { Id = "3", Description = "Air Filter Regulators draining and servicing done." }
         }
-        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+
+            }).ToList();
+        }
+        catch (Exception ex) { Snackbar.Add("Fetch Error: " + ex.Message, Severity.Error); }
         finally { _loading = false; }
     }
 
-    private void OpenViewModal(ReportView report)
+    private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    #region Models
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
     {
-        _viewingReport = report;
-        _viewingRows = new();
-        _viewingCheckpoints = new();
-        _viewingSpares = new();
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("work_permit")] public string? WorkPermit { get; set; }
+        [Column("completion_date")] public DateTime CompletionDate { get; set; }
+        [Column("section_a_controllers")] public object? SectionA { get; set; }
+        [Column("section_b_transmitters")] public object? SectionB { get; set; }
 
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-        /* FIX: Robust cleaning of the object types from Supabase */
-        string GetRawJson(object? input)
-        {
-            if (input == null) return "[]";
-            if (input is JsonElement element)
-            {
-                string raw = element.GetRawText();
-                if (raw.StartsWith("\""))
-                {
-                    try { return JsonSerializer.Deserialize<string>(raw) ?? "[]"; } catch { return raw; }
-                }
-                return raw;
-            }
-            return input.ToString() ?? "[]";
-        }
-
-        try
-        {
-            string cleanA = GetRawJson(report.SectionA);
-            _viewingRows.AddRange(JsonSerializer.Deserialize<List<ChecklistRow>>(cleanA, options) ?? new());
-
-            string cleanB = GetRawJson(report.SectionB);
-            _viewingRows.AddRange(JsonSerializer.Deserialize<List<ChecklistRow>>(cleanB, options) ?? new());
-
-            string cleanD = GetRawJson(report.SectionD);
-            _viewingSpares = JsonSerializer.Deserialize<List<SpareItem>>(cleanD, options) ?? new();
-
-            string cleanC = GetRawJson(report.ChecklistData);
-            var cRaw = JsonSerializer.Deserialize<List<RawCheckpoint>>(cleanC, options) ?? new();
-            _viewingCheckpoints = cRaw.Select(x => new OtherCheckpoint
-            {
-                CheckingPoint = x.Task,
-                Value = x.Done ? "Yes" : "No",
-                Comment = x.Notes
-            }).ToList();
-        }
-        catch (Exception ex) { Snackbar.Add("Mapping Error: " + ex.Message, Severity.Warning); }
-
-        _isModalOpen = true;
+        // ADD THIS COLUMN to capture the date string from the DB
+        [Column("pm_dates")] public string? PmDates { get; set; }
     }
 
-    private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
+    [Table("pm_calibration_details")]
+    public class CalibrationDetail : BaseModel
+    {
+        [PrimaryKey("id")] public int Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("cert_no")] public string CertNo { get; set; } = "";
+        [Column("installation")] public string? Installation { get; set; }
+        [Column("unit_id")] public string? UnitId { get; set; }
+        [Column("instrument_type")] public string? InstrumentRange { get; set; }
+
+        [Column("model")] public string? Model { get; set; }
+        [Column("instrument_range")] public string? InstrumentType { get; set; }
+        [Column("report_date")] public DateTime? ReportDate { get; set; }
+        [Column("performed_by_name")] public string? PerformedByName { get; set; }
+        [Column("witnessed_by_name")] public string? WitnessedByName { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("calibration_data")]
+        public string CalibrationDataJson { get; set; } = "[]";
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    public class ReportView : PmReport
+    {
+        // Existing helper for dates
+        public string CompletionDateLocal => CompletionDate.ToLocalTime().ToString("dd/MM/yyyy");
+
+        // UI specific properties mapped from the JSON sections
+        public string LocationName { get; set; } = "N/A";
+        public string InstallationName { get; set; } = "";
+        public string CompSlNo { get; set; } = "";
+        public string MakeModel { get; set; } = "";
+        public string PMDates { get; set; } = ""; // Mapped from the pm_dates column
+
+        // To hold the list for the "Visual Checking Points"
+        public List<VisualPoint> VisualPoints { get; set; } = new();
+    }
+
+    public class VisualPoint
+    {
+        public string Id { get; set; }
+        public string Description { get; set; }
+    }
+    #endregion
+
 }

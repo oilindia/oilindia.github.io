@@ -436,6 +436,21 @@
                 <MudItem xs="4"><MudTextField Label="Installation" @bind-Value="_activeResult.REInstallation" Variant="Variant.Outlined" /></MudItem>
                 <MudItem xs="4"><MudTextField Label="Model" @bind-Value="_activeResult.REModel" Variant="Variant.Outlined" /></MudItem>
                 <MudItem xs="4"><MudTextField Label="Master Calibrator" @bind-Value="_activeResult.RECalibration.MasterCalibrator" Variant="Variant.Outlined" /></MudItem>
+                @* <MudItem xs="4">
+                    <MudSelect T="string"
+                               Label="Master Calibrators"
+                               MultiSelection="false"
+                               @bind-SelectedValues="_selectedCalibrators"
+                               Variant="Variant.Outlined"
+                               AnchorOrigin="Origin.BottomCenter"
+                               Clearable="true">
+                        @foreach (var tool in _masterCalibratorList)
+                        {
+                            <MudSelectItem T="string" Value="@tool">@tool</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem> *@
+            
             </MudGrid>
 
             @RenderCalibrationContent()
@@ -959,6 +974,8 @@
                     Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
                     // Logic: If cert_no already exists, skip it and move to the next
                     Console.WriteLine($"Skipping duplicate Certificate Number: {detail.CertNo}");
+                    Snackbar.Add($"Skipping duplicate Certificate Number: {detail.CertNo}", Severity.Error);
+
                     continue;
                 }
                 catch (Exception detailEx)

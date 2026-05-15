@@ -1,0 +1,417 @@
+﻿@page "/PMrn5"
+
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Text.Json
+@using Microsoft.JSInterop
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JSRuntime
+
+<style>
+    /* 1. Screen & Print Styles */
+    .report-paper {
+        background-color: white;
+        color: black;
+        font-family: 'Times New Roman', Times, serif;
+        line-height: 1.4;
+        margin: 20px auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+        color: black;
+    }
+
+        .report-table th, .report-table td {
+            border: 1px solid black !important;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+    .w-100 {
+        width: 100%;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    @@media print {
+        @@page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        body * {
+            visibility: hidden !important;
+        }
+
+        #printable-area, #printable-area * {
+            visibility: visible !important;
+        }
+
+        #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">PM Completion Reports</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadData">Refresh</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="4">
+                <MudDateRangePicker Label="Completion Date Range" @bind-DateRange="_dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" OnClick="LoadData">Apply Filter</MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudDataGrid T="ReportView" Items="@_reports" Loading="@_loading" Dense="true" Bordered="true">
+            <Columns>
+                <TemplateColumn Title="View" HeaderStyle="width: 50px;">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="@(() => OpenViewModal(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.CompletionDateLocal" Title="Date" />
+                <PropertyColumn Property="x => x.LocationName" Title="Installation" />
+                <PropertyColumn Property="x => x.WorkPermit" Title="Permit #" />
+                <PropertyColumn Property="x => x.AssignedTo" Title="Technician" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@if (_isModalOpen)
+{
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; flex-direction: column; align-items: center; backdrop-filter: blur(4px); overflow-y: auto;">
+
+        <div class="no-print d-flex justify-space-between align-center pa-4" style="width: 210mm; position: sticky; top: 0; z-index: 1010; background: #333; border-radius: 0 0 8px 8px;">
+            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">Print Certificates</MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _isModalOpen = false" Color="Color.Error" Variant="Variant.Filled" />
+        </div>
+
+        <div id="printable-area">
+            @foreach (var cert in _jobCertificates)
+            {
+                <div class="report-paper pa-10 page-break" style="width: 210mm; min-height: 297mm; border: 1px solid #000; background: white;">
+                    @* Header Section *@
+                    <div class="text-center mb-4">
+                        <img src="oil_india_logo.png" style="width: 60px;" />
+                        <h3 style="margin: 5px 0 0 0;">ऑयल इंडिया लिमिटेड</h3>
+                        <h3 style="margin: 0 0 5px 0;">OIL INDIA LIMITED</h3>
+                        <div style="border-top: 1px solid black; border-bottom: 1px solid black; padding: 4px;">
+                            <h4 style="margin: 0;">Calibration report for Pressure Gauge</h4>
+                        </div>
+                    </div>
+
+                    @* Master Data *@
+                    <table class="w-100 mb-4" style="border-collapse: collapse; text-align: left;">
+                        <tr>
+                            <td style="border: 1px solid black; padding: 6px; width: 60%;"><strong>Installation:</strong> @cert.Installation</td>
+                            <td style="border: 1px solid black; padding: 6px;"><strong>Doc No:</strong> @cert.CertNo</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="border: 1px solid black; padding: 6px;"><strong>Date:</strong> @cert.ReportDate?.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid black; padding: 6px;"><strong>Instrument:</strong> @cert.InstrumentType</td>
+                            <td style="border: 1px solid black; padding: 6px;"><strong>Unit:</strong> @cert.UnitId</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid black; padding: 6px;"><strong>Model:</strong> @cert.Model</td>
+                            <td style="border: 1px solid black; padding: 6px;"><strong>Range:</strong> @cert.InstrumentRange</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="border: 1px solid black; padding: 6px;"><strong>Master Calibrator:</strong> @(cert.MasterCalibrator ?? "FLUKE (718Ex 300G)")</td>
+                        </tr>
+                    </table>
+
+                    @* Calibration Grid *@
+                    <table class="report-table">
+                        <thead>
+                            <tr style="background-color: #f5f5f5;">
+                                <th>Input (Kg/Cm²)</th>
+                                <th>Input (%)</th>
+                                <th>Expected (Kg/Cm²)</th>
+                                <th>Output (Kg/Cm²)</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var points = GeneratePoints(cert.InstrumentRange);
+                                for (int i = 0; i < points.Count; i++)
+                                {
+                                    <tr>
+                                        <td>@points[i].Input.ToString("F2")</td>
+                                        <td>@points[i].Percent%</td>
+                                        <td>@points[i].Expected.ToString("F2")</td>
+                                        <td>@points[i].Input.ToString("F2")</td> @* Placeholder for actual *@
+                                        @if (i == 0)
+                                        {
+                                            <td rowspan="5" style="vertical-align: middle;">@cert.Observations</td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="mt-4 pa-2" style="border: 1px solid black; min-height: 40px;">
+                        <strong>Observations:</strong> Gauge working properly.
+                    </div>
+
+                    @* Signature Section *@
+                    <table class="w-100 mt-10" style="border-collapse: collapse;">
+                        <tr>
+                            <td style="border: 1px solid black; padding: 8px; width: 50%;"><strong>Calibration carried out by</strong></td>
+                            <td style="border: 1px solid black; padding: 8px;"><strong>Signature of Engineer</strong></td>
+                        </tr>
+                        <tr style="height: 80px;">
+                            <td style="border: 1px solid black; padding: 8px; vertical-align: bottom;">Name: @cert.PerformedByName</td>
+                            <td style="border: 1px solid black; padding: 8px; vertical-align: bottom;">Name: @cert.WitnessedByName</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid black; padding: 8px;">Desig: @cert.PerformedByDesig</td>
+                            <td style="border: 1px solid black; padding: 8px;">Desig: @cert.WitnessedByDesig</td>
+                        </tr>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<ReportView> _reports = new();
+    private List<Location> _locations = new();
+    private List<CalibrationDetail> _jobCertificates = new();
+    private bool _loading = true;
+    private bool _isModalOpen = false;
+    private DateRange _dateRange = new DateRange(DateTime.Now.AddMonths(-1), DateTime.Now);
+
+    #region Models
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("location_id")] public long? LocationId { get; set; }
+        [Column("work_permit")] public string? WorkPermit { get; set; }
+        [Column("assigned_to")] public string? AssignedTo { get; set; }
+        [Column("completion_date")] public DateTime CompletionDate { get; set; }
+        [Column("section_a_controllers")] public object? SectionA { get; set; }
+    }
+
+    [Table("pm_calibration_details")]
+    public class CalibrationDetail : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("cert_no")] public string CertNo { get; set; } = "";
+        [Column("installation")] public string? Installation { get; set; }
+        [Column("instrument_type")] public string? InstrumentType { get; set; }
+        [Column("unit_id")] public string? UnitId { get; set; }
+        [Column("model")] public string? Model { get; set; }
+        [Column("instrument_range")] public string? InstrumentRange { get; set; }
+        [Column("master_calibrator")] public string? MasterCalibrator { get; set; }
+        [Column("performed_by_name")] public string? PerformedByName { get; set; }
+        [Column("performed_by_desig")] public string? PerformedByDesig { get; set; }
+        [Column("witnessed_by_name")] public string? WitnessedByName { get; set; }
+        [Column("witnessed_by_desig")] public string? WitnessedByDesig { get; set; }
+        [Column("report_date")] public DateTime? ReportDate { get; set; }
+        [Column("observations")] public string? Observations { get; set; }
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    public class ReportView : PmReport
+    {
+        public string LocationName { get; set; } = "N/A";
+        public string CompletionDateLocal => CompletionDate.ToLocalTime().ToString("dd-MMM-yyyy HH:mm");
+    }
+
+    public class CalPoint { public double Input; public int Percent; public double Expected; }
+    #endregion
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+
+            // 1. Fetch Locations
+            var locRes = await SupabaseClient.From<Location>().Get();
+            _locations = locRes.Models;
+
+            // 2. Prepare Filters (Convert DateRange to formatted strings)
+            // We use .Date to ensure we get the start of the day and end of the day
+            var startDate = _dateRange.Start?.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endDate = _dateRange.End?.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+            var query = SupabaseClient.From<PmReport>();
+
+            var res = await SupabaseClient.From<PmReport>()
+                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, startDate)
+                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endDate)
+                .Get();
+
+            //var res = await query.Get();
+
+            // 4. Map to View
+            _reports = res.Models.Select(r => new ReportView
+            {
+                Id = r.Id,
+                JobId = r.JobId,
+                LocationId = r.LocationId,
+                WorkPermit = r.WorkPermit,
+                AssignedTo = r.AssignedTo,
+                CompletionDate = r.CompletionDate,
+                LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "Unknown"
+            }).OrderByDescending(x => x.CompletionDate).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // private async Task LoadData()
+    // {
+    //     try
+    //     {
+    //         _loading = true;
+
+    //         string start = (_dateRange.Start ?? DateTime.Now.AddMonths(-1)).ToString("yyyy-MM-ddTHH:mm:ssZ");
+    //         string end = (_dateRange.End ?? DateTime.Now).ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+    //         var locRes = await SupabaseClient.From<Location>().Get();
+    //         _locations = locRes.Models;
+
+    //         var res = await SupabaseClient.From<PmReport>()
+    //             .Filter("completion_date", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _dateRange.Start)
+    //             .Filter("completion_date", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, _dateRange.End)
+    //             .Get();
+
+    //         _reports = res.Models.Select(r => new ReportView
+    //         {
+    //             Id = r.Id,
+    //             JobId = r.JobId,
+    //             LocationId = r.LocationId,
+    //             WorkPermit = r.WorkPermit,
+    //             AssignedTo = r.AssignedTo,
+    //             CompletionDate = r.CompletionDate,
+    //             LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "Unknown"
+    //         }).OrderByDescending(x => x.CompletionDate).ToList();
+    //     }
+    //     catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    //     finally { _loading = false; }
+    // }
+
+    // private async Task OpenViewModal(ReportView report)
+    // {
+    //     try
+    //     {
+    //         var certRes = await SupabaseClient.From<CalibrationDetail>()
+    //             .Filter("job_id", Supabase.Postgrest.Constants.Operator.Equals, report.JobId)
+    //             .Get();
+    //         _jobCertificates = certRes.Models;
+
+    //         if (!_jobCertificates.Any())
+    //         {
+    //             Snackbar.Add("No calibration certificates found for this job.", Severity.Warning);
+    //             return;
+    //         }
+    //         _isModalOpen = true;
+    //     }
+    //     catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
+    // }
+
+    private async Task OpenViewModal(ReportView report)
+    {
+        try
+        {
+            // Convert Guid to string to avoid "Unknown criterion type" error
+            string jobIdString = report.JobId.ToString();
+
+            var certRes = await SupabaseClient.From<CalibrationDetail>()
+                .Filter("job_id", Supabase.Postgrest.Constants.Operator.Equals, jobIdString)
+                .Get();
+
+            _jobCertificates = certRes.Models;
+
+            if (!_jobCertificates.Any())
+            {
+                Snackbar.Add("No calibration certificates found for this job.", Severity.Warning);
+                return;
+            }
+
+            _isModalOpen = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching certificate: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private List<CalPoint> GeneratePoints(string? rangeStr)
+    {
+        var points = new List<CalPoint>();
+        try
+        {
+            // Parses "0-35 kg/cm2" -> min: 0, max: 35
+            var parts = rangeStr?.Split(' ')[0].Split('-');
+            if (parts?.Length == 2 && double.TryParse(parts[1], out double max))
+            {
+                int[] percentages = { 0, 25, 50, 75, 100 };
+                foreach (var p in percentages)
+                {
+                    double val = (max * p) / 100.0;
+                    points.Add(new CalPoint { Percent = p, Input = val, Expected = val });
+                }
+            }
+        }
+        catch { /* Fallback to empty list */ }
+        return points;
+    }
+
+    private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
+}
