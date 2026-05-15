@@ -234,7 +234,7 @@
                     <tr>
                         <td width="20%" rowspan="3" class="logo-container">
                             <div class="logo-placeholder">
-                                <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 80px;">
+                                <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 40px;">
                                 <div class="logo-text-bold">ऑयल इंडिया</div>
                                 <div class="logo-text-bold">OIL INDIA</div>
                             </div>
@@ -431,20 +431,25 @@
             <div class="landscape-report">
                 <table class="oil-header-table">
                     <tr>
-                        <td width="15%" rowspan="2" class="text-center">
-                            <MudImage Src="_content/OIL.Shared/imgs/oil.png"
-                                      Alt="Oil India Limited Logo"
-                                      Fluid="true"
-                                      Style="max-width: 150px; height: auto;"
-                                      Class="mb-2" />
-
+                        <td width="20%" rowspan="3" class="logo-container">
+                            <div class="logo-placeholder">
+                                <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 40px;">
+                                <div class="logo-text-bold">ऑयल इंडिया</div>
+                                <div class="logo-text-bold">OIL INDIA</div>
+                            </div>
                         </td>
-                        <td class="text-center"><h3>OIL INDIA LIMITED</h3></td>
-                        <td width="20%">PM DATE: @_selectedReport.CompletionDateLocal</td>
-                    </tr>
-                    <tr>
-                        <td class="text-center">INSTRUMENTATION DEPARTMENT - OCS</td>
-                        <td>Installation: @_selectedReport.LocationName</td>
+                        <td class="text-center header-main-title">
+                            <div>ऑयल इंडिया लिमिटेड</div>
+                            <div class="sub-dept-hindi">यंत्रीकरण विभाग</div>
+                            <div class="dept-english">INSTRUMENTATION DEPARTMENT</div>
+                            <div class="location-text">दुलियाजान / DULIAJAN</div>
+                            <div class="company-english-bold">OIL INDIA LIMITED</div>
+                            <div class="internal-use-text">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
+                        </td>
+                        <td width="20%" class="ref-section">
+                            <div><strong>Ref No:</strong> @_selectedReport.WorkPermit</div>
+                            <div><strong>Dated:</strong> @_selectedReport.CompletionDateLocal</div>
+                        </td>
                     </tr>
                 </table>
                 <table class="report-table">
@@ -516,7 +521,8 @@
     private bool _isGcsModalOpen = false;
     private bool _isOcsModalOpen = false;
 
-  
+    public string currentLocationType = "";
+
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -549,6 +555,9 @@
 
             // 3. Open appropriate Modal
             if (report.LocationName.Contains("GCS", StringComparison.OrdinalIgnoreCase))
+
+
+
                 _isGcsModalOpen = true;
             else
                 _isOcsModalOpen = true;

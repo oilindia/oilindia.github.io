@@ -1,4 +1,4 @@
-﻿@page "/pmexecution"
+﻿@page "/pmexecution6"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -46,11 +46,37 @@
         @if (_selectedJob != null && _detectedType == "GCS")
         {
             <MudExpansionPanel Text="GCS Maintenance Section" IsExpanded="true">
-                
+                @* <MudGrid Class="pa-4 mb-4" Style="background: #f5f5f5; border-radius: 8px;">
+                    <MudItem xs="6">
+                        <MudTextField @bind-Value="_gcsData.CompSlNo" Label="Comp. Sl. No" Variant="Variant.Filled" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField @bind-Value="_gcsData.CompressorMake" Label="Make (e.g. ATLAS COPCO)" Variant="Variant.Filled" />
+                    </MudItem>
+                </MudGrid> *@
+
+                @* <div class="visual-checks pa-4 mb-4" style="border: 1px solid #ccc;">
+                    <MudText Typo="Typo.subtitle2"><b>Visual Checking Points:</b></MudText> *@
+
+                    @* Explicitly setting T="bool" resolves the inference error *@
+                    @* <MudCheckBox T="bool" @bind-Checked="_gcsData.CheckTripping"
+                                 Label="1] Checked all tripping parameters and their settings." Dense="true" />
+
+                    <MudCheckBox T="bool" @bind-Checked="_gcsData.CheckTubing"
+                                 Label="2] Panel inside tubing checked and found ok." Dense="true" />
+
+                    <MudCheckBox T="bool" @bind-Checked="_gcsData.CheckAFR"
+                                 Label="3] Air Filter Regulators draining and servicing done." Dense="true" />
+                </div> *@
 
                 @* @RenderGcsGrid() *@
 
                 <MudExpansionPanel Text="GCS Instrument Calibration" IsExpanded="true">
+
+
+
+
+
 
                     <MudAlert Severity="Severity.Info" Class="mb-4">Unit-wise grouping enabled for GCS workflow.</MudAlert>
 
@@ -63,12 +89,6 @@
                                   Width="100%"
                                   Class="mud-width-full">
                             <RowTemplate>
-
-                                @* --- GAP ROW --- *@
-                                <MudTr Style="height: 10px; border: none !important;">
-                                    <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
-                                    <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
-                                </MudTr>
 
 
                                 @* --- SUB-ROW 3: COMPRESSOR DATA & VISUAL CHECKS --- *@
@@ -102,7 +122,12 @@
                                     </MudTd>
                                 </MudTr>
 
-                               
+                                @* --- GAP ROW --- *@
+                                <MudTr Style="height: 25px; border: none !important;">
+                                    <MudTd colspan="8" Style="background-color: blue; border: none !important;"></MudTd>
+                                </MudTr>
+
+
 
 
 
@@ -215,38 +240,7 @@
                                 </MudTr>
 
                                 @* --- GAP ROW: Creates the visual separation between entries --- *@
-                                <MudTr Style="height: 5px; border: none !important;">
-                                    <MudTd colspan="6" Style="background-color: blue; border: none !important;"></MudTd>
-                                </MudTr>
-
-                                <MudTr Style="background-color: #fafafa; border-bottom: 3px solid #ccc;">
-                                    <MudTd colspan="8">
-                                        @* 3. Status & Spares (The new fields you requested) *@
-                                        <MudGrid Class="pa-4" Style="background: #ffffff; border: 1px solid #ccc; border-radius: 8px;">
-                                            <MudItem xs="4">
-                                                <MudTextField @bind-Value="context.SafetyInterlocks"
-                                                              Label="Safety Interlocks"
-                                                              Placeholder="Checked and found OK."
-                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                            </MudItem>
-                                            <MudItem xs="4">
-                                                <MudTextField @bind-Value="context.Hooter"
-                                                              Label="Hooter Status"
-                                                              Placeholder="Working properly."
-                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                            </MudItem>
-                                            <MudItem xs="4">
-                                                <MudTextField @bind-Value="context.SparesConsumed"
-                                                              Label="Spares Consumed"
-                                                              Placeholder="NIL"
-                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
-                                            </MudItem>
-                                        </MudGrid>
-                                    </MudTd>
-                                </MudTr>
-
-                                @* --- GAP ROW --- *@
-                                <MudTr Style="height: 10px; border: none !important;">
+                                <MudTr Style="height: 25px; border: none !important;">
                                     <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
                                     <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
                                 </MudTr>
@@ -287,7 +281,11 @@
 
 
 
-                
+                <MudGrid Class="mt-4">
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SafetyInterlocks" Label="Safety Interlocks" Placeholder="Checked and found OK."/></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.Hooter" Label="Hooter Status" Placeholder="Working properly." /></MudItem>
+                    <MudItem xs="4"><MudTextField @bind-Value="_gcsData.SparesConsumed" Label="Spares Consumed" Placeholder="NIL"/></MudItem>
+                </MudGrid>
             </MudExpansionPanel>
 
             <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveGcsReport" Class="mt-6">Save GCS Report</MudButton>
@@ -310,13 +308,6 @@
                               Width="100%"
                               Class="mud-width-full">
                         <RowTemplate>
-
-                            @* --- GAP ROW --- *@
-                            <MudTr Style="height: 10px; border: none !important;">
-                                <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
-                                <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
-                            </MudTr>
-
                             @* --- INSTRUMENT BLOCK START --- *@
 
                             @* SUB-ROW 1: IDENTIFICATION HEADER (Grey Background) *@
@@ -426,10 +417,8 @@
                             </MudTr>
 
                             @* --- GAP ROW: Creates the visual separation between entries --- *@
-                            @* --- GAP ROW --- *@
-                            <MudTr Style="height: 10px; border: none !important;">
-                                <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
-                                <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
+                            <MudTr Style="height: 25px; border: none !important;">
+                                <MudTd colspan="6" Style="background-color: transparent; border: none !important;"></MudTd>
                             </MudTr>
 
                             @* --- INSTRUMENT BLOCK END --- *@
