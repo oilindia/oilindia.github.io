@@ -9,6 +9,7 @@
 @inject ISnackbar Snackbar
 @inject OIL.Shared.Services.CustomAuthStateProvider AuthStateProvider
 @using static Supabase.Postgrest.QueryOptions
+@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-12" Style="width: 100%;">
     <MudPaper Class="pa-8" Elevation="3" Style="background-color: #f9f9f9; width: 100%; max-width: 100%;">
@@ -984,6 +985,21 @@
     {
         try
         {
+            // --- 2. USER CONFIRMATION DIALOG ---
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Save",
+                "Are you sure you want to save this report and its certificates?",
+                yesText: "OK",
+                cancelText: "Cancel"
+            );
+
+            if (result == null || !result.Value)
+            {
+                // User cancelled or closed the dialog box
+                return;
+            }
+
+
             // 1. Save PM Report
             var pmReport = new PmReport
             {
@@ -1124,6 +1140,22 @@
     {
         try
         {
+
+            // --- 2. USER CONFIRMATION DIALOG ---
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Save",
+                "Are you sure you want to save this report and its certificates?",
+                yesText: "OK",
+                cancelText: "Cancel"
+            );
+
+            if (result == null || !result.Value)
+            {
+                // User cancelled or closed the dialog box
+                return;
+            }
+
+
             // 1. Save PM Report
             var pmReport = new PmReport
             {

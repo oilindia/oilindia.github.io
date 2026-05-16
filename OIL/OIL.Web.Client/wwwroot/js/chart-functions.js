@@ -1,4 +1,17 @@
 ﻿
+//------- Print Logic ---
+
+window.blazorPrint = () => {
+    setTimeout(() => {
+        window.print();
+    }, 500);
+};
+
+
+
+
+
+
 // --- Schedule & Grid Logic ---
 window.scrollToToday = () => {
     const today = new Date().getDate();

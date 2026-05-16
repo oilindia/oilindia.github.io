@@ -1,0 +1,316 @@
+﻿@page "/pidmainup"
+
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+    <MudPaper Class="pa-4 mb-4 d-flex gap-4 align-center">
+
+        <MudSelect T="Location"
+                   Label="Select Installation"
+                   @bind-Value="_selectedLocation"
+                   ToStringFunc="@(x => x?.InstallationName ?? "")"
+                   Style="width:350px">
+
+            @foreach (var loc in _locations)
+            {
+                <MudSelectItem Value="@loc">
+                    @loc.InstallationName
+                </MudSelectItem>
+            }
+
+        </MudSelect>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="LoadData">
+            Load
+        </MudButton>
+
+        <MudSpacer />
+
+        <MudChip T="string" Color="Color.Warning">
+            Remaining: @_unmappedMarkers.Count
+        </MudChip>
+
+    </MudPaper>
+
+    @if (_selectedLocation != null)
+    {
+        <MudGrid>
+
+            <!-- LEFT PANEL -->
+            <MudItem xs="12" md="4">
+
+                <MudPaper Class="pa-2" Style="height:80vh; overflow:auto;">
+
+                    <MudText Typo="Typo.h6" Class="mb-2">
+                        Unmapped Instruments
+                    </MudText>
+
+                    @foreach (var marker in _unmappedMarkers)
+                    {
+                        <MudPaper Class="@GetMarkerClass(marker)"
+                                  Elevation="2"
+                                  @onclick="() => SelectMarker(marker)">
+
+                            <MudText>
+                                <b>@marker.TagNumber</b>
+                            </MudText>
+
+                            <MudText Typo="Typo.caption">
+                                @marker.InstrumentType
+                            </MudText>
+
+                        </MudPaper>
+                    }
+
+                </MudPaper>
+
+            </MudItem>
+
+            <!-- RIGHT PANEL -->
+            <MudItem xs="12" md="8">
+
+                <MudPaper Style="height:80vh; overflow:auto; position:relative;">
+
+                    <div id="pid-container"
+                         style="position:relative;"
+                         @onclick="HandlePidClick">
+
+                        <img id="pid-image"
+                             src="@_selectedLocation.ImageUrl"
+                             style="width:100%; display:block;" />
+
+                        @foreach (var marker in _mappedMarkers)
+                        {
+                            <div style="
+                                    position:absolute;
+                                    left:@($"{marker.CoordX}%");
+                                    top:@($"{marker.CoordY}%");
+                                    transform:translate(-50%,-50%);
+                                    z-index:10;">
+
+                                <MudTooltip Text="@marker.TagNumber">
+
+                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn"
+                                             Style="color:red;" />
+
+                                </MudTooltip>
+
+                            </div>
+                        }
+
+                        @if (_clickPreviewX.HasValue)
+                        {
+                            <div style="
+                                    position:absolute;
+                                    left:@($"{_clickPreviewX}%");
+                                    top:@($"{_clickPreviewY}%");
+                                    transform:translate(-50%,-50%);
+                                    z-index:20;">
+
+                                <MudIcon Icon="@Icons.Material.Filled.AddLocation"
+                                         Style="color:lime; font-size:40px;" />
+
+                            </div>
+                        }
+
+                    </div>
+
+                </MudPaper>
+
+            </MudItem>
+
+        </MudGrid>
+    }
+
+</MudContainer>
+
+<style>
+
+    .pointer-item
+    {
+        cursor:pointer;
+        transition:all 0.2s;
+    }
+
+    .pointer-item:hover
+    {
+        background:#eeeeee;
+    }
+
+    .selected-item
+    {
+        border:2px solid #1976d2;
+        background:#e3f2fd;
+    }
+
+</style>
+
+@code {
+
+    private List<Location> _locations = new();
+
+    private Location _selectedLocation;
+
+    private List<Marker> _allMarkers = new();
+
+    private List<Marker> _unmappedMarkers = new();
+
+    private List<Marker> _mappedMarkers = new();
+
+    private Marker _selectedMarker;
+
+    private double? _clickPreviewX;
+    private double? _clickPreviewY;
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("installation_name")]
+        public string InstallationName { get; set; }
+
+        [Column("image_url")]
+        public string ImageUrl { get; set; }
+    }
+
+    [Table("pid_markers")]
+    public class Marker : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long? Id { get; set; }
+
+        [Column("location_id")]
+        public long LocationId { get; set; }
+
+        [Column("tag_number")]
+        public string TagNumber { get; set; }
+
+        [Column("instrument_type")]
+        public string InstrumentType { get; set; }
+
+        [Column("coord_x")]
+        public double? CoordX { get; set; }
+
+        [Column("coord_y")]
+        public double? CoordY { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await SupabaseClient
+            .From<Location>()
+            .Get();
+
+        _locations = res.Models;
+    }
+
+    private string GetMarkerClass(Marker marker)
+    {
+        return marker == _selectedMarker
+            ? "pa-2 mb-2 pointer-item selected-item"
+            : "pa-2 mb-2 pointer-item";
+    }
+
+    private async Task LoadData()
+    {
+        if (_selectedLocation == null)
+            return;
+
+        var res = await SupabaseClient
+            .From<Marker>()
+            .Where(x => x.LocationId == _selectedLocation.Id)
+            .Get();
+
+        _allMarkers = res.Models;
+
+        SplitMarkers();
+
+        _selectedMarker = _unmappedMarkers.FirstOrDefault();
+
+        Snackbar.Add("Loaded", Severity.Success);
+    }
+
+    private void SplitMarkers()
+    {
+        _mappedMarkers = _allMarkers
+            .Where(x => x.CoordX.HasValue && x.CoordY.HasValue)
+            .ToList();
+
+        _unmappedMarkers = _allMarkers
+            .Where(x => !x.CoordX.HasValue || !x.CoordY.HasValue)
+            .ToList();
+    }
+
+    private void SelectMarker(Marker marker)
+    {
+        _selectedMarker = marker;
+    }
+
+    private async Task HandlePidClick(MouseEventArgs e)
+    {
+        if (_selectedMarker == null)
+        {
+            Snackbar.Add("Select instrument first", Severity.Warning);
+            return;
+        }
+
+        var dims = await JS.InvokeAsync<ImageDimensions>(
+            "eval",
+            @"(() => {
+                const img = document.getElementById('pid-image');
+
+                const rect = img.getBoundingClientRect();
+
+                return {
+                    Width: rect.width,
+                    Height: rect.height
+                };
+            })()");
+
+        var x = (e.OffsetX / dims.Width) * 100;
+        var y = (e.OffsetY / dims.Height) * 100;
+
+        _clickPreviewX = x;
+        _clickPreviewY = y;
+
+        _selectedMarker.CoordX = x;
+        _selectedMarker.CoordY = y;
+
+        await SupabaseClient
+            .From<Marker>()
+            .Where(x => x.Id == _selectedMarker.Id)
+            .Set(x => x.CoordX, _selectedMarker.CoordX)
+            .Set(x => x.CoordY, _selectedMarker.CoordY)
+            .Update();
+
+        Snackbar.Add(
+            $"{_selectedMarker.TagNumber} mapped",
+            Severity.Success);
+
+        await LoadData();
+
+        _selectedMarker = _unmappedMarkers.FirstOrDefault();
+
+        StateHasChanged();
+    }
+
+    public class ImageDimensions
+    {
+        public double Width { get; set; }
+
+        public double Height { get; set; }
+    }
+
+}

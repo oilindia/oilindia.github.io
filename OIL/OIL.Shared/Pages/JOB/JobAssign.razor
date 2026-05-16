@@ -16,99 +16,412 @@
 @using Supabase.Postgrest.Models;
 @using System.Runtime.Serialization;
 
+
 <style>
-    /* Container & Layout */
+
+    /* =========================================================
+           GLOBAL PAGE
+        ========================================================= */
+    html, body {
+        margin: 0;
+        padding: 0;
+        background: #f5f5f5;
+        overflow-x: hidden;
+        font-family: Roboto, Arial, sans-serif;
+    }
+
+    /* =========================================================
+           MAIN GRID CONTAINER
+        ========================================================= */
     .grid-scroll-container {
         width: 100%;
         overflow-x: auto;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
+        overflow-y: hidden;
+        border: 1px solid #dcdcdc;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        position: relative;
+    }
+
+        .grid-scroll-container::-webkit-scrollbar {
+            height: 10px;
+        }
+
+        .grid-scroll-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+        .grid-scroll-container::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+    /* =========================================================
+           TABLE
+        ========================================================= */
+    .mud-table-root {
+        background: white !important;
+    }
+
+    .mud-table-container {
+        overflow: visible !important;
+    }
+
+    .mud-table {
+        min-width: max-content;
+        border-collapse: collapse !important;
+        table-layout: fixed;
+    }
+
+    .mud-table-head {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+
+    .mud-table-cell {
+        padding: 4px !important;
+        font-size: 0.74rem !important;
+        text-align: center !important;
+        border: 1px solid #ececec !important;
+        white-space: nowrap;
+        vertical-align: middle !important;
         background: white;
     }
 
-    /* Table Cells */
-    .mud-table-cell {
-        padding: 2px 4px !important;
-        font-size: 0.75rem !important;
-        text-align: center !important;
+    .mud-table-row:hover .mud-table-cell {
+        background: #fafafa !important;
     }
 
+    /* =========================================================
+           HEADER CELLS
+        ========================================================= */
     .header-cell {
-        min-width: 45px;
-        background: #f5f5f5 !important;
-        font-weight: bold;
+        min-width: 52px;
+        background: #f5f7fa !important;
+        font-weight: 700 !important;
         border-bottom: 2px solid #594ae2 !important;
+        color: #222;
+        position: sticky;
+        top: 0;
+        z-index: 15;
+        line-height: 1.2;
     }
 
+        .header-cell small {
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: #666;
+        }
+
+    /* =========================================================
+           STICKY FIRST COLUMN
+        ========================================================= */
     .sticky-col {
         position: sticky;
         left: 0;
-        z-index: 10;
+        z-index: 16;
         background: #f9f9f9 !important;
-        min-width: 120px;
+        min-width: 140px;
+        max-width: 140px;
+        width: 140px;
         font-weight: 700;
-        border-right: 2px solid #ddd !important;
+        border-right: 2px solid #d5d5d5 !important;
         text-align: left !important;
+        padding-left: 8px !important;
+        white-space: nowrap;
     }
 
-    /* Input Stack */
+    .mud-table-row:hover .sticky-col {
+        background: #f1f1f1 !important;
+    }
+
+    /* =========================================================
+           INPUT STACK
+        ========================================================= */
     .cell-input-stack {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 2px;
+        justify-content: center;
+        gap: 3px;
+        position: relative;
+        min-height: 42px;
     }
 
+    /* =========================================================
+           STATUS DROPDOWN
+        ========================================================= */
     .native-select {
-        border: none;
-        background: transparent;
-        width: 40px;
+        border: 1px solid #d0d0d0;
+        background: #ffffff;
+        width: 48px;
+        height: 24px;
         text-align: center;
-        font-size: 0.7rem;
-        font-weight: bold;
+        font-size: 0.68rem;
+        font-weight: 700;
+        border-radius: 4px;
         cursor: pointer;
+        transition: all 0.2s ease;
+        outline: none;
     }
 
+        .native-select:hover {
+            border-color: #594ae2;
+            background: #f8f7ff;
+        }
+
+        .native-select:focus {
+            border-color: #594ae2;
+            box-shadow: 0 0 0 2px rgba(89,74,226,0.15);
+        }
+
+    /* =========================================================
+           REMARK INPUT
+        ========================================================= */
     .remark-input {
-        border: 1px solid #eee;
-        width: 45px;
-        font-size: 0.6rem;
-        border-radius: 2px;
-        padding: 1px;
+        border: 1px solid #e0e0e0;
+        width: 48px;
+        height: 20px;
+        font-size: 0.62rem;
+        border-radius: 4px;
+        padding: 1px 4px;
+        transition: all 0.2s ease;
+        background: white;
+        text-align: center;
     }
+
+        .remark-input:hover {
+            border-color: #bdbdbd;
+        }
 
         .remark-input:focus {
-            width: 80px;
+            width: 110px;
             border-color: #594ae2;
             outline: none;
             position: absolute;
-            z-index: 100;
+            z-index: 1000;
             background: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
 
-    /* State Styling */
+    /* =========================================================
+           STATE COLORS
+        ========================================================= */
     .modified {
-        background-color: #fff9c4 !important;
-        border-radius: 2px;
+        background-color: #fff8c6 !important;
+        border: 1px solid #fbc02d !important;
     }
 
     .sunday-cell {
         background-color: #fff1f0 !important;
-        color: #cf1322;
+        color: #cf1322 !important;
     }
 
     .today-focus {
-        background-color: #e6f7ff !important;
+        background-color: #e6f4ff !important;
         border: 1px solid #1890ff !important;
     }
 
+    /* =========================================================
+           SAVE BAR
+        ========================================================= */
     .save-bar {
         position: fixed;
         bottom: 20px;
         right: 20px;
-        z-index: 100;
+        z-index: 5000;
+        display: flex;
+        gap: 10px;
+        background: rgba(255,255,255,0.96);
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+        backdrop-filter: blur(4px);
     }
+
+    /* =========================================================
+           PRINT OVERLAY + JOB CARD
+        ========================================================= */
+
+    .print-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.75);
+        z-index: 99999;
+        overflow-y: auto;
+        padding: 24px;
+    }
+
+    .print-actions {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(0,0,0,0.85);
+    }
+
+    .job-card-main {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 20px auto;
+        background: white;
+        color: black;
+        border: 2px solid black;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* =========================================================
+           MOBILE RESPONSIVE
+        ========================================================= */
+
+    @@media (max-width: 768px) {
+
+        .mud-table-cell {
+            font-size: 0.65rem !important;
+            padding: 2px !important;
+        }
+
+        .sticky-col {
+            min-width: 110px;
+            max-width: 110px;
+            width: 110px;
+            font-size: 0.68rem !important;
+        }
+
+        .header-cell {
+            min-width: 42px;
+            font-size: 0.62rem !important;
+        }
+
+        .native-select {
+            width: 42px;
+            font-size: 0.62rem;
+        }
+
+        .remark-input {
+            width: 42px;
+            font-size: 0.58rem;
+        }
+
+            .remark-input:focus {
+                width: 90px;
+            }
+
+        .save-bar {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .print-overlay {
+            padding: 8px;
+        }
+
+        .job-card-main {
+            width: 100%;
+            min-height: auto;
+            transform: scale(0.95);
+            transform-origin: top center;
+        }
+    }
+
+    /* =========================================================
+           PRINT FIXES
+        ========================================================= */
+
+    @@page {
+        size: A4 portrait;
+        margin: 6mm;
+    }
+
+    @@media print {
+
+        html,
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            overflow: hidden !important;
+        }
+            /* HIDE EVERYTHING */
+            body * {
+                visibility: hidden !important;
+            }
+        /* SHOW ONLY PRINT OVERLAY */
+        .print-overlay,
+        .print-overlay * {
+            visibility: visible !important;
+        }
+        /* CLEAN WHITE PRINT BG */
+        .print-overlay {
+            position: absolute !important;
+            inset: 0 !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+        }
+        /* HIDE NON-PRINT CONTENT */
+        .print-actions,
+        .save-bar,
+        .grid-scroll-container,
+        .mud-table,
+        .mud-overlay,
+        .mud-dialog,
+        .mud-snackbar-container,
+        .mud-appbar,
+        .mud-drawer,
+        .mud-navmenu,
+        .no-print {
+            display: none !important;
+        }
+        /* ONLY PRINT JOB CARD */
+        #job-card-to-print {
+            visibility: visible !important;
+            position: relative !important;
+            display: block !important;
+            width: 198mm !important;
+            min-height: 285mm !important;
+            margin: 0 auto !important;
+            border: 1px solid black !important;
+            box-shadow: none !important;
+            page-break-after: avoid !important;
+            break-after: avoid-page !important;
+        }
+
+        .job-card-main {
+            width: 198mm !important;
+            min-height: 285mm !important;
+            margin: 0 auto !important;
+            border: 1px solid black !important;
+            overflow: hidden !important;
+            box-shadow: none !important;
+        }
+        /* AVOID EXTRA PAGES */
+        table,
+        tr,
+        td,
+        div {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        /* BETTER PRINT COLORS */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+
 </style>
+
+
+
 
 <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
     <div class="d-flex flex-column align-items-center">
@@ -911,7 +1224,11 @@ else
         Snackbar.Add("Entry Updated", Severity.Info);
     }
 
-    private async Task PrintNow() => await JS.InvokeVoidAsync("window.print");
+    private async Task PrintNow()
+    {
+        await Task.Delay(300);
+        await JS.InvokeVoidAsync("window.print");
+    }
     private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "N/A";
     private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
     private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
