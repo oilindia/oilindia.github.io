@@ -1,0 +1,1786 @@
+﻿@page "/pmexecution7"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
+@using System.Text.Json
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject OIL.Shared.Services.CustomAuthStateProvider AuthStateProvider
+@using static Supabase.Postgrest.QueryOptions
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-12" Style="width: 100%;">
+    <MudPaper Class="pa-8" Elevation="3" Style="background-color: #f9f9f9; width: 100%; max-width: 100%;">
+        @* --- HEADER & JOB SELECTION --- *@
+        <MudText Typo="Typo.h5" Color="Color.Primary" Class="mb-6" Style="font-weight: bold;">
+            PM EXECUTION: @(_detectedType ?? "SELECT JOB")
+        </MudText>
+
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" md="4">
+                <MudSelect T="Job" Label="Select Job" Value="_selectedJob" ValueChanged="OnJobChanged"
+                           ToStringFunc="@(j => j?.JobName ?? "")" Variant="Variant.Outlined">
+                    @foreach (var job in _pendingJobs)
+                    {
+                        <MudSelectItem Value="@job" />
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_workPermit" Label="Notification Number" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_assignedTo" Label="Assigned To" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+
+        @if (_isSearching)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-6" />
+        }
+
+        @* ============================================================ *@
+        @* BRANCH 1: GCS UI (Ref: image_cc4400.png)                     *@
+        @* ============================================================ *@
+        @if (_selectedJob != null && _detectedType == "GCS")
+        {
+            <MudExpansionPanel Text="GCS Maintenance Section" IsExpanded="true">
+                
+
+                @* @RenderGcsGrid() *@
+
+                <MudExpansionPanel Text="GCS Instrument Calibration" IsExpanded="true">
+
+                    <MudAlert Severity="Severity.Info" Class="mb-4">Unit-wise grouping enabled for GCS workflow.</MudAlert>
+
+                    <div class="gcs-container" style="width: 100%; padding: 10px;">
+                        <MudTable Items="@_gcsRows"
+                                  Dense="true"
+                                  Bordered="false"
+                                  Elevation="0"
+                                  CustomHeader="true"
+                                  Width="100%"
+                                  Class="mud-width-full">
+                            <RowTemplate>
+
+                                @* --- GAP ROW --- *@
+                                <MudTr Style="height: 10px; border: none !important;">
+                                    <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
+                                    <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
+                                </MudTr>
+
+
+                                @* --- SUB-ROW 3: COMPRESSOR DATA & VISUAL CHECKS --- *@
+                                <MudTr Style="background-color: #fafafa; border-bottom: 3px solid #ddd;">
+                                    <MudTd colspan="8">
+                                        <MudGrid Class="pa-4 mb-2" Style="background: #f5f5f5; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                            <MudItem xs="12">
+                                                <MudText Typo="Typo.subtitle2"><b>Compressor Details:</b></MudText>
+                                            </MudItem>
+                                            <MudItem xs="6">
+                                                @* Note: Changed from _gcsData to context so it is unique per row *@
+                                                <MudTextField @bind-Value="context.CompSlNo" Label="Comp. Sl. No" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudItem>
+                                            <MudItem xs="6">
+                                                <MudTextField @bind-Value="context.CompMakeModel" Label="Make (e.g. ATLAS COPCO)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <div class="visual-checks pa-4" style="border: 1px solid #ccc; background-color: white; border-radius: 8px;">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Visual Checking Points:</b></MudText>
+
+                                            <MudCheckBox T="bool" @bind-Checked="context.CheckTripping"
+                                                         Label="1] Checked all tripping parameters and their settings." Dense="true" Color="Color.Primary" />
+
+                                            <MudCheckBox T="bool" @bind-Checked="context.CheckTubing"
+                                                         Label="2] Panel inside tubing checked and found ok." Dense="true" Color="Color.Primary" />
+
+                                            <MudCheckBox T="bool" @bind-Checked="context.CheckAFR"
+                                                         Label="3] Air Filter Regulators draining and servicing done." Dense="true" Color="Color.Primary" />
+                                        </div>
+                                    </MudTd>
+                                </MudTr>
+
+                               
+
+
+
+                                @* --- INSTRUMENT BLOCK START --- *@
+
+                                @* SUB-ROW 1: IDENTIFICATION HEADER (Grey Background) *@
+                                @* <MudTr Style="background-color: var(--mud-palette-background-grey); font-weight: bold; border-top: 2px solid var(--mud-palette-lines-default);"> *@
+                                <MudTr Style="background-color: lightcoral;">
+                                    <MudTd colspan="3" Style="color: black;">Unit / Location</MudTd>
+                                    <MudTd colspan="2" Style="color: black;">Instrument</MudTd>
+                                    <MudTd colspan="2" Style="color: black;">Tag Number</MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 1: IDENTIFICATION DATA (White Background) *@
+                                @* <MudTr Style="background-color: var(--mud-palette-surface);"> *@
+                                <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                    <MudTd colspan="3">
+                                        <MudSelect T="string" Value="@context.Unit" ValueChanged="@(v => gcsOnUnitChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Unit">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var u in _uniqueUnits)
+                                            {
+                                                <MudSelectItem Value="@u">@u</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualUnit" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd colspan="2">
+                                        <MudSelect T="string" Value="@context.Instrument" ValueChanged="@(v => gcsOnInstrumentChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Instrument">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var i in context.AvailableInstruments)
+                                            {
+                                                <MudSelectItem Value="@i">@i</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualInstrument" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd colspan="2">
+                                        <MudSelect T="string" Value="@context.TagNumber" ValueChanged="@(v => gcsOnTagChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Tag">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var t in context.AvailableTags)
+                                            {
+                                                <MudSelectItem Value="@t">@t</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudTextField @bind-Value="context.ManualTag" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 2: TECHNICAL HEADER (Light Blue/Alternative Background) *@
+                                <MudTr Style="background-color: lightgray">
+                                    <MudTd>Make / Model</MudTd>
+                                    <MudTd>Range</MudTd>
+                                    <MudTd>Quantity</MudTd>
+                                    <MudTd colspan="2">Testing & Calibration</MudTd>
+                                    <MudTd colspan="2">Remarks</MudTd>
+                                    <MudTd>Actions</MudTd>
+                                </MudTr>
+
+                                @* SUB-ROW 2: TECHNICAL DATA (White Background) *@
+                                <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                    <MudTd>
+                                        <MudTextField @bind-Value="context.MakeModel" Margin="Margin.Dense" />
+                                        <MudTextField @bind-Value="context.ManualMakeModel" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudTextField @bind-Value="context.Range" Margin="Margin.Dense" />
+                                        <MudTextField @bind-Value="context.ManualRange" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                    </MudTd>
+                                    <MudTd><MudNumericField @bind-Value="context.Quantity" Margin="Margin.Dense" Min="1" /></MudTd>
+                                    <MudTd colspan="2">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudSelect @bind-Value="context.TestingType" Margin="Margin.Dense" Dense="true" Style="min-width: 150px;">
+                                                <MudSelectItem Value="@("Calibration")">Calibration</MudSelectItem>
+                                                <MudSelectItem Value="@("Functional")">Functional</MudSelectItem>
+                                            </MudSelect>
+                                            @if (context.TestingType == "Calibration")
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Color="Color.Info"
+                                                               OnClick="() => gcsOpenCalibration(context)" />
+                                            }
+                                        </div>
+                                    </MudTd>
+                                    <MudTd>
+                                        <div class="d-flex flex-column">
+                                            <MudSelect T="string"
+                                                       Value="@context.Remarks"
+                                                       ValueChanged="@(v => gcsOnRemarksChanged(context, v))"
+                                                       Dense="true"
+                                                       Margin="Margin.Dense"
+                                                       Label="Select Remarks">
+                                                <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                                @foreach (var t in context.AvailableRemarks)
+                                                {
+                                                    <MudSelectItem Value="@t">@t</MudSelectItem>
+                                                }
+                                            </MudSelect>
+
+                                            <MudTextField @bind-Value="context.ManualRemarks"
+                                                          Placeholder="Manual Entry"
+                                                          Class="mt-2"
+                                                          Margin="Margin.Dense" />
+                                        </div>
+                                    </MudTd>
+                                    <MudTd>
+                                        <div class="d-flex">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" OnClick="@(() => SaveGcsReport())" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => _gcsRows.Remove(context))" />
+                                        </div>
+                                    </MudTd>
+                                </MudTr>
+
+                                @* --- GAP ROW: Creates the visual separation between entries --- *@
+                                <MudTr Style="height: 5px; border: none !important;">
+                                    <MudTd colspan="6" Style="background-color: blue; border: none !important;"></MudTd>
+                                </MudTr>
+
+                                <MudTr Style="background-color: #fafafa; border-bottom: 3px solid #ccc;">
+                                    <MudTd colspan="8">
+                                        @* 3. Status & Spares (The new fields you requested) *@
+                                        <MudGrid Class="pa-4" Style="background: #ffffff; border: 1px solid #ccc; border-radius: 8px;">
+                                            <MudItem xs="4">
+                                                <MudTextField @bind-Value="context.SafetyInterlocks"
+                                                              Label="Safety Interlocks"
+                                                              Placeholder="Checked and found OK."
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudItem>
+                                            <MudItem xs="4">
+                                                <MudTextField @bind-Value="context.Hooter"
+                                                              Label="Hooter Status"
+                                                              Placeholder="Working properly."
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudItem>
+                                            <MudItem xs="4">
+                                                <MudTextField @bind-Value="context.SparesConsumed"
+                                                              Label="Spares Consumed"
+                                                              Placeholder="NIL"
+                                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudTd>
+                                </MudTr>
+
+                                @* --- GAP ROW --- *@
+                                <MudTr Style="height: 10px; border: none !important;">
+                                    <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
+                                    <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
+                                </MudTr>
+
+                                @* --- INSTRUMENT BLOCK END --- *@
+                            </RowTemplate>
+                        </MudTable>
+
+
+                        <MudText Typo="Typo.h6" Class="mt-4 mb-2">Parts & Spares</MudText>
+                        <MudGrid Class="mb-6">
+                            <MudItem xs="12">
+                                <MudTextField T="string"
+                                              Label="Spares Consumed"
+                                              Variant="Variant.Outlined"
+                                              Lines="5"
+                                              @bind-Value="_sparesConsumed"
+                                              Placeholder="List the spares used here..." />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddGcsRow"
+                                   Color="Color.Secondary"
+                                   Variant="Variant.Filled"
+                                   Class="mt-2"
+                                   FullWidth="true">
+                            ++ ADD NEW ROW
+                        </MudButton>
+                    </div>
+
+
+
+                    @* @RenderOcsGrid() *@
+
+                    @* <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddOcsRow" Color="Color.Primary" Class="mt-2">Add Manual OCS Row</MudButton> *@
+                </MudExpansionPanel>
+
+
+
+                
+            </MudExpansionPanel>
+
+            <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveGcsReport" Class="mt-6">Save GCS Report</MudButton>
+        }
+
+        @* ============================================================ *@
+        @* BRANCH 2: OCS UI (Ref: image_cc4477.png)                     *@
+        @* ============================================================ *@
+        else if (_selectedJob != null && _detectedType == "OCS")
+        {
+            <MudExpansionPanel Text="OCS Instrument Calibration" IsExpanded="true">
+                <MudAlert Severity="Severity.Info" Class="mb-4">Unit-wise grouping enabled for OCS workflow.</MudAlert>
+
+                <div class="ocs-container" style="width: 100%; padding: 10px;">
+                    <MudTable Items="@_ocsRows"
+                              Dense="true"
+                              Bordered="false"
+                              Elevation="0"
+                              CustomHeader="true"
+                              Width="100%"
+                              Class="mud-width-full">
+                        <RowTemplate>
+
+                            @* --- GAP ROW --- *@
+                            <MudTr Style="height: 10px; border: none !important;">
+                                <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
+                                <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
+                            </MudTr>
+
+                            @* --- INSTRUMENT BLOCK START --- *@
+
+                            @* SUB-ROW 1: IDENTIFICATION HEADER (Grey Background) *@
+                            @* <MudTr Style="background-color: var(--mud-palette-background-grey); font-weight: bold; border-top: 2px solid var(--mud-palette-lines-default);"> *@
+                            <MudTr Style="background-color: lightcoral;">
+                                <MudTd colspan="3" Style="color: black;">Unit / Location</MudTd>
+                                <MudTd colspan="2" Style="color: black;">Instrument</MudTd>
+                                <MudTd colspan="2" Style="color: black;">Tag Number</MudTd>
+                            </MudTr>
+
+                            @* SUB-ROW 1: IDENTIFICATION DATA (White Background) *@
+                            @* <MudTr Style="background-color: var(--mud-palette-surface);"> *@
+                            <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                <MudTd colspan="3">
+                                    <MudSelect T="string" Value="@context.Unit" ValueChanged="@(v => OnUnitChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Unit">
+                                        <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                        @foreach (var u in _uniqueUnits)
+                                        {
+                                            <MudSelectItem Value="@u">@u</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="context.ManualUnit" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd colspan="2">
+                                    <MudSelect T="string" Value="@context.Instrument" ValueChanged="@(v => OnInstrumentChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Instrument">
+                                        <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                        @foreach (var i in context.AvailableInstruments)
+                                        {
+                                            <MudSelectItem Value="@i">@i</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="context.ManualInstrument" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd colspan="2">
+                                    <MudSelect T="string" Value="@context.TagNumber" ValueChanged="@(v => OnTagChanged(context, v))" Dense="true" Margin="Margin.Dense" Label="Select Tag">
+                                        <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                        @foreach (var t in context.AvailableTags)
+                                        {
+                                            <MudSelectItem Value="@t">@t</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="context.ManualTag" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                </MudTd>
+                            </MudTr>
+
+                            @* SUB-ROW 2: TECHNICAL HEADER (Light Blue/Alternative Background) *@
+                            <MudTr Style="background-color: lightgray">
+                                <MudTd>Make / Model</MudTd>
+                                <MudTd>Range</MudTd>
+                                <MudTd>Quantity</MudTd>
+                                <MudTd colspan="2">Testing & Calibration</MudTd>
+                                <MudTd colspan="2">Remarks</MudTd>
+                                <MudTd>Actions</MudTd>
+                            </MudTr>
+
+                            @* SUB-ROW 2: TECHNICAL DATA (White Background) *@
+                            <MudTr Style="background-color: var(--mud-palette-surface); border-bottom: 2px solid var(--mud-palette-lines-default);">
+                                <MudTd>
+                                    <MudTextField @bind-Value="context.MakeModel" Margin="Margin.Dense" />
+                                    <MudTextField @bind-Value="context.ManualMakeModel" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField @bind-Value="context.Range" Margin="Margin.Dense" />
+                                    <MudTextField @bind-Value="context.ManualRange" Placeholder="Manual Entry" Class="mt-1" Margin="Margin.Dense" />
+                                </MudTd>
+                                <MudTd><MudNumericField @bind-Value="context.Quantity" Margin="Margin.Dense" Min="1" /></MudTd>
+                                <MudTd colspan="2">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudSelect @bind-Value="context.TestingType" Margin="Margin.Dense" Dense="true" Style="min-width: 150px;">
+                                            <MudSelectItem Value="@("Calibration")">Calibration</MudSelectItem>
+                                            <MudSelectItem Value="@("Functional")">Functional</MudSelectItem>
+                                        </MudSelect>
+                                        @if (context.TestingType == "Calibration")
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Small" Color="Color.Info"
+                                                           OnClick="() => OpenCalibration(context)" />
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column">
+                                        <MudSelect T="string"
+                                                   Value="@context.Remarks"
+                                                   ValueChanged="@(v => OnRemarksChanged(context, v))"
+                                                   Dense="true"
+                                                   Margin="Margin.Dense"
+                                                   Label="Select Remarks">
+                                            <MudSelectItem Value="@("NOT FOUND")">NOT FOUND</MudSelectItem>
+                                            @foreach (var t in context.AvailableRemarks)
+                                            {
+                                                <MudSelectItem Value="@t">@t</MudSelectItem>
+                                            }
+                                        </MudSelect>
+
+                                        <MudTextField @bind-Value="context.ManualRemarks"
+                                                      Placeholder="Manual Entry"
+                                                      Class="mt-2"
+                                                      Margin="Margin.Dense" />
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" OnClick="@(() => SaveOcsReport())" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => _ocsRows.Remove(context))" />
+                                    </div>
+                                </MudTd>
+                            </MudTr>
+
+                            @* --- GAP ROW: Creates the visual separation between entries --- *@
+                            @* --- GAP ROW --- *@
+                            <MudTr Style="height: 10px; border: none !important;">
+                                <MudTd colspan="8" Style="background-color: darkred; border: none !important;"></MudTd>
+                                <MudTd colspan="8" Style="background-color: black; border: none !important;"></MudTd>
+                            </MudTr>
+
+                            @* --- INSTRUMENT BLOCK END --- *@
+                        </RowTemplate>
+                    </MudTable>
+
+
+                    <MudText Typo="Typo.h6" Class="mt-4 mb-2">Parts & Spares</MudText>
+                    <MudGrid Class="mb-6">
+                        <MudItem xs="12">
+                            <MudTextField T="string"
+                                          Label="Spares Consumed"
+                                          Variant="Variant.Outlined"
+                                          Lines="5"
+                                          @bind-Value="_sparesConsumed"
+                                          Placeholder="List the spares used here..." />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudButton StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="AddOcsRow"
+                               Color="Color.Secondary"
+                               Variant="Variant.Filled"
+                               Class="mt-2"
+                               FullWidth="true">
+                        ++ ADD NEW ROW
+                    </MudButton>
+                </div>
+
+
+
+                @* @RenderOcsGrid() *@
+
+                @* <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddOcsRow" Color="Color.Primary" Class="mt-2">Add Manual OCS Row</MudButton> *@
+            </MudExpansionPanel>
+
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveOcsReport" Class="mt-6">Submit Final Report</MudButton>
+        }
+
+    
+    
+    </MudPaper>
+</MudContainer>
+
+
+@* --- CALIBRATION DETAIL OVERLAY --- *@
+@if (_isCalibrationVisible && _activeResult != null)
+{
+    @* <div class="overlay-backdrop">
+        <MudPaper Class="pa-6" Style="width: 950px; max-height: 90vh; overflow-y: auto;">
+            <div class="d-flex justify-space-between mb-4">
+                <MudText Typo="Typo.h5">Calibration Certificate: @_activeResult.RECertificateNo</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseCalibration" />
+            </div> *@
+
+    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+        <MudPaper Style="width: 900px; max-width: 95%; max-height: 90vh; overflow-y: auto; padding: 24px;" Elevation="25">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6"><b>Calibration Report:</b> @_activeResult.RECertificateNo</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseCalibration" />
+            </div>
+
+            <MudGrid Class="mb-4">
+                <MudItem xs="4"><MudTextField Label="Installation" @bind-Value="_activeResult.REInstallation" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudTextField Label="Model" @bind-Value="_activeResult.REModel" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="4"><MudTextField Label="Master Calibrator" @bind-Value="_activeResult.REMasterCalibrator" Variant="Variant.Outlined" /></MudItem>
+                @* <MudItem xs="4">
+                    <MudSelect T="string"
+                               Label="Master Calibrators"
+                               MultiSelection="false"
+                               @bind-SelectedValues="_selectedCalibrators"
+                               Variant="Variant.Outlined"
+                               AnchorOrigin="Origin.BottomCenter"
+                               Clearable="true">
+                        @foreach (var tool in _masterCalibratorList)
+                        {
+                            <MudSelectItem T="string" Value="@tool">@tool</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem> *@
+            
+            </MudGrid>
+
+            @RenderCalibrationContent()
+
+            <div class="mt-4">
+                <MudTextField Label="Observations" @bind-Value="_activeResult.RERemarks" Lines="2" Variant="Variant.Outlined" />
+            </div>
+
+            <div class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseCalibration">Apply & Close</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+
+@code {
+
+
+
+    // Master Data from Database
+    private List<PidMarker> _allMarkers = new();
+    private List<string> _uniqueUnits = new();
+
+    // Grid Data
+    //private List<OcsInstrumentRow> _ocsRows = new();
+
+
+
+
+
+
+
+
+
+    // --- STATE MANAGEMENT ---
+    private List<Job> _pendingJobs = new();
+    private Job? _selectedJob;
+    private string? _detectedType;
+    private bool _isSearching = false, _isCalibrationVisible = false;
+    private string _workPermit = "", _assignedTo = "", _sparesConsumed = "";
+
+    private int currentPMlocationID ;
+    private string currentPMlocation = "";
+
+    // --- SEPARATED DATA OBJECTS ---
+    private GcsReportData _gcsData = new();
+    private List<OcsInstrumentRow> _ocsRows = new();
+
+    private List<GcsInstrumentRow> _gcsRows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending").Where(x => x.JobType == "preventive").Get();
+            _pendingJobs = jobRes.Models;
+
+
+
+            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+            _assignedTo = auth.User.Identity?.Name ?? "";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            return;
+        }
+
+
+    }
+
+    private async Task OnJobChanged(Job job)
+    {
+        _isSearching = false;
+        try
+        {
+            if (job == null) return;
+            _selectedJob = job;
+            _isSearching = true;
+
+            _selectedJob = job;
+            _isSearching = true;
+
+            // Logical Separation: Fetch Type
+            var locRes = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId).Single();
+
+            currentPMlocation = locRes.InstallationName;
+            currentPMlocationID = job.LocationId;
+            _detectedType = locRes?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+
+
+            // Logic Branching: Initialize Data based on Type
+            var markers = await SupabaseClient.From<PidMarker>().Where(x => x.LocationId == job.LocationId).Get();
+
+            _allMarkers = markers.Models;
+
+            _uniqueUnits = _allMarkers.Select(m => m.DeviceLocation).Distinct().OrderBy(x => x).ToList()!;
+
+
+            if (_detectedType == "GCS") InitializeGcs(markers.Models);
+            else InitializeOcs(markers.Models);
+
+            _isSearching = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            return;
+        }
+
+
+    }
+
+    // --- GCS SPECIFIC LOGIC ---
+    private void InitializeGcs(List<PidMarker> markers)
+    {
+        _gcsRows.Clear();
+        AddGcsRow();
+        // try
+        // {
+        //     _gcsData = new GcsReportData();
+        //     _gcsData.Instruments = markers.Select(m => new InstrumentEntry
+        //     {
+        //         Unit = m.DeviceLocation,
+        //         Instrument = m.InstrumentType,
+        //         MakeModel = m.MakeModelType,
+        //         Range = m.Range
+        //     }).ToList();
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        //     return;
+        // }
+
+
+    }
+
+    
+
+    // --- OCS SPECIFIC LOGIC ---
+    private void InitializeOcs(List<PidMarker> markers)
+    {
+
+        try
+        {
+            // Reset and initialize with exactly ONE row
+            _ocsRows.Clear();
+            AddOcsRow();
+
+
+            // _ocsRows = markers.Select((m, i) => new OcsInstrumentRow
+            // {
+            //     SlNo = (i + 1).ToString(),
+            //     Unit = m.DeviceLocation,
+            //     Instrument = m.InstrumentType,
+            //     Range = m.Range
+            // }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            return;
+        }
+
+
+    }
+    // --- CASCADING LOGIC ---
+    private void gcsOnUnitChanged(GcsInstrumentRow row, string unit)
+    {
+        row.Unit = unit;
+        row.Instrument = "";
+        row.TagNumber = "";
+
+        // Filter Instruments based on Unit
+        row.AvailableInstruments = _allMarkers
+            .Where(m => m.DeviceLocation == unit)
+            .Select(m => m.InstrumentType)
+            .Distinct().ToList()!;
+    }
+
+
+    private void OnUnitChanged(OcsInstrumentRow row, string unit)
+    {
+        row.Unit = unit;
+        row.Instrument = "";
+        row.TagNumber = "";
+
+        // Filter Instruments based on Unit
+        row.AvailableInstruments = _allMarkers
+            .Where(m => m.DeviceLocation == unit)
+            .Select(m => m.InstrumentType)
+            .Distinct().ToList()!;
+    }
+    private void gcsOnInstrumentChanged(GcsInstrumentRow row, string instrument)
+    {
+        row.Instrument = instrument;
+        row.TagNumber = "";
+
+        // Filter Tags based on Unit AND Instrument
+        row.AvailableTags = _allMarkers
+            .Where(m => m.DeviceLocation == row.Unit && m.InstrumentType == instrument)
+            .Select(m => m.TagNumber)
+            .Distinct().ToList()!;
+
+        row.AvailableRemarks = new List<string> { "Calibration carried out using handheld pressure calibrator.", "Controller adjustment carried out.", "Calibration carried out using handheld pressure calibrator & HART." };
+
+    }
+
+    private void OnInstrumentChanged(OcsInstrumentRow row, string instrument)
+    {
+        row.Instrument = instrument;
+        row.TagNumber = "";
+
+        // Filter Tags based on Unit AND Instrument
+        row.AvailableTags = _allMarkers
+            .Where(m => m.DeviceLocation == row.Unit && m.InstrumentType == instrument)
+            .Select(m => m.TagNumber)
+            .Distinct().ToList()!;
+
+        row.AvailableRemarks = new List<string> { "Calibration carried out using handheld pressure calibrator.", "Controller adjustment carried out." };
+
+    }
+
+    private void gcsOnTagChanged(GcsInstrumentRow row, string tag)
+    {
+        row.TagNumber = tag;
+
+        // Auto-fill Make/Range from the specific P&ID marker
+        var match = _allMarkers.FirstOrDefault(m => m.DeviceLocation == row.Unit &&
+                                                   m.InstrumentType == row.Instrument &&
+                                                   m.TagNumber == tag);
+        if (match != null)
+        {
+            row.MakeModel = match.MakeModelType ?? "";
+            row.Range = match.Range ?? "";
+        }
+    }
+    private void OnTagChanged(OcsInstrumentRow row, string tag)
+    {
+        row.TagNumber = tag;
+
+        // Auto-fill Make/Range from the specific P&ID marker
+        var match = _allMarkers.FirstOrDefault(m => m.DeviceLocation == row.Unit &&
+                                                   m.InstrumentType == row.Instrument &&
+                                                   m.TagNumber == tag);
+        if (match != null)
+        {
+            row.MakeModel = match.MakeModelType ?? "";
+            row.Range = match.Range ?? "";
+        }
+    }
+
+    private void gcsOnRemarksChanged(GcsInstrumentRow row, string remarks)
+    {
+        if (remarks != null)
+        {
+            row.Remarks = remarks;
+        }
+
+        else
+        {
+            row.Remarks = row.ManualRemarks;
+        }
+
+    }
+    private void OnRemarksChanged(OcsInstrumentRow row, string remarks)
+    {
+        if (remarks != null)
+        {
+            row.Remarks = remarks;
+        }
+        
+   else
+        {
+            row.Remarks = row.ManualRemarks;
+        }
+
+    }
+
+
+    private void AddOcsRow() => _ocsRows.Add(new OcsInstrumentRow { SlNo = (_ocsRows.Count + 1).ToString() });
+
+    private void AddGcsRow() => _gcsRows.Add(new GcsInstrumentRow { SlNo = (_gcsRows.Count + 1).ToString() });
+
+
+    // private OcsInstrumentRow? _activeRowRef;
+    // private ResultEntry? _activeResult;
+    public class ResultEntry
+    {
+        public string REInstallation { get; set; }
+        public string REUnit { get; set; }
+        public string RERange { get; set; }
+        public string REModel { get; set; }
+        public string REInstrumentType { get; set; }
+        public string RETestType { get; set; }
+        public string RECertificateNo { get; set; } = "";
+        public string RERemarks { get; set; } = "";
+        public string REMasterCalibrator { get; set; } = "";
+        //public ICalibrationData? RECalibration { get; set; }
+
+        public object? RECalibration { get; set; }
+
+    }
+    public interface ICalibrationData { string MasterCalibrator { get; set; } }
+
+    public class BaseInstrumentData : ICalibrationData
+    {
+        public string MasterCalibrator { get; set; } = "FLUKE 718Ex";
+        public List<CalibrationRow> CalibrationTable { get; set; } = new() { new(), new(), new(), new(), new() };
+    }
+
+    public class ControllerInstrumentData : BaseInstrumentData
+    {
+        public string SetPoint { get; set; } = "";
+        public string ActuatorAction { get; set; } = "";
+        // Initialize with 5 empty rows immediately
+        public List<ProcessSimulationRow> SimulationTable { get; set; } = Enumerable.Range(0, 5)
+            .Select(_ => new ProcessSimulationRow())
+            .ToList();
+    }
+
+    public class ProcessSimulationRow
+    {
+        // Column 1
+        public string ProcessInput { get; set; } = "";
+        // Column 2
+        public string OutputPressure { get; set; } = "";
+        // Optional: Keep Remarks if needed, or remove to stay strictly at 2 columns
+        public string PSRemarks { get; set; } = "";
+    }
+
+    public class CalibrationRow
+    {
+        public string InputValue { get; set; } = "";
+        public string InputPercentage { get; set; } = "";
+        public string ExpectedOutput { get; set; } = "";
+        public string ActualOutput { get; set; } = "";
+        public string Error { get; set; } = "";
+        public string CalRemarks { get; set; } = "";
+    }
+
+    // public class ProcessSimulationRow { public string ProcessInput { get; set; } = ""; public string OutputPressure { get; set; } = ""; public string PSRemarks { get; set; } = ""; }
+
+    private GcsInstrumentRow? _gcsactiveRowRef;
+    private OcsInstrumentRow? _activeRowRef;
+    private ResultEntry? _activeResult; // This will now point to the row's data
+
+
+    private async Task gcsOpenCalibration(GcsInstrumentRow row)
+    {
+        try
+        {
+            _gcsactiveRowRef = row;
+
+            // 1. Generate ID-based Cert Number if missing
+            if (string.IsNullOrEmpty(row.CertNo))
+            {
+                //Snackbar.Add("Inside: CertNo", Severity.Success);
+
+                var response = await SupabaseClient.From<CalibrationDetail>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+                int nextId = (int)response + 1;
+                row.CertNo = $"INST/{row.TagNumber}/{nextId}";
+            }
+
+            // 2. Initialize ResultEntry
+            if (row.CalibrationData == null)
+            {
+                //Snackbar.Add("Inside: CalibrationData", Severity.Success);
+                row.CalibrationData = new ResultEntry
+                {
+
+
+                    RECertificateNo = row.CertNo,
+                    REUnit = row.Unit,
+                    RERange = row.Range,
+                    REInstrumentType = row.Instrument
+                };
+            }
+
+            _activeResult = row.CalibrationData;
+
+            // 3. Polymorphic Initialization based on Instrument Name
+            if (_activeResult.RECalibration == null)
+            {
+                //Snackbar.Add("Inside: Polymorphic Initialization", Severity.Success);
+
+                string name = row.Instrument.ToLower();
+                if (name.Contains("controller"))
+                    _activeResult.RECalibration = new ControllerInstrumentData();
+                else if (name.Contains("transmitter"))
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "Druck DPI 610" };
+                else // Default for Gauges
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "FLUKE (718Ex 300G)" };
+            }
+
+            _isCalibrationVisible = true;
+            //Snackbar.Add("Inside: _isCalibrationVisible set to true", Severity.Success);
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task OpenCalibration(OcsInstrumentRow row)
+    {
+        try
+        {
+            _activeRowRef = row;
+
+            // 1. Generate ID-based Cert Number if missing
+            if (string.IsNullOrEmpty(row.CertNo))
+            {
+                //Snackbar.Add("Inside: CertNo", Severity.Success);
+
+                var response = await SupabaseClient.From<CalibrationDetail>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+                int nextId = (int)response + 1;
+                row.CertNo = $"INST/{row.TagNumber}/{nextId}";
+            }
+
+            // 2. Initialize ResultEntry
+            if (row.CalibrationData == null)
+            {
+                //Snackbar.Add("Inside: CalibrationData", Severity.Success);
+                row.CalibrationData = new ResultEntry
+                {
+
+
+                    RECertificateNo = row.CertNo,
+                    REUnit = row.Unit,
+                    RERange = row.Range,
+                    REInstrumentType = row.Instrument
+                };
+            }
+
+            _activeResult = row.CalibrationData;
+
+            // 3. Polymorphic Initialization based on Instrument Name
+            if (_activeResult.RECalibration == null)
+            {
+                //Snackbar.Add("Inside: Polymorphic Initialization", Severity.Success);
+
+                string name = row.Instrument.ToLower();
+                if (name.Contains("controller"))
+                    _activeResult.RECalibration = new ControllerInstrumentData();
+                else if (name.Contains("transmitter"))
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "Druck DPI 610" };
+                else // Default for Gauges
+                    _activeResult.RECalibration = new BaseInstrumentData { MasterCalibrator = "FLUKE (718Ex 300G)" };
+            }
+
+            _isCalibrationVisible = true;
+            //Snackbar.Add("Inside: _isCalibrationVisible set to true", Severity.Success);
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+
+    private async Task SaveGcsReport()
+    {
+        try
+        {
+            // --- 2. USER CONFIRMATION DIALOG ---
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Save",
+                "Are you sure you want to save this report and its certificates?",
+                yesText: "OK",
+                cancelText: "Cancel"
+            );
+
+            if (result == null || !result.Value)
+            {
+                // User cancelled or closed the dialog box
+                return;
+            }
+
+
+            // 1. Save PM Report
+            var pmReport = new PmReport
+            {
+                JobId = _selectedJob!.Id,
+                LocationId = currentPMlocationID,
+                TechnicianEmail = _assignedTo,
+                SparesConsumed = _sparesConsumed,
+                SectionAJson = JsonSerializer.Serialize(_gcsRows),
+                WorkPermit = _workPermit
+            };
+
+            // Use Upsert with the 'return' option to get the generated ID back
+            // var response = await SupabaseClient.From<PmReport>().Upsert(pmReport);
+
+            // var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+            // 1. Save PM Report
+            var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+
+            // 2. Get the new Integer ID
+            var savedReport = response.Models.FirstOrDefault();
+            // Add the 'Return.Minimal' option
+            // var response = await SupabaseClient.From<PmReport>()
+            //     .Upsert(pmReport, new Supabase.Postgrest.QueryOptions { Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal });
+
+
+            // Supabase returns a list/collection in the response
+            //var savedReport = response.Models.FirstOrDefault();
+
+            if (savedReport == null)
+            {
+                Snackbar.Add("Error: Could not retrieve saved report ID.", Severity.Error);
+                return;
+            }
+
+            // Loop through your rows
+            foreach (var row in _gcsRows.Where(r => r.TestingType == "Calibration"))
+            {
+                // Check if we have data to save
+                string jsonToSave = "{}";
+                if (row.CalibrationData?.RECalibration != null)
+                {
+
+                    var options = new JsonSerializerOptions
+                    {
+                        WriteIndented = false,
+                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                    };
+
+                    // This captures the FULL derived object (ControllerInstrumentData)
+                    jsonToSave = JsonSerializer.Serialize(
+                        row.CalibrationData.RECalibration,
+                        row.CalibrationData.RECalibration.GetType(),
+                        options
+                    );
+
+
+                    // Serializing the specific instance (BaseInstrumentData or ControllerInstrumentData)
+                    // rather than the interface pointer.
+                    // jsonToSave = JsonSerializer.Serialize(row.CalibrationData.RECalibration,
+                    //     row.CalibrationData.RECalibration.GetType());
+                }
+
+
+                var detail = new CalibrationDetail
+                {
+                    JobId = _selectedJob.Id,
+                    PmReportId = savedReport.Id, // Use the ID from the savedReport
+                    CertNo = row.CertNo,
+                    Installation = row.Installation,
+                    UnitId = row.Unit,
+                    InstrumentType = row.Instrument,
+                    Model = row.MakeModel,
+                    Range = row.Range,
+                    //CalibrationDataJson = JsonSerializer.Serialize(row.CalibrationData.RECalibration),
+
+                    CalibrationDataJson = jsonToSave,
+
+                    PerformedBy = _assignedTo
+                };
+
+                // Configuration to skip duplicates
+                // var options = new Supabase.Postgrest.QueryOptions
+                // {
+                //     OnConflict = "cert_no",
+                //     // Use Resolution.IgnoreDuplicates for ON CONFLICT DO NOTHING behavior
+                //     Resolution = Resolution.IgnoreDuplicates
+                // };
+
+                try
+                {
+                    // Use Upsert with the Ignore resolution
+                    // Attempt to insert the detail
+                    await SupabaseClient.From<CalibrationDetail>().Insert(detail);
+                    Snackbar.Add($"Report and Certificates Saved Successfully: {detail.CertNo}", Severity.Success);
+                }
+                catch (Exception ex) when (ex.Message.Contains("23505"))
+                {
+                    Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
+                    // Logic: If cert_no already exists, skip it and move to the next
+                    Console.WriteLine($"Skipping duplicate Certificate Number: {detail.CertNo}");
+                    Snackbar.Add($"Skipping duplicate Certificate Number: {detail.CertNo}", Severity.Error);
+
+                    continue;
+                }
+                catch (Exception detailEx)
+                {
+                    Snackbar.Add($"Save Error: {detailEx.Message}", Severity.Error);
+                    // Log other specific errors for this row but continue with other rows
+                    Console.WriteLine($"Error saving detail for Cert {detail.CertNo}: {detailEx.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Check for inner exceptions which often contain the specific Supabase error
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            Snackbar.Add($"Save Error: {msg}", Severity.Error);
+        }
+
+
+        // try
+        // {
+        //     var json = JsonSerializer.Serialize(_gcsData);
+        //     await SupabaseClient.From<PmReport>().Upsert(new PmReport { JobId = _selectedJob!.Id, SectionAJson = json, WorkPermit = _workPermit, SparesConsumed = _sparesConsumed });
+        //     Snackbar.Add("GCS Report Saved", Severity.Success);
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        //     return;
+        // }
+
+
+
+    }
+
+    private async Task SaveOcsReport()
+    {
+        try
+        {
+
+            // --- 2. USER CONFIRMATION DIALOG ---
+            bool? result = await DialogService.ShowMessageBoxAsync(
+                "Confirm Save",
+                "Are you sure you want to save this report and its certificates?",
+                yesText: "OK",
+                cancelText: "Cancel"
+            );
+
+            if (result == null || !result.Value)
+            {
+                // User cancelled or closed the dialog box
+                return;
+            }
+
+
+            // 1. Save PM Report
+            var pmReport = new PmReport
+            {
+                JobId = _selectedJob!.Id,
+                LocationId = currentPMlocationID,
+                TechnicianEmail = _assignedTo,
+                SparesConsumed = _sparesConsumed,
+                SectionAJson = JsonSerializer.Serialize(_ocsRows),
+                WorkPermit = _workPermit
+            };
+
+            // Use Upsert with the 'return' option to get the generated ID back
+            // var response = await SupabaseClient.From<PmReport>().Upsert(pmReport);
+
+            // var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+            // 1. Save PM Report
+            var response = await SupabaseClient.From<PmReport>().Insert(pmReport);
+
+            // 2. Get the new Integer ID
+            var savedReport = response.Models.FirstOrDefault();
+            // Add the 'Return.Minimal' option
+            // var response = await SupabaseClient.From<PmReport>()
+            //     .Upsert(pmReport, new Supabase.Postgrest.QueryOptions { Returning = Supabase.Postgrest.QueryOptions.ReturnType.Minimal });
+
+
+            // Supabase returns a list/collection in the response
+            //var savedReport = response.Models.FirstOrDefault();
+
+            if (savedReport == null)
+            {
+                Snackbar.Add("Error: Could not retrieve saved report ID.", Severity.Error);
+                return;
+            }
+
+            // Loop through your rows
+            foreach (var row in _ocsRows.Where(r => r.TestingType == "Calibration"))
+            {
+                // Check if we have data to save
+                string jsonToSave = "{}";
+                if (row.CalibrationData?.RECalibration != null)
+                {
+
+                    var options = new JsonSerializerOptions
+                    {
+                        WriteIndented = false,
+                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                    };
+
+                    // This captures the FULL derived object (ControllerInstrumentData)
+                    jsonToSave = JsonSerializer.Serialize(
+                        row.CalibrationData.RECalibration,
+                        row.CalibrationData.RECalibration.GetType(),
+                        options
+                    );
+
+
+                    // Serializing the specific instance (BaseInstrumentData or ControllerInstrumentData)
+                    // rather than the interface pointer.
+                    // jsonToSave = JsonSerializer.Serialize(row.CalibrationData.RECalibration,
+                    //     row.CalibrationData.RECalibration.GetType());
+                }
+
+
+
+                var detail = new CalibrationDetail
+                {
+                    JobId = _selectedJob.Id,
+                    PmReportId = savedReport.Id, // Use the ID from the savedReport
+                    CertNo = row.CertNo,
+                    Installation = row.Installation,
+                    UnitId = row.Unit,
+                    InstrumentType = row.Instrument,
+                    Model = row.MakeModel,
+                    Range = row.Range,
+                    //CalibrationDataJson = JsonSerializer.Serialize(row.CalibrationData.RECalibration),
+                    CalibrationDataJson = jsonToSave,
+
+                    PerformedBy = _assignedTo
+                };
+
+                // Configuration to skip duplicates
+                // var options = new Supabase.Postgrest.QueryOptions
+                // {
+                //     OnConflict = "cert_no",
+                //     // Use Resolution.IgnoreDuplicates for ON CONFLICT DO NOTHING behavior
+                //     Resolution = Resolution.IgnoreDuplicates
+                // };
+
+                try
+                {
+                    // Use Upsert with the Ignore resolution
+                    // Attempt to insert the detail
+                    await SupabaseClient.From<CalibrationDetail>().Insert(detail);
+                    Snackbar.Add($"Report and Certificates Saved Successfully: {detail.CertNo}", Severity.Success);
+                }
+                catch (Exception ex) when (ex.Message.Contains("23505"))
+                {
+                    // Logic: If cert_no already exists, skip it and move to the next
+                    Console.WriteLine($"Skipping duplicate Certificate Number: {detail.CertNo}");
+                    continue;
+                }
+                catch (Exception detailEx)
+                {
+                    // Log other specific errors for this row but continue with other rows
+                    Console.WriteLine($"Error saving detail for Cert {detail.CertNo}: {detailEx.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Check for inner exceptions which often contain the specific Supabase error
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            Snackbar.Add($"Save Error: {msg}", Severity.Error);
+        }
+    }
+
+    private void CloseCalibration() => _isCalibrationVisible = false;
+
+    
+
+    // private async Task SaveOcsReport()
+    // {
+    //     try
+    //     {
+    //         var json = JsonSerializer.Serialize(_ocsRows);
+    //         await SupabaseClient.From<PmReport>().Upsert(new PmReport { JobId = _selectedJob!.Id, SectionAJson = json, WorkPermit = _workPermit, SparesConsumed = _sparesConsumed });
+    //         Snackbar.Add("OCS Report Saved", Severity.Success);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+    //         return;
+    //     }
+
+
+        
+    // }
+
+    // --- SEPARATED RENDER FRAGMENTS (NO SHARED UI) ---
+
+    @* Selects the view based on the specific type of calibration data *@
+    private RenderFragment RenderCalibrationContent() => __builder =>
+    {
+        if (_activeResult?.RECalibration is ControllerInstrumentData ctrl)
+        {
+            @RenderControllerTable(ctrl)
+            @RenderControllerSimulation(ctrl)
+        }
+        else if (_activeRowRef?.Instrument?.Contains("Transmitter") ?? false)
+        {
+            @RenderTransmitterTable(_activeResult?.RECalibration as BaseInstrumentData)
+        }
+        else // Default Gauge View
+        {
+            @RenderStandardTable(_activeResult?.RECalibration as BaseInstrumentData)
+        }
+    };
+
+    private RenderFragment RenderTransmitterTable(BaseInstrumentData? data) => __builder =>
+    {
+        if (data == null) return;
+        <table class="report-entry-table">
+            <thead><tr><th>Input (mA)</th><th>Expected (PSI)</th><th>Actual (PSI)</th><th>Error %</th></tr></thead>
+            <tbody>
+                @foreach (var row in data.CalibrationTable)
+                {
+                    <tr>
+                        <td><input @bind="row.InputValue" /></td>
+                        <td><input @bind="row.ExpectedOutput" /></td>
+                        <td><input @bind="row.ActualOutput" class="highlight-input" /></td>
+                        <td><input @bind="row.Error" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+
+
+
+
+
+
+
+    private RenderFragment RenderGcsGrid() => __builder =>
+    {
+        <table class="report-table">
+            <thead>
+                <tr><th>Unit</th><th>Instrument</th><th>Range</th><th>Testing</th><th>Cert No</th><th>Remarks</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var inst in _gcsData.Instruments)
+                {
+                    <tr>
+                        <td><input @bind="inst.Unit" /></td>
+                        <td><input @bind="inst.Instrument" /></td>
+                        <td><input @bind="inst.Range" /></td>
+                        <td><select @bind="inst.TestingType"><option>Calibration</option><option>Functionality</option></select></td>
+                        <td><input @bind="inst.CertNo" /></td>
+                        <td><input @bind="inst.CalRemarks" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderOcsGrid() => __builder =>
+    {
+        <table class="report-table">
+            <thead>
+                <tr><th>Sl</th><th>Unit</th><th>Instrument</th><th>Range</th><th>Qty</th><th>Testing</th><th>Cert No</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _ocsRows)
+                {
+                    <tr>
+                        <td>@row.SlNo</td>
+                        <td><input @bind="row.Unit" /></td>
+                        <td><input @bind="row.Instrument" /></td>
+                        <td><input @bind="row.Range" /></td>
+                        <td><input type="number" @bind="row.Quantity" style="width:50px" /></td>
+                        <td><input @bind="row.TestingType" /></td>
+                        <td><input @bind="row.CertNo" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    
+    
+    
+    // --- RENDER FRAGMENTS ---
+
+
+
+    private RenderFragment RenderStandardTable(BaseInstrumentData? data) => __builder =>
+    {
+        if (data == null) return;
+        <table class="report-entry-table">
+            <thead><tr><th>Input</th><th>Input %</th><th>Expected</th><th>Actual</th><th>Remarks</th></tr></thead>
+            <tbody>
+                @foreach (var row in data.CalibrationTable)
+                {
+                    <tr>
+                        <td><input @bind="row.InputValue" /></td>
+                        <td><input @bind="row.InputPercentage" /></td>
+                        <td><input @bind="row.ExpectedOutput" /></td>
+                        <td><input @bind="row.ActualOutput" class="highlight-input" /></td>
+                        <td><input @bind="row.CalRemarks" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderControllerTable(ControllerInstrumentData data) => __builder =>
+    {
+        <table class="report-entry-table">
+            <thead>
+                <tr>
+                    <th>Input Process Value</th>
+                    <th>Measured Value</th>
+                    <th>Error</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in data.CalibrationTable)
+                {
+                    <tr>
+                        <td><input @bind="row.InputValue" /></td>
+                        <td><input @bind="row.ActualOutput" /></td>
+                        <td><input @bind="row.Error" /></td>
+                        <td><input @bind="row.CalRemarks" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderControllerSimulation(ControllerInstrumentData data) => __builder =>
+    {
+        <div class="simulation-section mt-4">
+            <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Process Requirement & Parameters</b></MudText>
+            <MudGrid Class="mb-2">
+                <MudItem xs="6"><MudTextField Label="Set Point" @bind-Value="data.SetPoint" Variant="Variant.Outlined" AdornmentText="kg/cm2" /></MudItem>
+                <MudItem xs="6"><MudTextField Label="Actuator Action" @bind-Value="data.ActuatorAction" Variant="Variant.Outlined" /></MudItem>
+            </MudGrid>
+
+            <table class="report-entry-table mt-2">
+                <thead>
+                    <tr>
+                        <th>Process Simulation (Kg/cm2)</th>
+                        <th>Output Pressure (psi)</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sim in data.SimulationTable)
+                    {
+                        <tr>
+                            <td><input @bind="sim.ProcessInput" @bind:event="oninput" /></td>
+                            <td><input @bind="sim.OutputPressure" @bind:event="oninput" /></td>
+                            <td><input @bind="sim.PSRemarks" @bind:event="oninput" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    };
+
+
+    // private RenderFragment RenderControllerTable(ControllerInstrumentData data) => __builder =>
+    // {
+    //     <table class="report-entry-table">
+    //         <thead><tr><th>Input</th><th>Measured</th><th>Error</th><th>Remarks</th></tr></thead>
+    //         <tbody>
+    //             @foreach (var row in data.CalibrationTable)
+    //             {
+    //                 <tr>
+    //                     <td><input @bind="row.InputValue" /></td>
+    //                     <td><input @bind="row.ActualOutput" class="highlight-input" /></td>
+    //                     <td><input @bind="row.Error" /></td>
+    //                     <td><input @bind="row.CalRemarks" /></td>
+    //                 </tr>
+    //             }
+    //         </tbody>
+    //     </table>
+    // };
+
+    // private RenderFragment RenderControllerSimulation(ControllerInstrumentData data) => __builder =>
+    // {
+    //     <div class="mt-4 pa-4" style="background-color: #eee;">
+    //         <MudGrid>
+    //             <MudItem xs="3"><MudTextField Label="Set Point" @bind-Value="data.SetPoint" /></MudItem>
+    //             <MudItem xs="3"><MudTextField Label="Action" @bind-Value="data.ActuatorAction" /></MudItem>
+    //         </MudGrid>
+    //         <table class="report-entry-table mt-2">
+    //             <thead><tr><th>Sim Input</th><th>Output (psi)</th></tr></thead>
+    //             <tbody>
+    //                 @foreach (var sim in data.SimulationTable)
+    //                 {
+    //                     <tr><td><input @bind="sim.ProcessInput" /></td><td><input @bind="sim.OutputPressure" /></td></tr>
+    //                 }
+    //             </tbody>
+    //         </table>
+    //     </div>
+    // };
+
+    
+    
+    
+    
+    
+    // --- MODELS ---
+    public class GcsReportData
+    {
+        public string CompSlNo { get; set; } = "";
+        public string CompressorMake { get; set; } = "";
+        public bool CheckTripping { get; set; } = true;
+        public bool CheckTubing { get; set; } = true;
+        public bool CheckAFR { get; set; } = true;
+        public string SafetyInterlocks { get; set; } 
+        public string Hooter { get; set; } 
+        public string SparesConsumed { get; set; } 
+        public List<InstrumentEntry> Instruments { get; set; } = new();
+    }
+
+    public class InstrumentEntry
+    {
+        public string Unit { get; set; } = ""; public string Instrument { get; set; } = "";
+        public string MakeModel { get; set; } = ""; public string Range { get; set; } = "";
+        public string TestingType { get; set; } = "Calibration"; public string CertNo { get; set; } = "";
+        public string CalRemarks { get; set; } = "";
+    }
+
+    public class GcsInstrumentRow
+    {
+        public string SlNo { get; set; } = "";
+        public string Installation { get; set; } = "";
+        
+        public string CompSlNo { get; set; } = "";
+        public string CompMakeModel { get; set; } = "";
+        public bool CheckTripping { get; set; } = true;
+        public bool CheckTubing { get; set; } = true;
+        public bool CheckAFR { get; set; } = true;
+        public string SafetyInterlocks { get; set; }
+        public string Hooter { get; set; }
+        public string SparesConsumed { get; set; }
+
+        public string Unit { get; set; } = "";
+        public string ManualUnit { get; set; } = "";
+        public string Instrument { get; set; } = "";
+        public string ManualInstrument { get; set; } = "";
+        public string TagNumber { get; set; } = "";
+        public string ManualTag { get; set; } = "";
+        public string MakeModel { get; set; } = "";
+        public string ManualMakeModel { get; set; } = "";
+        public string Range { get; set; } = "";
+        public string ManualRange { get; set; } = "";
+        public int Quantity { get; set; } = 1;
+        public string TestingType { get; set; } = "Calibration";
+        public string CertNo { get; set; } = "";
+        public string Remarks { get; set; } = "";
+        public string ManualRemarks { get; set; } = "";
+
+
+        public ResultEntry CalibrationData { get; set; } = new();
+        // UI Helpers
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableInstruments { get; set; } = new();
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableTags { get; set; } = new();
+
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableRemarks { get; set; } = new();
+    }
+
+
+    public class OcsInstrumentRow
+    {
+        public string SlNo { get; set; } = "";
+        public string Installation { get; set; } = "";
+
+        public string Unit { get; set; } = "";
+        public string ManualUnit { get; set; } = "";
+        public string Instrument { get; set; } = "";
+        public string ManualInstrument { get; set; } = "";
+        public string TagNumber { get; set; } = "";
+        public string ManualTag { get; set; } = "";
+        public string MakeModel { get; set; } = "";
+        public string ManualMakeModel { get; set; } = "";
+        public string Range { get; set; } = "";
+        public string ManualRange { get; set; } = "";
+        public int Quantity { get; set; } = 1;
+        public string TestingType { get; set; } = "Calibration";
+        public string CertNo { get; set; } = "";
+        public string Remarks { get; set; } = "";
+        public string ManualRemarks { get; set; } = "";
+
+
+        public ResultEntry CalibrationData { get; set; } = new();
+        // UI Helpers
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableInstruments { get; set; } = new();
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableTags { get; set; } = new();
+
+        [System.Text.Json.Serialization.JsonIgnore] public List<string> AvailableRemarks { get; set; } = new();
+    }
+    // public class ResultEntry
+    // {
+    //     public string TestType { get; set; } = "Functionality";
+    //     public string CertificateNo { get; set; } = "";
+    //     public string Remarks { get; set; } = "";
+    //     public ICalibrationData? Calibration { get; set; }
+    // }
+
+
+
+
+
+
+
+    // --- SUPABASE TABLE MODELS ---
+    [Supabase.Postgrest.Attributes.Table("jobs")]
+    public class Job : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public Guid Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_name")] public string JobName { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("status")] public string Status { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_type")] public string JobType { get; set; } = "";
+    }
+
+    [Supabase.Postgrest.Attributes.Table("locations")]
+    public class Location : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public int Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_type")] public string? InstallationType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pid_markers")]
+    public class PidMarker : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.Column("tag_number")] public string? TagNumber { get; set; }
+        [Supabase.Postgrest.Attributes.Column("device_location")] public string? DeviceLocation { get; set; }
+        [Supabase.Postgrest.Attributes.Column("instrument_type")] public string? InstrumentType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("make_model_type")] public string? MakeModelType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("range")] public string? Range { get; set; }
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_reports")]
+    public class PmReport : Supabase.Postgrest.Models.BaseModel
+    {
+        // REMOVE [Column("id")] here. PrimaryKey handles the mapping.
+        [PrimaryKey("id", shouldInsert: false)]
+        public int? Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_id")] public Guid JobId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("technician_email")] public string TechnicianEmail { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("section_a_controllers")] public string SectionAJson { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("work_permit")] public string WorkPermit { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("remarks")] public string Remarks { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("section_d_spares")] public string SparesConsumed { get; set; } = "";
+
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]
+    public class CalibrationDetail : Supabase.Postgrest.Models.BaseModel
+    {
+        [PrimaryKey("id", shouldInsert: false)] // 'false' because Supabase generates the UUID
+        //[Supabase.Postgrest.Attributes.PrimaryKey("id")]
+        public int? Id { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("pm_report_id")]
+        public int? PmReportId { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("job_id")]
+        public Guid JobId { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("cert_no")]
+        public string CertNo { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("installation")]
+        public string Installation { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("instrument_type")]
+        public string InstrumentType { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("model")]
+        public string Model { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("unit_id")]
+        public string UnitId { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("instrument_range")]
+        public string Range { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("master_calibrator")]
+        public string MasterCalibrator { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("calibration_data")]
+        public string CalibrationDataJson { get; set; } = "[]";
+
+        [Supabase.Postgrest.Attributes.Column("performed_by_name")]
+        public string PerformedBy { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("witnessed_by_name")]
+        public string WitnessedBy { get; set; } = "";
+    }
+
+}
+
+<style>
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+        .report-table th {
+            background: #eee;
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 0.8rem;
+        }
+
+        .report-table td {
+            border: 1px solid #ccc;
+            padding: 0;
+        }
+
+        .report-table input {
+            width: 100%;
+            border: none;
+            padding: 8px;
+            background: transparent;
+            outline: none;
+        }
+
+        .report-table select {
+            width: 100%;
+            border: none;
+            padding: 8px;
+            background: transparent;
+        }
+
+
+    .report-entry-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+        border: 1px solid #000; /* Solid outer boundary */
+    }
+
+        .report-entry-table th,
+        .report-entry-table td {
+            border: 1px solid #000; /* Visible cell boundaries */
+            padding: 8px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .report-entry-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+        /* Make inputs look like plain text until clicked */
+        .report-entry-table input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            outline: none;
+        }
+
+            .report-entry-table input:focus {
+                background-color: #fff9c4; /* Subtle highlight on edit */
+            }
+
+    .simulation-section {
+        border: 1px solid #000;
+        padding: 15px;
+        background-color: #ffffff !important;
+    }
+
+</style>
