@@ -1,4 +1,4 @@
-﻿@page "/jobassign"
+@page "/jobassign"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Models
@@ -423,7 +423,7 @@
 </style>
 
 
-`
+
 
 <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
     <div class="d-flex flex-column align-items-center">
@@ -484,7 +484,6 @@
                 <MudTable Items="@AttendanceData.Engineers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
-                        <MudTh Class="sticky-col">E.Code</MudTh>
                         @foreach (var day in _daysInMonth)
                         {
                             <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
@@ -492,7 +491,6 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd Class="sticky-col">@context.FullName</MudTd>
-                        <MudTd Class="sticky-col">@context.UniqueId</MudTd>
                         @foreach (var day in _daysInMonth)
                         {
                             var d = day; var m = context;
@@ -524,7 +522,6 @@
                 <MudTable Items="@AttendanceData.Drivers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
-                        <MudTh Class="sticky-col">VehicleNo.</MudTh>
                         @foreach (var day in _daysInMonth)
                         {
                             <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
@@ -532,7 +529,6 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd Class="sticky-col">@context.FullName</MudTd>
-                        <MudTd Class="sticky-col">@context.VehicleNumber</MudTd>
                         @foreach (var day in _daysInMonth)
                         {
                             var d = day; var m = context;
@@ -763,19 +759,12 @@ else
             </div>
             <div class="row-flex border-top" style="min-height: 300px;">
                 <div class="col-30 pa-2 border-right font-handwriting">
-                    @foreach (var task in ActiveJobData.JCLocations)
-                    {
-                        <div class="mb-2">→ @task.JobLocation</div>
-                    }
+                    Oil Field Headquarter / Duliajan
                 </div>
                 <div class="col-70 pa-2 font-handwriting">
                     @foreach (var task in ActiveJobData.Tasks)
                     {
                         <div class="mb-2">→ @task.Description</div>
-                    }
-                    @foreach (var task in ActiveJobData.JCDetailedDesc)
-                    {
-                        <div class="mb-2">( @task.JobDetailedDescString )</div>      
                     }
                 </div>
             </div>
@@ -1104,7 +1093,6 @@ else
     {
         [PrimaryKey("id")] public long Id { get; set; }
         [Column("full_name")] public string FullName { get; set; }
-        [Column("vehicle_number")] public string VehicleNumber { get; set; }
     }
 
     public class Member
@@ -1113,10 +1101,9 @@ else
         public string UniqueId { get; set; }
         public long? DbId { get; set; }
         public string Role { get; set; }
-        public string VehicleNumber { get; set; }
     }
 
-
+   
 
 
 
@@ -1138,8 +1125,6 @@ else
     private IReadOnlyCollection<Job> _editJobs { get; set; } = new List<Job>();
     private IReadOnlyCollection<Engineer> _editEngineers { get; set; } = new List<Engineer>();
 
-    private List<LocationTable> _dbLocations = new();
-
     private List<Driver> _dbDrivers = new();
     private List<Job> _dbJobs = new();
     private List<Engineer> _dbEngineers = new();
@@ -1151,7 +1136,7 @@ else
     // protected override async Task OnInitializedAsync()
     // {
 
-
+        
     // }
 
 
@@ -1165,9 +1150,6 @@ else
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
             _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
             _dbEngineers = (await SupabaseClient.From<Engineer>().Get()).Models;
-            _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
-
-
             // _assignments = (await SupabaseClient.From<Assignment>()
             //     .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
             //     .Get()).Models;
@@ -1216,14 +1198,10 @@ else
         ActiveJobData = new JobCardModel
         {
             DocNumber = item.DocNumber,
-            JCLocations = item.JobIds.Select(id => new JobLocations { JobLocation = GetJobLocationName(id) }).ToList(),
             Date = item.CreatedAt ?? DateTime.Now,
             Vehicle = GetDriverName(item.DriverId),
             Personnel = item.PersonnelIds.Select(GetEngineerName).ToList(),
-            Tasks = item.JobIds.Select(id => new JobTask { Description = GetJobName(id) }).ToList(),
-            JCDetailedDesc = item.JobIds.Select(id => new JobDetailedDesc { JobDetailedDescString = GetJobDetailDesc(id) }).ToList(),
-
-
+            Tasks = item.JobIds.Select(id => new JobTask { Description = GetJobName(id) }).ToList()
         };
         _isPreviewOpen = true;
     }
@@ -1254,79 +1232,22 @@ else
         await JS.InvokeVoidAsync("window.print");
     }
     private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "N/A";
-
     private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
-
-    private string GetJobDetailDesc(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobDescription ?? "N/A";
-    // private string GetJobDetailDesc(Guid id)
-    // {
-    //     try
-    //     {
-
-    //         long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobDescription;
-    //         string locName = _dbLocations.FirstOrDefault(x => x.Id == locationID).InstallationName;
-
-    //         return locName;
-
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
-    //         return null;
-    //     }
-
-    // }
-
-
-    private string GetJobLocationName(Guid id)
-    {
-        try{
-
-            long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobLocationId;
-            string locName = _dbLocations.FirstOrDefault(x => x.Id == locationID).InstallationName;
-
-            return locName;
-
-        }
-        catch(Exception ex)
-        {
-            Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
-            return null;
-        }
-
-    }
-
     private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
 
-    public class JobCardModel { public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; public List<JobLocations> JCLocations { get; set; } = new(); public List<JobDetailedDesc> JCDetailedDesc{ get; set; } = new(); }
+    public class JobCardModel { public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; }
     public class JobTask { public string Description { get; set; } = ""; }
-    public class JobLocations { public string JobLocation { get; set; } = ""; }
-    public class JobDetailedDesc { public string JobDetailedDescString { get; set; } = ""; }
-
-    [Table("locations")]
-    public class LocationTable : BaseModel
-    {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("installation_name")] public string? InstallationName { get; set; }
-        [Column("field_type")] public string? FieldArea { get; set; }
-        [Column("installation_type")] public string? InstallationType { get; set; }
-    }
 
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; }
-    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; [Column("status")] public string JobStatus { get; set; } = ""; [Column("description")] public string JobDescription { get; set; } = ""; [Column("location_id")] public int JobLocationId { get; set; }  }
-    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; [Column("status")] public string JobStatus { get; set; } = ""; }
+    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
     [Table("job_assignments")]
-    
-    
     public class Assignment : BaseModel
     {
         [PrimaryKey("id", false)] public Guid Id { get; set; }
         [Column("created_at")] public DateTime? CreatedAt { get; set; }
         [Column("driver_id")] public long? DriverId { get; set; }
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
-
-
-
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("doc_number")] public string DocNumber { get; set; } = "";
         [Column("status")] public string Status { get; set; } = ""; // Field for soft delete
