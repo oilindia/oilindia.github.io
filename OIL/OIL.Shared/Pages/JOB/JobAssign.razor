@@ -1,4 +1,4 @@
-﻿@page "/jobassign"
+﻿@page "/jobassign6"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Models
@@ -12,13 +12,18 @@
 @inject IJSRuntime JS
 @inject IJSRuntime JSRuntime
 @inject OIL.Shared.Services.AttendanceService AttendanceData
+@using MemberType = OIL.Shared.Pages.JOB.JobAssign.Member
+
+@using Supabase.Postgrest.Attributes;
+@using Supabase.Postgrest.Models;
+@using System.Runtime.Serialization;
+
 
 <style>
 
     /* =========================================================
-           GLOBAL PAGE
-        ========================================================= */
-
+               GLOBAL PAGE
+            ========================================================= */
     html, body {
         margin: 0;
         padding: 0;
@@ -27,37 +32,22 @@
         font-family: Roboto, Arial, sans-serif;
     }
 
-    * {
-        box-sizing: border-box;
-    }
-
     /* =========================================================
-           MAIN RESPONSIVE CONTAINER
-        ========================================================= */
-
-    .page-wrapper {
-        width: 100%;
-        overflow-x: hidden;
-    }
-
-    /* =========================================================
-           GRID SCROLL CONTAINER
-        ========================================================= */
-
+               MAIN GRID CONTAINER
+            ========================================================= */
     .grid-scroll-container {
         width: 100%;
         overflow-x: auto;
         overflow-y: hidden;
         border: 1px solid #dcdcdc;
-        border-radius: 12px;
+        border-radius: 8px;
         background: #ffffff;
         box-shadow: 0 1px 4px rgba(0,0,0,0.08);
         position: relative;
-        -webkit-overflow-scrolling: touch;
     }
 
         .grid-scroll-container::-webkit-scrollbar {
-            height: 8px;
+            height: 10px;
         }
 
         .grid-scroll-container::-webkit-scrollbar-thumb {
@@ -70,12 +60,10 @@
         }
 
     /* =========================================================
-           TABLE
-        ========================================================= */
-
+               TABLE
+            ========================================================= */
     .mud-table-root {
         background: white !important;
-        width: 100%;
     }
 
     .mud-table-container {
@@ -109,11 +97,10 @@
     }
 
     /* =========================================================
-           HEADER CELLS
-        ========================================================= */
-
+               HEADER CELLS
+            ========================================================= */
     .header-cell {
-        min-width: 56px;
+        min-width: 52px;
         background: #f5f7fa !important;
         font-weight: 700 !important;
         border-bottom: 2px solid #594ae2 !important;
@@ -131,17 +118,16 @@
         }
 
     /* =========================================================
-           STICKY FIRST COLUMN
-        ========================================================= */
-
+               STICKY FIRST COLUMN
+            ========================================================= */
     .sticky-col {
         position: sticky;
         left: 0;
         z-index: 16;
         background: #f9f9f9 !important;
-        min-width: 150px;
-        max-width: 150px;
-        width: 150px;
+        min-width: 140px;
+        max-width: 140px;
+        width: 140px;
         font-weight: 700;
         border-right: 2px solid #d5d5d5 !important;
         text-align: left !important;
@@ -154,9 +140,8 @@
     }
 
     /* =========================================================
-           INPUT STACK
-        ========================================================= */
-
+               INPUT STACK
+            ========================================================= */
     .cell-input-stack {
         display: flex;
         flex-direction: column;
@@ -168,13 +153,12 @@
     }
 
     /* =========================================================
-           STATUS DROPDOWN
-        ========================================================= */
-
+               STATUS DROPDOWN
+            ========================================================= */
     .native-select {
         border: 1px solid #d0d0d0;
         background: #ffffff;
-        width: 52px;
+        width: 48px;
         height: 24px;
         text-align: center;
         font-size: 0.68rem;
@@ -196,13 +180,12 @@
         }
 
     /* =========================================================
-           REMARK INPUT
-        ========================================================= */
-
+               REMARK INPUT
+            ========================================================= */
     .remark-input {
         border: 1px solid #e0e0e0;
-        width: 52px;
-        height: 22px;
+        width: 48px;
+        height: 20px;
         font-size: 0.62rem;
         border-radius: 4px;
         padding: 1px 4px;
@@ -216,7 +199,7 @@
         }
 
         .remark-input:focus {
-            width: 120px;
+            width: 110px;
             border-color: #594ae2;
             outline: none;
             position: absolute;
@@ -226,9 +209,8 @@
         }
 
     /* =========================================================
-           STATE COLORS
-        ========================================================= */
-
+               STATE COLORS
+            ========================================================= */
     .modified {
         background-color: #fff8c6 !important;
         border: 1px solid #fbc02d !important;
@@ -245,13 +227,12 @@
     }
 
     /* =========================================================
-           SAVE BAR
-        ========================================================= */
-
+               SAVE BAR
+            ========================================================= */
     .save-bar {
         position: fixed;
-        bottom: 18px;
-        right: 18px;
+        bottom: 20px;
+        right: 20px;
         z-index: 5000;
         display: flex;
         gap: 10px;
@@ -260,34 +241,11 @@
         border-radius: 12px;
         box-shadow: 0 4px 18px rgba(0,0,0,0.18);
         backdrop-filter: blur(4px);
-        flex-wrap: wrap;
     }
 
     /* =========================================================
-           RESPONSIVE CARDS
-        ========================================================= */
-
-    .selection-paper {
-        border-radius: 16px !important;
-        min-height: 190px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        height: 100%;
-    }
-
-    /* =========================================================
-           RESPONSIVE TABLE
-        ========================================================= */
-
-    .dispatch-table {
-        width: 100%;
-        overflow-x: auto;
-    }
-
-    /* =========================================================
-           PRINT OVERLAY
-        ========================================================= */
+               PRINT OVERLAY + JOB CARD
+            ========================================================= */
 
     .print-overlay {
         position: fixed;
@@ -295,7 +253,7 @@
         background: rgba(0,0,0,0.75);
         z-index: 99999;
         overflow-y: auto;
-        padding: 20px;
+        padding: 24px;
     }
 
     .print-actions {
@@ -303,7 +261,6 @@
         top: 0;
         z-index: 10;
         background: rgba(0,0,0,0.85);
-        border-radius: 12px;
     }
 
     .job-card-main {
@@ -313,14 +270,639 @@
         background: white;
         color: black;
         border: 2px solid black;
+        box-sizing: border-box;
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
 
     /* =========================================================
-           JOB CARD STYLES
-        ========================================================= */
+               MOBILE RESPONSIVE
+            ========================================================= */
+
+    @@media (max-width: 768px) {
+
+        .mud-table-cell {
+            font-size: 0.65rem !important;
+            padding: 2px !important;
+        }
+
+        .sticky-col {
+            min-width: 110px;
+            max-width: 110px;
+            width: 110px;
+            font-size: 0.68rem !important;
+        }
+
+        .header-cell {
+            min-width: 42px;
+            font-size: 0.62rem !important;
+        }
+
+        .native-select {
+            width: 42px;
+            font-size: 0.62rem;
+        }
+
+        .remark-input {
+            width: 42px;
+            font-size: 0.58rem;
+        }
+
+            .remark-input:focus {
+                width: 90px;
+            }
+
+        .save-bar {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .print-overlay {
+            padding: 8px;
+        }
+
+        .job-card-main {
+            width: 100%;
+            min-height: auto;
+            transform: scale(0.95);
+            transform-origin: top center;
+        }
+    }
+
+    /* =========================================================
+               PRINT FIXES
+            ========================================================= */
+
+    @@page {
+        size: A4 portrait;
+        margin: 6mm;
+    }
+
+    @@media print {
+
+        html,
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            overflow: hidden !important;
+        }
+            /* HIDE EVERYTHING */
+            body * {
+                visibility: hidden !important;
+            }
+        /* SHOW ONLY PRINT OVERLAY */
+        .print-overlay,
+        .print-overlay * {
+            visibility: visible !important;
+        }
+        /* CLEAN WHITE PRINT BG */
+        .print-overlay {
+            position: absolute !important;
+            inset: 0 !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+        }
+        /* HIDE NON-PRINT CONTENT */
+        .print-actions,
+        .save-bar,
+        .grid-scroll-container,
+        .mud-table,
+        .mud-overlay,
+        .mud-dialog,
+        .mud-snackbar-container,
+        .mud-appbar,
+        .mud-drawer,
+        .mud-navmenu,
+        .no-print {
+            display: none !important;
+        }
+        /* ONLY PRINT JOB CARD */
+        #job-card-to-print {
+            visibility: visible !important;
+            position: relative !important;
+            display: block !important;
+            width: 198mm !important;
+            min-height: 285mm !important;
+            margin: 0 auto !important;
+            border: 1px solid black !important;
+            box-shadow: none !important;
+            page-break-after: avoid !important;
+            break-after: avoid-page !important;
+        }
+
+        .job-card-main {
+            width: 198mm !important;
+            min-height: 285mm !important;
+            margin: 0 auto !important;
+            border: 1px solid black !important;
+            overflow: hidden !important;
+            box-shadow: none !important;
+        }
+        /* AVOID EXTRA PAGES */
+        table,
+        tr,
+        td,
+        div {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        /* BETTER PRINT COLORS */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+
+</style>
+
+
+
+
+<MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
+    <div class="d-flex flex-column align-items-center">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        <MudText Typo="Typo.h6" Color="Color.Inherit" Class="mt-4">Syncing with Database...</MudText>
+    </div>
+</MudOverlay>
+
+@if (AttendanceData.IsDataReady)
+{
+    @* --- BULK UPDATE PANEL --- *@
+    <MudExpansionPanels Class="mb-4 mx-2">
+        <MudExpansionPanel Text="Bulk Mark Attendance" Icon="@Icons.Material.Filled.BatchPrediction">
+            <MudGrid AlignItems="AlignItems.Center" Class="pa-2">
+                <MudItem xs="12" md="3">
+                    <MudSelect T="Member" Label="Resource" @bind-Value="_bulkMember" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense">
+                        @foreach (var m in AttendanceData.Engineers.Concat(AttendanceData.Drivers))
+                        {
+                            <MudSelectItem Value="@m">@m.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudDateRangePicker Label="Dates" @bind-DateRange="_bulkRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect T="string" Label="Status" @bind-Value="_bulkStatus" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense">
+                        @foreach (var s in _shiftCodes)
+                        {
+                            <MudSelectItem Value="@s">@s</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="Reason/Remark" @bind-Value="_bulkReason" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyBulkUpdate" FullWidth="true">Apply</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+
+    @* --- SAVE NOTIFICATION BAR --- *@
+    @if (_pendingChanges.Any())
+    {
+        <div class="save-bar d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Close" OnClick="CancelChanges">Discard (@_pendingChanges.Count)</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveChanges">Update Schedule</MudButton>
+        </div>
+    }
+
+    <MudGrid Spacing="1" Class="px-2 pb-16">
+        @* Side-by-Side Layout: lg="6" ensures two columns on wide screens *@
+        <MudItem xs="12" lg="6">
+            <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
+            <div class="grid-scroll-container">
+                <MudTable Items="@AttendanceData.Engineers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                    <HeaderContent>
+                        <MudTh Class="sticky-col">Name</MudTh>
+                        <MudTh Class="sticky-col">E.Code</MudTh>
+                        @foreach (var day in _daysInMonth)
+                        {
+                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
+                        }
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Class="sticky-col">@context.FullName</MudTd>
+                        <MudTd Class="sticky-col">@context.UniqueId</MudTd>
+                        @foreach (var day in _daysInMonth)
+                        {
+                            var d = day; var m = context;
+                            <MudTd Class="@GetCellClass(d)">
+                                <div class="cell-input-stack">
+                                    <select value="@GetStatus(m.UniqueId, d)"
+                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
+                                        <option value="">--</option>
+                                        @foreach (var s in _shiftCodes)
+                                        {
+                                            <option value="@s">@s</option>
+                                        }
+                                    </select>
+                                    <input type="text" class="remark-input" placeholder="..."
+                                           value="@GetReason(m.UniqueId, d)"
+                                           @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
+                                </div>
+                            </MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
+            </div>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Secondary">DRIVERS</MudText>
+            <div class="grid-scroll-container">
+                <MudTable Items="@AttendanceData.Drivers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                    <HeaderContent>
+                        <MudTh Class="sticky-col">Name</MudTh>
+                        <MudTh Class="sticky-col">VehicleNo.</MudTh>
+                        @foreach (var day in _daysInMonth)
+                        {
+                            <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
+                        }
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Class="sticky-col">@context.FullName</MudTd>
+                        <MudTd Class="sticky-col">@context.VehicleNumber</MudTd>
+                        @foreach (var day in _daysInMonth)
+                        {
+                            var d = day; var m = context;
+                            <MudTd Class="@GetCellClass(d)">
+                                <div class="cell-input-stack">
+                                    <select value="@GetStatus(m.UniqueId, d)"
+                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
+                                        <option value="">--</option>
+                                        @foreach (var s in _shiftCodes)
+                                        {
+                                            <option value="@s">@s</option>
+                                        }
+                                    </select>
+                                    <input type="text" class="remark-input" placeholder="..."
+                                           value="@GetReason(m.UniqueId, d)"
+                                           @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
+                                </div>
+                            </MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <div class="d-flex align-center justify-center" style="height: 300px;">
+        <MudProgressCircular Indeterminate="true" Size="Size.Large" Color="Color.Primary" />
+    </div>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mt-md-8 mb-10 no-print">
+    <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true" Class="responsive-header">
+        <b>OIL Resource Dispatch Mapper</b>
+    </MudText>
+
+    @* --- SECTION 1: UPPER PANEL (Responsive Grid) --- *@
+    <MudGrid Justify="Justify.Center" Class="align-center mt-2 mt-md-6">
+
+        @* New Shift Dropdown *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-warning); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Shift</b></MudText>
+                <MudSelect T="string" Label="Select Shift" Variant="Variant.Outlined" @bind-Value="_selectedShift" AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@("Morning")">Morning</MudSelectItem>
+                    <MudSelectItem Value="@("Evening")">Evening</MudSelectItem>
+                    @* <MudSelectItem Value="@("Night")">Night</MudSelectItem> *@
+                </MudSelect>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-primary); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Vehicle</b></MudText>
+                <MudSelect T="Driver" Label="Select Vehicle" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
+                           ToStringFunc="@(d => d?.VehicleNumber)" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var d in _dbDrivers)
+                    {
+                        <MudSelectItem T="Driver" Value="@d">@d.VehicleNumber</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-info); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>2. Jobs Assigned</b></MudText>
+                <MudSelect T="Job" Label="Select Jobs" MultiSelection="true" @bind-SelectedValues="_selectedJobs"
+                           Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var j in _dbJobs)
+                    {
+                        <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-secondary); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>3. Personnel</b></MudText>
+                <MudSelect T="Engineer" Label="Select Team" MultiSelection="true" @bind-SelectedValues="_selectedEngineers"
+                           Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var p in _dbEngineers)
+                    {
+                        <MudSelectItem T="Engineer" Value="@p">@p.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="1" Class="d-flex align-center justify-center mt-4 mt-md-0">
+            <MudFab Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="SaveAssignment" Label="Plot" Size="Size.Large" />
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-6 my-md-10" />
+
+    @* --- SECTION 2: DISPATCH TABLE --- *@
+    <MudTable Items="@_assignments" Hover="true" Elevation="4" Loading="@_loading" Dense="true"
+              Breakpoint="Breakpoint.Sm" HorizontalScrollbar="true" Class="mx-2">
+        <HeaderContent>
+            <MudTh>Date</MudTh>
+            <MudTh>Doc No</MudTh>
+            <MudTh>Vehicle</MudTh>
+            <MudTh>Jobs</MudTh>
+            <MudTh>Personnel</MudTh>
+            <MudTh Style="text-align:right">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Date">@context.PrintableDate</MudTd>
+            <MudTd DataLabel="Doc No"><b>@context.DocNumber</b></MudTd>
+            <MudTd DataLabel="Vehicle">@GetDriverName(context.DriverId)</MudTd>
+            <MudTd DataLabel="Jobs">
+                @foreach (var id in context.JobIds)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="ma-1">@GetJobName(id)</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Personnel"><small>@string.Join(", ", context.PersonnelIds.Select(GetEngineerName))</small></MudTd>
+            <MudTd DataLabel="Actions" Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Info" OnClick="@(() => PrepareJobCard(context))" Size="Size.Small" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEditModal(context))" Size="Size.Small" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteAssignment(context.Id))" Size="Size.Small" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@* --- SECTION 3: EDIT MODAL --- *@
+@if (_isEditModalOpen)
+{
+    <div class="oil-edit-overlay no-print">
+        <MudPaper Class="pa-6 oil-edit-card" Elevation="25">
+            <MudText Typo="Typo.h6" Class="mb-4">Edit Job Card: @_editingItem.DocNumber</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="12">
+                    <MudSelect T="Driver" Label="Vehicle" @bind-Value="_editDriver" Variant="Variant.Outlined" ToStringFunc="@(d => d?.VehicleNumber)">
+                        @foreach (var d in _dbDrivers)
+                        {
+                            <MudSelectItem T="Driver" Value="@d">@d.VehicleNumber</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="Job" Label="Jobs" MultiSelection="true" @bind-SelectedValues="_editJobs" Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)">
+                        @foreach (var j in _dbJobs)
+                        {
+                            <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSelect T="Engineer" Label="Personnel" MultiSelection="true" @bind-SelectedValues="_editEngineers" Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)">
+                        @foreach (var p in _dbEngineers)
+                        {
+                            <MudSelectItem T="Engineer" Value="@p">@p.FullName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <div class="d-flex justify-end mt-6 gap-2">
+                <MudButton OnClick="() => _isEditModalOpen = false">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateAssignment">Save Changes</MudButton>
+            </div>
+        </MudPaper>
+    </div>
+}
+
+@* --- SECTION 4: PRINT PREVIEW --- *@
+@if (_isPreviewOpen)
+{
+    <div class="print-overlay">
+        <div class="print-actions no-print pa-4 d-flex justify-center" style="margin-top: 30px;">
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="() => _isPreviewOpen = false" Class="mr-2">Exit Preview</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PrintNow" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Job Card</MudButton>
+        </div>
+
+        <div id="job-card-to-print" class="job-card-main">
+            @* --- HEADER SECTION --- *@
+            <div class="header-grid">
+                <div class="logo-box d-flex align-center pa-2">
+                    <div class="logo-container">
+                        <img src="_content/OIL.Shared/imgs/oil.svg" alt="Oil India Logo" style="height: 45px; width: auto;" />
+                    </div>
+                    <div class="ml-2">
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">ऑयल इंडिया लिमिटेड</MudText><br />
+                        <MudText Typo="Typo.caption" Style="font-weight: bold; line-height: 1;">Oil India Limited</MudText><br />
+                        <MudText Style="font-size: 8px;">(A Govt. of India Enterprise)</MudText>
+                    </div>
+                </div>
+                <div class="dept-box pa-1 text-center">
+                    <MudText Style="font-size: 11px;">यंत्रीकरण विभाग, क्षेत्र मुख्यालय, दुलियाजान</MudText>
+                    <MudText Typo="Typo.body2" Style="font-weight: bold;">Instrumentation Department, Field Headquarter, Duliajan</MudText>
+                    <MudText Style="font-size: 11px;">कार्य आवंटन पर्ची</MudText>
+                    <MudText Typo="Typo.button" Style="font-weight: bold; letter-spacing: 2px;">JOB CARD</MudText>
+                </div>
+                <div class="doc-box pa-1">
+                    <MudText Style="font-size: 10px;">Doc No: <b>@ActiveJobData.DocNumber</b></MudText>
+                    <div class="mt-1" style="border-top: 1px solid black;">
+                        <MudText Style="font-size: 10px;">Date: <b>@ActiveJobData.Date.ToString("dd/MM/yy")</b></MudText>
+                    </div>
+                </div>
+            </div>
+
+            @* --- ASSIGNMENT SECTION --- *@
+            <div class="row-flex border-top">
+                <div class="col-30 pa-1 border-right">Job Assigned by:</div>
+                <div class="col-70 pa-1 font-handwriting">Instrumentation Executive</div>
+            </div>
+
+            @* --- MAIN JOB TABLE --- *@
+            <div class="row-flex border-top header-row-bg">
+                <div class="col-30 pa-1 border-right text-center"><b>Location/Unit/Notification</b></div>
+                <div class="col-70 pa-1 text-center"><b>Job Description</b></div>
+            </div>
+            <div class="row-flex border-top" style="min-height: 300px;">
+                <div class="col-30 pa-2 border-right font-handwriting">
+                    Oil Field Headquarter / Duliajan
+                </div>
+                <div class="col-70 pa-2 font-handwriting">
+                    @foreach (var task in ActiveJobData.Tasks)
+                    {
+                        <div class="mb-2">→ @task.Description</div>
+                    }
+                </div>
+            </div>
+
+            @* --- INTERLOCK / SETPOINT SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Details of any interlock bypass or Setpoint Change:</b></div>
+            <div class="row-flex border-top" style="min-height: 60px;">
+                <div class="col-70 border-right pa-2"></div>
+                <div class="col-30 pa-1 text-center" style="font-size: 9px;">
+                    Signature of Change Requestor & Name
+                </div>
+            </div>
+
+            @* --- PERSONNEL & VEHICLE SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Details of Personnel and Vehicle Assigned:</b></div>
+            <div class="row-flex border-top">
+                <div class="col-50 border-right pa-2 font-handwriting" style="min-height: 80px;">
+                    <b>Personnel:</b><br />
+                    @string.Join(", ", ActiveJobData.Personnel)
+                </div>
+                <div class="col-50 pa-2">
+                    <div class="font-handwriting"><b>Vehicle:</b> @ActiveJobData.Vehicle</div>
+                    <div class="d-flex mt-4 border-top-dotted">
+                        <MudText Style="font-size: 9px;" Class="mr-4">Opening KMS: ______</MudText>
+                        <MudText Style="font-size: 9px;">Closing KMS: ______</MudText>
+                    </div>
+                </div>
+            </div>
+
+            @* --- TOOL BOX TALK SECTION --- *@
+            <div class="pa-1 border-top bg-light"><b>Tool Box Talk Record:</b></div>
+            <div class="pa-2 border-top" style="font-size: 9px; line-height: 1.2;">
+                <div class="row-flex">
+                    <div class="col-50">1. Job Specific PPE to be worn including coveralls.</div>
+                    <div class="col-50">2. Appropriate work permit to be taken at the installation.</div>
+                </div>
+                <div class="row-flex">
+                    <div class="col-50">3. Operator in-charge to be informed before starting job.</div>
+                    <div class="col-50">4. Operator in-charge to be informed after finishing job.</div>
+                </div>
+                <div class="row-flex">
+                    <div class="col-50">5. Set point change or interlock bypass done to be recorded and operator to be informed.</div>
+                    <div class="col-50">6. Others: __________________________</div>
+                </div>
+            </div>
+
+            @* --- SIGNATURE SECTION --- *@
+            @* --- SIGNATURE SECTION (Triple Height & Closing Line) --- *@
+            <div class="pa-4 border-top border-bottom text-center" style="min-height: 150px; display: flex; flex-direction: column; justify-content: space-between;">
+                <MudText Style="font-size: 9px;">
+                    Certified that Tool Box meeting has been conducted to execute job safely.
+                </MudText>
+
+                <div class="mt-auto mb-4">
+                    <div style="border-top: 1px solid black; width: 250px; margin: auto;">
+                        <MudText Style="font-size: 9px;">Signature of attendees </MudText>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+                .header-row-bg {
+                    background-color: #f5f5f5;
+                    font-size: 11px;
+                }
+
+                .border-top-dotted {
+                    border-top: 1px dotted black;
+                }
+        </style>
+
+    
+    
+    </div>
+}
+
+<style>
+    /* Responsive Fixes */
+    @@media (max-width: 600px) {
+        .responsive-header {
+            font-size: 1.4rem !important;
+        }
+    }
+
+    /* Print and Desktop Styles */
+    @@media print {
+        body * {
+            visibility: hidden;
+        }
+
+        #job-card-to-print, #job-card-to-print * {
+            visibility: visible;
+        }
+
+        #job-card-to-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: 1px solid black;
+        }
+
+        .no-print, .print-actions {
+            display: none !important;
+        }
+    }
+
+    .print-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #555;
+        z-index: 9000;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .job-card-main {
+        width: 210mm;
+        min-height: 297mm;
+        margin: auto;
+        border: 2px solid black;
+        background: white;
+        color: black;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid black;
+    }
 
     .header-grid {
         display: grid;
@@ -328,8 +910,7 @@
         border-bottom: 1px solid black;
     }
 
-    .logo-box,
-    .dept-box {
+    .logo-box, .dept-box {
         border-right: 1px solid black;
     }
 
@@ -354,10 +935,6 @@
         border-top: 1px solid black;
     }
 
-    .border-bottom {
-        border-bottom: 1px solid black;
-    }
-
     .border-right {
         border-right: 1px solid black;
     }
@@ -368,28 +945,16 @@
         font-weight: bold;
     }
 
-    .header-row-bg {
-        background-color: #f5f5f5;
-        font-size: 11px;
-    }
-
     .font-handwriting {
         font-family: 'Comic Sans MS', cursive;
         color: #1a237e;
         font-size: 1rem;
     }
 
-    .border-top-dotted {
-        border-top: 1px dotted black;
-    }
-
-    /* =========================================================
-           EDIT MODAL
-        ========================================================= */
-
     .oil-edit-overlay {
         position: fixed;
-        inset: 0;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.7);
@@ -397,833 +962,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 16px;
     }
 
     .oil-edit-card {
-        width: 100%;
-        max-width: 600px;
-        max-height: 95vh;
-        overflow-y: auto;
-        border-radius: 18px !important;
+        width: 95%;
+        max-width: 500px;
     }
-
-    /* =========================================================
-           MOBILE RESPONSIVE
-        ========================================================= */
-
-    @@media (max-width: 1200px) {
-
-        .selection-paper {
-            min-height: 170px;
-        }
-
-        .job-card-main {
-            width: 100%;
-            max-width: 100%;
-        }
-    }
-
-    @@media (max-width: 992px) {
-
-        .sticky-col {
-            min-width: 130px;
-            max-width: 130px;
-            width: 130px;
-            font-size: 0.72rem !important;
-        }
-
-        .header-cell {
-            min-width: 50px;
-        }
-
-        .selection-paper {
-            min-height: auto;
-        }
-
-        .save-bar {
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            justify-content: center;
-        }
-    }
-
-    @@media (max-width: 768px) {
-
-        .mud-table-cell {
-            font-size: 0.64rem !important;
-            padding: 2px !important;
-        }
-
-        .sticky-col {
-            min-width: 110px;
-            max-width: 110px;
-            width: 110px;
-            font-size: 0.64rem !important;
-            padding-left: 6px !important;
-        }
-
-        .header-cell {
-            min-width: 42px;
-            font-size: 0.6rem !important;
-        }
-
-        .native-select {
-            width: 40px;
-            height: 22px;
-            font-size: 0.58rem;
-        }
-
-        .remark-input {
-            width: 40px;
-            height: 20px;
-            font-size: 0.54rem;
-        }
-
-            .remark-input:focus {
-                width: 90px;
-            }
-
-        .save-bar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .responsive-header {
-            font-size: 1.5rem !important;
-        }
-
-        .print-overlay {
-            padding: 6px;
-        }
-
-        .job-card-main {
-            width: 100%;
-            min-height: auto;
-            transform: scale(0.95);
-            transform-origin: top center;
-        }
-
-        .header-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .logo-box,
-        .dept-box {
-            border-right: none;
-            border-bottom: 1px solid black;
-        }
-
-        .row-flex {
-            flex-direction: column;
-        }
-
-        .col-30,
-        .col-50,
-        .col-70 {
-            width: 100%;
-        }
-
-        .border-right {
-            border-right: none;
-            border-bottom: 1px solid black;
-        }
-
-        .font-handwriting {
-            font-size: 0.82rem;
-        }
-    }
-
-    @@media (max-width: 480px) {
-
-        .mud-table-cell {
-            font-size: 0.58rem !important;
-        }
-
-        .sticky-col {
-            min-width: 95px;
-            max-width: 95px;
-            width: 95px;
-            font-size: 0.58rem !important;
-        }
-
-        .header-cell {
-            min-width: 38px;
-            font-size: 0.55rem !important;
-        }
-
-        .native-select {
-            width: 34px;
-            font-size: 0.54rem;
-        }
-
-        .remark-input {
-            width: 34px;
-            font-size: 0.5rem;
-        }
-
-        .responsive-header {
-            font-size: 1.15rem !important;
-        }
-
-        .selection-paper {
-            padding: 16px !important;
-        }
-
-        .job-card-main {
-            transform: scale(0.88);
-        }
-    }
-
-    /* =========================================================
-           PRINT
-        ========================================================= */
-
-    @@page {
-        size: A4 portrait;
-        margin: 6mm;
-    }
-
-    @@media print {
-
-        html,
-        body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            overflow: hidden !important;
-        }
-
-            body * {
-                visibility: hidden !important;
-            }
-
-        .print-overlay,
-        .print-overlay * {
-            visibility: visible !important;
-        }
-
-        .print-overlay {
-            position: absolute !important;
-            inset: 0 !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            overflow: hidden !important;
-        }
-
-        .print-actions,
-        .save-bar,
-        .grid-scroll-container,
-        .mud-overlay,
-        .mud-dialog,
-        .mud-snackbar-container,
-        .mud-appbar,
-        .mud-drawer,
-        .mud-navmenu,
-        .no-print {
-            display: none !important;
-        }
-
-        #job-card-to-print {
-            visibility: visible !important;
-            position: relative !important;
-            display: block !important;
-            width: 198mm !important;
-            min-height: 285mm !important;
-            margin: 0 auto !important;
-            border: 1px solid black !important;
-            box-shadow: none !important;
-            page-break-after: avoid !important;
-            break-after: avoid-page !important;
-        }
-
-        .job-card-main {
-            width: 198mm !important;
-            min-height: 285mm !important;
-            margin: 0 auto !important;
-            border: 1px solid black !important;
-            overflow: hidden !important;
-            box-shadow: none !important;
-            transform: none !important;
-        }
-
-        table,
-        tr,
-        td,
-        div {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-        }
-
-        * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-    }
-
 </style>
-
-<div class="page-wrapper">
-
-    <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
-        <div class="d-flex flex-column align-items-center">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
-            <MudText Typo="Typo.h6" Color="Color.Inherit" Class="mt-4">
-                Syncing with Database...
-            </MudText>
-        </div>
-    </MudOverlay>
-
-    @if (AttendanceData.IsDataReady)
-    {
-        <!-- BULK UPDATE PANEL -->
-
-        <MudExpansionPanels Class="mb-4 mx-2">
-            <MudExpansionPanel Text="Bulk Mark Attendance"
-                               Icon="@Icons.Material.Filled.BatchPrediction">
-
-                <MudGrid AlignItems="AlignItems.Stretch"
-                         Spacing="2"
-                         Class="pa-2">
-
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudSelect T="Member"
-                                   Label="Resource"
-                                   @bind-Value="_bulkMember"
-                                   Variant="Variant.Outlined"
-                                   Dense="true"
-                                   Margin="Margin.Dense">
-
-                            @foreach (var m in AttendanceData.Engineers.Concat(AttendanceData.Drivers))
-                            {
-                                <MudSelectItem Value="@m">@m.FullName</MudSelectItem>
-                            }
-
-                        </MudSelect>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="2">
-                        <MudDateRangePicker Label="Dates"
-                                            @bind-DateRange="_bulkRange"
-                                            Variant="Variant.Outlined"
-                                            Margin="Margin.Dense" />
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="2">
-                        <MudSelect T="string"
-                                   Label="Status"
-                                   @bind-Value="_bulkStatus"
-                                   Variant="Variant.Outlined"
-                                   Dense="true"
-                                   Margin="Margin.Dense">
-
-                            @foreach (var s in _shiftCodes)
-                            {
-                                <MudSelectItem Value="@s">@s</MudSelectItem>
-                            }
-
-                        </MudSelect>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6" md="3">
-                        <MudTextField T="string"
-                                      Label="Reason / Remark"
-                                      @bind-Value="_bulkReason"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-
-                    <MudItem xs="12" md="2" Class="d-flex align-center">
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   OnClick="ApplyBulkUpdate"
-                                   FullWidth="true">
-                            Apply
-                        </MudButton>
-                    </MudItem>
-
-                </MudGrid>
-
-            </MudExpansionPanel>
-        </MudExpansionPanels>
-
-        <!-- SAVE BAR -->
-        @if (_pendingChanges.Any())
-        {
-            <div class="save-bar">
-
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Error"
-                           StartIcon="@Icons.Material.Filled.Close"
-                           OnClick="CancelChanges">
-
-                    Discard (@_pendingChanges.Count)
-
-                </MudButton>
-
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="SaveChanges">
-
-                    Update Schedule
-
-                </MudButton>
-
-            </div>
-        }
-
-        <!-- ATTENDANCE TABLES -->
-
-        <MudGrid Spacing="2" Class="px-2 pb-16">
-
-            <!-- ENGINEERS -->
-
-            <MudItem xs="12" xl="6">
-
-                <MudPaper Elevation="2" Class="pa-2">
-
-                    <MudText Typo="Typo.subtitle2"
-                             Class="ml-2 mb-2"
-                             Color="Color.Primary">
-
-                        ENGINEERS
-
-                    </MudText>
-
-                    <div class="grid-scroll-container">
-
-                        <MudTable Items="@AttendanceData.Engineers"
-                                  T="Member"
-                                  Dense="true"
-                                  Hover="true"
-                                  Breakpoint="Breakpoint.None"
-                                  Elevation="0">
-
-                            <HeaderContent>
-
-                                <MudTh Class="sticky-col">Name</MudTh>
-
-                                @foreach (var day in _daysInMonth)
-                                {
-                                    <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">
-                                        @day.Day
-                                        <br />
-                                        <small>@day.ToString("ddd")</small>
-                                    </MudTh>
-                                }
-
-                            </HeaderContent>
-
-                            <RowTemplate>
-
-                                <MudTd Class="sticky-col">
-                                    @context.FullName
-                                </MudTd>
-
-                                @foreach (var day in _daysInMonth)
-                                {
-                                    var d = day;
-                                    var m = context;
-
-                                    <MudTd Class="@GetCellClass(d)">
-
-                                        <div class="cell-input-stack">
-
-                                            <select value="@GetStatus(m.UniqueId, d)"
-                                                    class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
-                                                    @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
-
-                                                <option value="">--</option>
-
-                                                @foreach (var s in _shiftCodes)
-                                                {
-                                                    <option value="@s">@s</option>
-                                                }
-
-                                            </select>
-
-                                            <input type="text"
-                                                   class="remark-input"
-                                                   placeholder="..."
-                                                   value="@GetReason(m.UniqueId, d)"
-                                                   @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
-
-                                        </div>
-
-                                    </MudTd>
-                                }
-
-                            </RowTemplate>
-
-                        </MudTable>
-
-                    </div>
-
-                </MudPaper>
-
-            </MudItem>
-
-            <!-- DRIVERS -->
-
-            <MudItem xs="12" xl="6">
-
-                <MudPaper Elevation="2" Class="pa-2">
-
-                    <MudText Typo="Typo.subtitle2"
-                             Class="ml-2 mb-2"
-                             Color="Color.Secondary">
-
-                        DRIVERS
-
-                    </MudText>
-
-                    <div class="grid-scroll-container">
-
-                        <MudTable Items="@AttendanceData.Drivers"
-                                  T="Member"
-                                  Dense="true"
-                                  Hover="true"
-                                  Breakpoint="Breakpoint.None"
-                                  Elevation="0">
-
-                            <HeaderContent>
-
-                                <MudTh Class="sticky-col">Name</MudTh>
-
-                                @foreach (var day in _daysInMonth)
-                                {
-                                    <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">
-                                        @day.Day
-                                        <br />
-                                        <small>@day.ToString("ddd")</small>
-                                    </MudTh>
-                                }
-
-                            </HeaderContent>
-
-                            <RowTemplate>
-
-                                <MudTd Class="sticky-col">
-                                    @context.FullName
-                                </MudTd>
-
-                                @foreach (var day in _daysInMonth)
-                                {
-                                    var d = day;
-                                    var m = context;
-
-                                    <MudTd Class="@GetCellClass(d)">
-
-                                        <div class="cell-input-stack">
-
-                                            <select value="@GetStatus(m.UniqueId, d)"
-                                                    class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
-                                                    @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
-
-                                                <option value="">--</option>
-
-                                                @foreach (var s in _shiftCodes)
-                                                {
-                                                    <option value="@s">@s</option>
-                                                }
-
-                                            </select>
-
-                                            <input type="text"
-                                                   class="remark-input"
-                                                   placeholder="..."
-                                                   value="@GetReason(m.UniqueId, d)"
-                                                   @onchange="@(e => OnEntryChanged(m, d, GetStatus(m.UniqueId, d), e.Value?.ToString()))" />
-
-                                        </div>
-
-                                    </MudTd>
-                                }
-
-                            </RowTemplate>
-
-                        </MudTable>
-
-                    </div>
-
-                </MudPaper>
-
-            </MudItem>
-
-        </MudGrid>
-    }
-    else
-    {
-        <div class="d-flex align-center justify-center"
-             style="height: 300px;">
-
-            <MudProgressCircular Indeterminate="true"
-                                 Size="Size.Large"
-                                 Color="Color.Primary" />
-
-        </div>
-    }
-
-    <!-- RESOURCE DISPATCH MAPPER -->
-
-    <MudContainer MaxWidth="MaxWidth.ExtraLarge"
-                  Class="mt-4 mt-md-8 mb-10 no-print">
-
-        <MudText Typo="Typo.h4"
-                 Align="Align.Center"
-                 GutterBottom="true"
-                 Class="responsive-header">
-
-            <b>OIL Resource Dispatch Mapper</b>
-
-        </MudText>
-
-        <!-- TOP PANEL -->
-
-        <MudGrid Justify="Justify.Center"
-                 AlignItems="AlignItems.Stretch"
-                 Spacing="3"
-                 Class="mt-2 mt-md-6">
-
-            <!-- SHIFT -->
-
-            <MudItem xs="12" sm="6" md="4" lg="2">
-
-                <MudPaper Elevation="4"
-                          Class="pa-4 pa-md-6 selection-paper"
-                          Style="border-top: 6px solid var(--mud-palette-warning);">
-
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">
-                        <b>Shift</b>
-                    </MudText>
-
-                    <MudSelect T="string"
-                               Label="Select Shift"
-                               Variant="Variant.Outlined"
-                               @bind-Value="_selectedShift"
-                               AnchorOrigin="Origin.BottomCenter">
-
-                        <MudSelectItem Value="@("Morning")">
-                            Morning
-                        </MudSelectItem>
-
-                        <MudSelectItem Value="@("Evening")">
-                            Evening
-                        </MudSelectItem>
-
-                    </MudSelect>
-
-                </MudPaper>
-
-            </MudItem>
-
-            <!-- VEHICLE -->
-
-            <MudItem xs="12" sm="6" md="4" lg="2">
-
-                <MudPaper Elevation="4"
-                          Class="pa-4 pa-md-6 selection-paper"
-                          Style="border-top: 6px solid var(--mud-palette-primary);">
-
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">
-                        <b>1. Vehicle</b>
-                    </MudText>
-
-                    <MudSelect T="Driver"
-                               Label="Select Vehicle"
-                               Variant="Variant.Outlined"
-                               @bind-Value="_selectedDriver"
-                               ToStringFunc="@(d => d?.VehicleNumber)"
-                               AnchorOrigin="Origin.BottomCenter">
-
-                        @foreach (var d in _dbDrivers)
-                        {
-                            <MudSelectItem T="Driver" Value="@d">
-                                @d.VehicleNumber
-                            </MudSelectItem>
-                        }
-
-                    </MudSelect>
-
-                </MudPaper>
-
-            </MudItem>
-
-            <!-- JOBS -->
-
-            <MudItem xs="12" sm="6" md="6" lg="3">
-
-                <MudPaper Elevation="4"
-                          Class="pa-4 pa-md-6 selection-paper"
-                          Style="border-top: 6px solid var(--mud-palette-info);">
-
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">
-                        <b>2. Jobs Assigned</b>
-                    </MudText>
-
-                    <MudSelect T="Job"
-                               Label="Select Jobs"
-                               MultiSelection="true"
-                               @bind-SelectedValues="_selectedJobs"
-                               Variant="Variant.Outlined"
-                               ToStringFunc="@(j => j?.JobName)"
-                               AnchorOrigin="Origin.BottomCenter">
-
-                        @foreach (var j in _dbJobs)
-                        {
-                            <MudSelectItem T="Job" Value="@j">
-                                @j.JobName
-                            </MudSelectItem>
-                        }
-
-                    </MudSelect>
-
-                </MudPaper>
-
-            </MudItem>
-
-            <!-- PERSONNEL -->
-
-            <MudItem xs="12" sm="6" md="6" lg="3">
-
-                <MudPaper Elevation="4"
-                          Class="pa-4 pa-md-6 selection-paper"
-                          Style="border-top: 6px solid var(--mud-palette-secondary);">
-
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">
-                        <b>3. Personnel</b>
-                    </MudText>
-
-                    <MudSelect T="Engineer"
-                               Label="Select Team"
-                               MultiSelection="true"
-                               @bind-SelectedValues="_selectedEngineers"
-                               Variant="Variant.Outlined"
-                               ToStringFunc="@(p => p?.FullName)"
-                               AnchorOrigin="Origin.BottomCenter">
-
-                        @foreach (var p in _dbEngineers)
-                        {
-                            <MudSelectItem T="Engineer" Value="@p">
-                                @p.FullName
-                            </MudSelectItem>
-                        }
-
-                    </MudSelect>
-
-                </MudPaper>
-
-            </MudItem>
-
-            <!-- PLOT BUTTON -->
-
-            <MudItem xs="12" lg="1"
-                     Class="d-flex align-center justify-center">
-
-                <MudFab Color="Color.Success"
-                        StartIcon="@Icons.Material.Filled.Add"
-                        OnClick="SaveAssignment"
-                        Label="Plot"
-                        Size="Size.Large" />
-
-            </MudItem>
-
-        </MudGrid>
-
-        <MudDivider Class="my-6 my-md-10" />
-
-        <!-- DISPATCH TABLE -->
-
-        <div class="dispatch-table">
-
-            <MudTable Items="@_assignments"
-                      Hover="true"
-                      Elevation="4"
-                      Loading="@_loading"
-                      Dense="true"
-                      Breakpoint="Breakpoint.Sm"
-                      HorizontalScrollbar="true"
-                      Class="mx-1 mx-md-2">
-
-                <HeaderContent>
-
-                    <MudTh>Date</MudTh>
-                    <MudTh>Doc No</MudTh>
-                    <MudTh>Vehicle</MudTh>
-                    <MudTh>Jobs</MudTh>
-                    <MudTh>Personnel</MudTh>
-                    <MudTh Style="text-align:right">Actions</MudTh>
-
-                </HeaderContent>
-
-                <RowTemplate>
-
-                    <MudTd DataLabel="Date">
-                        @context.PrintableDate
-                    </MudTd>
-
-                    <MudTd DataLabel="Doc No">
-                        <b>@context.DocNumber</b>
-                    </MudTd>
-
-                    <MudTd DataLabel="Vehicle">
-                        @GetDriverName(context.DriverId)
-                    </MudTd>
-
-                    <MudTd DataLabel="Jobs">
-
-                        @foreach (var id in context.JobIds)
-                        {
-                            <MudChip T="string"
-                                     Size="Size.Small"
-                                     Variant="Variant.Text"
-                                     Class="ma-1">
-
-                                @GetJobName(id)
-
-                            </MudChip>
-                        }
-
-                    </MudTd>
-
-                    <MudTd DataLabel="Personnel">
-                        <small>
-                            @string.Join(", ", context.PersonnelIds.Select(GetEngineerName))
-                        </small>
-                    </MudTd>
-
-                    <MudTd DataLabel="Actions"
-                           Style="text-align:right">
-
-                        <MudIconButton Icon="@Icons.Material.Filled.Print"
-                                       Color="Color.Info"
-                                       OnClick="@(() => PrepareJobCard(context))"
-                                       Size="Size.Small" />
-
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                       Color="Color.Primary"
-                                       OnClick="@(() => OpenEditModal(context))"
-                                       Size="Size.Small" />
-
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                       Color="Color.Error"
-                                       OnClick="@(() => DeleteAssignment(context.Id))"
-                                       Size="Size.Small" />
-
-                    </MudTd>
-
-                </RowTemplate>
-
-            </MudTable>
-
-        </div>
-
-    </MudContainer>
-
-</div>
 
 @code {
 
@@ -1305,7 +1050,7 @@
     private void ApplyBulkUpdate()
     {
         if (_bulkMember == null || _bulkRange.Start == null || _bulkRange.End == null) return;
-        
+
         for (var dt = _bulkRange.Start.Value.Date; dt <= _bulkRange.End.Value.Date; dt = dt.AddDays(1))
         {
             OnEntryChanged(_bulkMember, dt, _bulkStatus, _bulkReason);
@@ -1352,6 +1097,7 @@
     {
         [PrimaryKey("id")] public long Id { get; set; }
         [Column("full_name")] public string FullName { get; set; }
+        [Column("vehicle_number")] public string VehicleNumber { get; set; }
     }
 
     public class Member
@@ -1360,6 +1106,7 @@
         public string UniqueId { get; set; }
         public long? DbId { get; set; }
         public string Role { get; set; }
+        public string VehicleNumber { get; set; }
     }
 
    
@@ -1394,8 +1141,8 @@
 
     // protected override async Task OnInitializedAsync()
     // {
-        
 
+        
     // }
 
 
@@ -1499,7 +1246,7 @@
 
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; }
     [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; [Column("status")] public string JobStatus { get; set; } = ""; }
-    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; }
+    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; }
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {

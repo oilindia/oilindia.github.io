@@ -31,7 +31,7 @@ namespace OIL.Shared.Services
                 await Task.WhenAll(engTask, drvTask);
 
                 Engineers = engTask.Result.Models.Select(e => new Member { FullName = e.FullName, UniqueId = e.EmpCode, Role = "Engineer" }).ToList();
-                Drivers = drvTask.Result.Models.Select(d => new Member { FullName = d.FullName, UniqueId = d.Id.ToString(), Role = "Driver", DbId = d.Id }).ToList();
+                Drivers = drvTask.Result.Models.Select(d => new Member { FullName = d.FullName, UniqueId = d.Id.ToString(), Role = "Driver", DbId = d.Id, VehicleNumber = d.VehicleNumber }).ToList();
 
                 var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToString("yyyy-MM-dd");
                 var end = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd");

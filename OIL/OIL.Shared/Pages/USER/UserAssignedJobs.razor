@@ -111,11 +111,31 @@
                     </MudItem>
                     
                     @if (_overtime)
-                    {
-                        <MudNumericField @bind-Value="_currentOvertime" Label="Overtime Hours"
-                                         Variant="Variant.Outlined" Adornment="Adornment.End"
-                                         AdornmentIcon="@Icons.Material.Filled.AccessTime" />
-                    }
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudNumericField @bind-Value="_overtimeHours" 
+                             Label="Overtime Hours"
+                             Variant="Variant.Outlined" 
+                             Min="0" 
+                             Step="1"
+                             HideSpinButtons="false"
+                             Adornment="Adornment.End"
+                             AdornmentIcon="@Icons.Material.Filled.AccessTime" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudNumericField @bind-Value="_overtimeMinutes" 
+                             Label="Overtime Minutes"
+                             Variant="Variant.Outlined" 
+                             Min="0" 
+                             Max="59" 
+                             Step="1"
+                             HideSpinButtons="false"
+                             Adornment="Adornment.End"
+                             AdornmentIcon="@Icons.Material.Filled.Build" />
+        </MudItem>
+    </MudGrid>
+}
 
 
 
@@ -275,7 +295,7 @@
         [Column("job_action_remarks")] public string? JobActionRemarks { get; set; }
         [Column("spare_replace")] public string? SpareReplace { get; set; }
         [Column("status")] public string? status { get; set; }
-        [Column("job_overtime")] public long? JobOverTime { get; set; }
+        [Column("job_overtime")] public float? JobOverTime { get; set; }
 
     }
 
@@ -310,6 +330,11 @@
     private string _workDone = "";
     private bool _partReplaced = false;
     private bool _overtime = false;
+
+
+    private int? _overtimeHours;
+    private int? _overtimeMinutes;
+
 
     //private bool _isOvertime;
     private float? _currentOvertime;
@@ -749,17 +774,24 @@
             }
 
             // 1. FETCH EXISTING OVERTIME (To add current to existing)
+            // 1. FETCH EXISTING OVERTIME & CALCULATE NEW OVERTIME
             float? finalOvertime = null;
 
-            if (_overtime && _currentOvertime.HasValue)
+            if (_overtime && (_overtimeHours.HasValue || _overtimeMinutes.HasValue))
             {
                 var currentAssignment = await SupabaseClient.From<JobAssignment>()
                     .Where(x => x.Id == CurrentJobAssignmentId)
                     .Single();
 
-                // If existing is null, start at 0; then add new hours
+                // Safely grab existing hours (now correctly typed as float)
                 float existingHours = currentAssignment?.JobOverTime ?? 0f;
-                finalOvertime = existingHours + _currentOvertime.Value;
+
+                // Convert UI hours and minutes into a single float value
+                float enteredHours = _overtimeHours ?? 0;
+                float enteredMinutesAsHours = (_overtimeMinutes ?? 0) / 60f;
+                float newOvertimeTotal = enteredHours + enteredMinutesAsHours;
+
+                finalOvertime = existingHours + newOvertimeTotal;
             }
 
 
@@ -779,11 +811,8 @@
             // Only include Overtime in the update if the switch is ON
             if (_overtime)
             {
-
-                // Explicitly cast to (float?) to satisfy the Nullable`1 requirement
-                updateRequest = updateRequest.Set(x => x.JobOverTime, (float?)finalOvertime);
-
-                //updateRequest = updateRequest.Set(x => x.JobOverTime, finalOvertime);
+                // This will now pass a clean float? matching your column schema perfectly
+                updateRequest = updateRequest.Set(x => x.JobOverTime, finalOvertime);
             }
 
             await updateRequest.Update();
@@ -848,4 +877,3 @@
 
 
 
-}

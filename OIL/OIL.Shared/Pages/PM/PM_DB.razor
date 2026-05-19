@@ -1,224 +1,540 @@
 ﻿@page "/pmdb"
+
+@using MudBlazor
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using static Supabase.Postgrest.Constants
+@using System.Text.Json.Serialization
+
 @inject IJSRuntime JSRuntime
+@inject Supabase.Client Supabase
 
-<style>
-    /* Styling for the KPI cards title */
-    .mud-overline {
-        letter-spacing: 0.1rem;
-        font-weight: 700;
-        color: #64748b;
-    }
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
 
-    /* Grid layout for custom charts */
-    .chart-container {
-        position: relative;
-        height: 300px;
-        width: 100%;
-    }
+    <!-- FILTER -->
+    <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-radius:18px;">
 
-    /* Header Styling */
-    .header-panel {
-        background-color: #122c4f;
-        border-radius: 12px;
-        color: white;
-    }
+        <MudGrid Spacing="3" AlignItems="AlignItems.Center">
 
-    .badge-outline {
-        border: 1.5px solid #ffa726;
-        border-radius: 50px;
-        width: fit-content;
-    }
-</style>
+            <MudItem xs="12" sm="6" md="3">
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+                <MudDatePicker T="DateTime?"
+                               Label="From Date"
+                               @bind-Date="_startDate"
+                               Editable="true"
+                               Variant="Variant.Outlined" />
 
-    <MudPaper Elevation="4" Class="pa-8 header-panel mb-8">
-        @* Badge *@
-        <div class="badge-outline px-4 py-1 mb-6">
-            <MudText Typo="Typo.caption" Style="color: #ffa726; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">
-                Instrumentation Field Maintenance
-            </MudText>
-        </div>
+            </MudItem>
 
-        <MudText Typo="Typo.h3" Style="font-weight: 700;" Class="mb-1">
-            Preventive Maintenance Dashboard
-        </MudText>
-        <MudText Typo="Typo.h3" Style="color: #ffcc80; font-weight: 700;" Class="mb-6">
-            FY 2025-26
-        </MudText>
+            <MudItem xs="12" sm="6" md="3">
 
-        <MudText Typo="Typo.body1" Style="color: #b0bec5; max-width: 800px;" Class="mb-8">
-            Dashboard summarising preventive maintenance performance, field coverage, maintenance trends and
-            operational benefits achieved through a stronger PM programme.
-        </MudText>
+                <MudDatePicker T="DateTime?"
+                               Label="To Date"
+                               @bind-Date="_endDate"
+                               Editable="true"
+                               Variant="Variant.Outlined" />
 
-        <MudStack Row="true" Spacing="6" AlignItems="AlignItems.Center" Class="flex-wrap">
-            <div class="d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Style="color: #90a4ae;" Class="mr-2" />
-                <MudText Typo="Typo.body2" Style="color: #cfd8dc;"><b>Reporting:</b> FY 2025-26</MudText>
-            </div>
-            <div class="d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Style="color: #90a4ae;" Class="mr-2" />
-                <MudText Typo="Typo.body2" Style="color: #cfd8dc;"><b>Scope:</b> PM Activities</MudText>
-            </div>
-        </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="RefreshDashboardAsync"
+                           Loading="_loading"
+                           FullWidth>
+
+                    Apply Filter
+
+                </MudButton>
+
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+
+                <MudPaper Class="pa-3"
+                          Style="background:#f1f5f9;border-radius:14px;">
+
+                    <MudText Typo="Typo.caption">
+                        ACTIVE RANGE
+                    </MudText>
+
+                    <MudText Typo="Typo.subtitle1"
+                             Style="font-weight:700;">
+
+                        @_startDate?.ToString("dd MMM yyyy")
+                        -
+                        @_endDate?.ToString("dd MMM yyyy")
+
+                    </MudText>
+
+                </MudPaper>
+
+            </MudItem>
+
+        </MudGrid>
+
     </MudPaper>
 
-    @* --- KPI SNAPSHOT --- *@
-    <div class="mb-10">
-        <div style="border-left: 4px solid #ff9800; padding-left: 12px;" class="mb-6">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="Color.Primary" Size="Size.Medium" />
-                <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">KPI Snapshot</MudText>
-            </MudStack>
-        </div>
+    <!-- HEADER -->
+    <MudPaper Elevation="0"
+              Class="pa-6 mb-6"
+              Style="border-radius:20px;background:linear-gradient(135deg,#0f172a,#1e293b);color:white;">
 
-        <MudGrid Spacing="3">
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #90a4ae; height: 160px; position: relative;">
-                    <MudText Typo="Typo.overline">PM JOBS (INSTALLS)</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 800;">79</MudText>
-                    <MudIcon Icon="@Icons.Material.Filled.Work" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #ffb74d; height: 160px; position: relative;">
-                    <MudText Typo="Typo.overline">PM SHARE</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 800;">10%</MudText>
-                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #4caf50; height: 160px; position: relative;">
-                    <MudText Typo="Typo.overline">NON-PM JOBS</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 800;">2,458</MudText>
-                    <MudIcon Icon="@Icons.Material.Filled.Build" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid #ef5350; height: 160px; position: relative;">
-                    <MudText Typo="Typo.overline">PM MAN DAYS</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 800;">258</MudText>
-                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Style="position: absolute; bottom: 10px; right: 10px; font-size: 40px; color: #f5f5f5;" />
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-    </div>
+        <MudText Typo="Typo.h4" Style="font-weight:800;">
+            PM Dashboard
+        </MudText>
 
-    @* --- PM TRENDS & GROWTH --- *@
-    <div style="border-left: 4px solid #f59e0b; padding-left: 12px;" class="mb-4 mt-10">
-        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">PM Trends & Growth</MudText>
-        <MudText Typo="Typo.caption" Style="color: #64748b;">Three-year PM trend, percentage trend and YoY growth</MudText>
-    </div>
+        <MudText Typo="Typo.subtitle1">
+            Preventive Maintenance Analytics
+        </MudText>
 
-    <MudGrid Class="mb-6">
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">PM Jobs (Man-Days)</MudText>
-                <div class="chart-container"><canvas id="pmTrend"></canvas></div>
+    </MudPaper>
+
+    <!-- KPI -->
+    <MudGrid Spacing="3" Class="mb-6">
+
+        <MudItem xs="12" sm="6" md="3">
+
+            <MudPaper Class="pa-5"
+                      Style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:18px;color:white;">
+
+                <MudText Typo="Typo.overline">
+                    TOTAL PM INSTALLS
+                </MudText>
+
+                <MudText Typo="Typo.h3">
+                    @_dashboard.TotalPmInstalls
+                </MudText>
+
             </MudPaper>
+
         </MudItem>
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Total PM Jobs (Installs)</MudText>
-                <div class="chart-container"><canvas id="pmInstallBar"></canvas></div>
+
+        <MudItem xs="12" sm="6" md="3">
+
+            <MudPaper Class="pa-5"
+                      Style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:18px;color:white;">
+
+                <MudText Typo="Typo.overline">
+                    PM SHARE %
+                </MudText>
+
+                <MudText Typo="Typo.h3">
+                    @_dashboard.PmSharePercent.ToString("0.0")%
+                </MudText>
+
             </MudPaper>
+
         </MudItem>
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">PM % of Total Jobs</MudText>
-                <div class="chart-container"><canvas id="pmPercent"></canvas></div>
+
+        <MudItem xs="12" sm="6" md="3">
+
+            <MudPaper Class="pa-5"
+                      Style="background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:18px;color:white;">
+
+                <MudText Typo="Typo.overline">
+                    NON PM JOBS
+                </MudText>
+
+                <MudText Typo="Typo.h3">
+                    @_dashboard.NonPmJobs
+                </MudText>
+
             </MudPaper>
+
         </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+
+            <MudPaper Class="pa-5"
+                      Style="background:linear-gradient(135deg,#ea580c,#c2410c);border-radius:18px;color:white;">
+
+                <MudText Typo="Typo.overline">
+                    PM MAN DAYS
+                </MudText>
+
+                <MudText Typo="Typo.h3">
+                    @_dashboard.PmManDays
+                </MudText>
+
+            </MudPaper>
+
+        </MudItem>
+
     </MudGrid>
 
-    @* --- FIELD DISTRIBUTION & COMPARISON --- *@
-    <MudGrid Class="mb-10">
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">YoY Growth %</MudText>
-                <div class="chart-container"><canvas id="growthChart"></canvas></div>
+    <!-- CHARTS -->
+    <MudGrid Spacing="3">
+
+        <MudItem xs="12" md="6">
+
+            <MudPaper Class="pa-4" Style="border-radius:18px;">
+
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    PM Man Days Trend
+                </MudText>
+
+                <div style="height:350px;">
+                    <canvas id="pmManDaysChart"></canvas>
+                </div>
+
             </MudPaper>
+
         </MudItem>
-        <MudItem xs="12" md="8">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Maintenance Trends with PM % (Dual Axis)</MudText>
-                <div class="chart-container"><canvas id="maintenanceTrendCombo"></canvas></div>
+
+        <MudItem xs="12" md="6">
+
+            <MudPaper Class="pa-4" Style="border-radius:18px;">
+
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    Top Installations
+                </MudText>
+
+                <div style="height:350px;">
+                    <canvas id="topInstallationsChart"></canvas>
+                </div>
+
             </MudPaper>
+
         </MudItem>
+
+        <MudItem xs="12" md="6">
+
+            <MudPaper Class="pa-4" Style="border-radius:18px;">
+
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    PM Share %
+                </MudText>
+
+                <div style="height:350px;">
+                    <canvas id="pmShareChart"></canvas>
+                </div>
+
+            </MudPaper>
+
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+
+            <MudPaper Class="pa-4" Style="border-radius:18px;">
+
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    Field Distribution
+                </MudText>
+
+                <div style="height:350px;">
+                    <canvas id="fieldDistributionChart"></canvas>
+                </div>
+
+            </MudPaper>
+
+        </MudItem>
+
+        <MudItem xs="12">
+
+            <MudPaper Class="pa-4" Style="border-radius:18px;">
+
+                <MudText Typo="Typo.h6" Class="mb-3">
+                    Maintenance Overview
+                </MudText>
+
+                <div style="height:450px;">
+                    <canvas id="maintenanceOverviewChart"></canvas>
+                </div>
+
+            </MudPaper>
+
+        </MudItem>
+
     </MudGrid>
-
-    <div style="border-left: 4px solid #3b82f6; padding-left: 12px;" class="mb-4">
-        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #0f172a;">Field Analysis & Overtime</MudText>
-    </div>
-
-    <MudGrid>
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Field-wise PM Jobs</MudText>
-                <div class="chart-container"><canvas id="fieldBar"></canvas></div>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Field Distribution (CF/WF/EF)</MudText>
-                <div class="chart-container"><canvas id="cfWfEfPie"></canvas></div>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <MudPaper Elevation="4" Class="pa-4" Style="border-radius: 16px; height: 100%;">
-                <MudText Typo="Typo.subtitle2" Class="mb-4">Total OverTime (OT Hours)</MudText>
-                <div class="chart-container"><canvas id="totalOvertimeChart"></canvas></div>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-
-    @* --- ACHIEVEMENTS --- *@
-    <div class="mt-10 mb-8">
-        <div style="border-left: 4px solid #4caf50; padding-left: 12px;" class="mb-4">
-            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0d47a1;">Achievements FY 2025-26</MudText>
-        </div>
-        <MudGrid Spacing="2">
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #4caf50; border-radius: 12px; height: 100%;">
-                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">Zero Maintenance Failures</MudText>
-                    <MudText Typo="Typo.caption">No instrument-related process downtime reported.</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #ff9800; border-radius: 12px; height: 100%;">
-                    <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">OT Reduction</MudText>
-                    <MudText Typo="Typo.caption">Decreased unplanned maintenance overtime hours.</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #2196f3; border-radius: 12px; height: 100%;">
-                    <MudIcon Icon="@Icons.Material.Filled.Storage" Color="Color.Info" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">Traceable Data</MudText>
-                    <MudText Typo="Typo.caption">Full digital log of calibration and set points.</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Elevation="1" Class="pa-4" Style="border: 1px solid #f44336; border-radius: 12px; height: 100%;">
-                    <MudIcon Icon="@Icons.Material.Filled.BuildCircle" Color="Color.Error" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">Lower Breakdowns</MudText>
-                    <MudText Typo="Typo.caption">Improved reliability and field instrumentation health.</MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-    </div>
 
 </MudContainer>
 
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+
+    private bool _loading;
+
+    private DateTime? _startDate = DateTime.Today.AddMonths(-1);
+
+    private DateTime? _endDate = DateTime.Today;
+
+    private DashboardDto _dashboard = new();
+
+    [Table("pm_reports")]
+    public class DbPmReport : BaseModel
     {
-        if (firstRender)
+        [PrimaryKey("id", false)]
+        public string Id { get; set; } = "";
+
+        [Column("job_id")]
+        public string JobId { get; set; } = "";
+
+        [Column("location_id")]
+        public string LocationId { get; set; } = "";
+
+        [Column("completion_date")]
+        public DateTime? CompletionDate { get; set; }
+    }
+
+    [Table("jobs")]
+    public class DbJob : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public string Id { get; set; } = "";
+
+        [Column("job_type")]
+        public string JobType { get; set; } = "";
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("completion_date")]
+        public DateTime? CompletionDate { get; set; }
+    }
+
+    [Table("locations")]
+    public class DbLocation : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public string Id { get; set; } = "";
+
+        [Column("location_name")]
+        public string LocationName { get; set; } = "";
+
+        [Column("field_type")]
+        public string FieldType { get; set; } = "";
+    }
+
+    [Table("job_assignments")]
+    public class JobAssignment : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("job_overtime")]
+        public double? JobOvertime { get; set; }
+    }
+
+    public class DashboardDto
+    {
+        public int TotalPmInstalls { get; set; }
+
+        public double PmSharePercent { get; set; }
+
+        public int NonPmJobs { get; set; }
+
+        public int PmManDays { get; set; }
+
+        public List<string> DailyLabels { get; set; } = new();
+
+        public List<double> DailyPmManDays { get; set; } = new();
+
+        public List<int> DailyPmCounts { get; set; } = new();
+
+        public List<int> DailyNonPmCounts { get; set; } = new();
+
+        public List<string> TopLocationLabels { get; set; } = new();
+
+        public List<int> TopLocationCounts { get; set; } = new();
+
+        public List<int> PmVsNonPm { get; set; } = new();
+
+        public List<int> FieldDistribution { get; set; } = new();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task RefreshDashboardAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        _loading = true;
+
+        StateHasChanged();
+
+        try
         {
-            // The JavaScript function defined in your _Host.cshtml or index.html
-            await JSRuntime.InvokeVoidAsync("initAllMaintenanceCharts");
+            _dashboard = new DashboardDto();
+
+            var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+            var reportsTask = Supabase
+                .From<DbPmReport>()
+                .Select("*")
+                .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                .Get();
+
+            var jobsTask = Supabase
+                .From<DbJob>()
+                .Select("*")
+                .Get();
+
+            var locationsTask = Supabase
+                .From<DbLocation>()
+                .Select("*")
+                .Get();
+
+            await Task.WhenAll(reportsTask, jobsTask, locationsTask);
+
+            var reports = reportsTask.Result.Models ?? new();
+            var jobs = jobsTask.Result.Models ?? new();
+            var locations = locationsTask.Result.Models ?? new();
+
+            var jobsMap = jobs.ToDictionary(x => x.Id);
+            var locationMap = locations.ToDictionary(x => x.Id);
+
+            var joined = reports.Select(r =>
+            {
+                jobsMap.TryGetValue(r.JobId ?? "", out var job);
+                locationMap.TryGetValue(r.LocationId ?? "", out var location);
+
+                return new
+                {
+                    Report = r,
+                    Job = job,
+                    Location = location
+                };
+            }).ToList();
+
+            var preventive = joined.Where(x =>
+                x.Job != null &&
+                !string.IsNullOrWhiteSpace(x.Job.JobType) &&
+                x.Job.JobType.ToLower().Contains("preventive"))
+                .ToList();
+
+            var nonPreventive = joined.Where(x =>
+                x.Job == null ||
+                string.IsNullOrWhiteSpace(x.Job.JobType) ||
+                !x.Job.JobType.ToLower().Contains("preventive"))
+                .ToList();
+
+            _dashboard.TotalPmInstalls =
+                preventive
+                .Select(x => x.Location?.Id)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .Count();
+
+            _dashboard.NonPmJobs = nonPreventive.Count;
+
+            int totalJobs = joined.Count;
+
+            _dashboard.PmSharePercent =
+                totalJobs == 0
+                ? 0
+                : ((double)preventive.Count / totalJobs) * 100;
+
+            int totalPmDays = 0;
+
+            foreach (var item in preventive)
+            {
+                if (item.Job?.CreatedAt != null &&
+                    item.Job?.CompletionDate != null)
+                {
+                    totalPmDays += Math.Max(
+                        1,
+                        (item.Job.CompletionDate.Value.Date -
+                         item.Job.CreatedAt.Value.Date).Days + 1);
+                }
+            }
+
+            _dashboard.PmManDays = totalPmDays;
+
+            var grouped = joined
+                .Where(x => x.Report.CompletionDate != null)
+                .GroupBy(x => x.Report.CompletionDate!.Value.Date)
+                .OrderBy(x => x.Key);
+
+            foreach (var day in grouped)
+            {
+                _dashboard.DailyLabels.Add(day.Key.ToString("dd MMM"));
+
+                int pmCount = day.Count(x =>
+                    x.Job != null &&
+                    x.Job.JobType.ToLower().Contains("preventive"));
+
+                int nonPmCount = day.Count() - pmCount;
+
+                _dashboard.DailyPmCounts.Add(pmCount);
+
+                _dashboard.DailyNonPmCounts.Add(nonPmCount);
+
+                double manDays = 0;
+
+                foreach (var item in day)
+                {
+                    if (item.Job?.CreatedAt != null &&
+                        item.Job?.CompletionDate != null)
+                    {
+                        manDays += Math.Max(
+                            1,
+                            (item.Job.CompletionDate.Value.Date -
+                             item.Job.CreatedAt.Value.Date).Days + 1);
+                    }
+                }
+
+                _dashboard.DailyPmManDays.Add(manDays);
+            }
+
+            var topLocations = preventive
+                .GroupBy(x => x.Location?.LocationName ?? "Unknown")
+                .Select(x => new
+                {
+                    Name = x.Key,
+                    Count = x.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
+
+            _dashboard.TopLocationLabels =
+                topLocations.Select(x => x.Name).ToList();
+
+            _dashboard.TopLocationCounts =
+                topLocations.Select(x => x.Count).ToList();
+
+            _dashboard.PmVsNonPm = new List<int>
+            {
+                preventive.Count,
+                nonPreventive.Count
+            };
+
+            int central = preventive.Count(x =>
+                (x.Location?.FieldType ?? "").ToLower().Contains("central"));
+
+            int western = preventive.Count(x =>
+                (x.Location?.FieldType ?? "").ToLower().Contains("western"));
+
+            int eastern = preventive.Count(x =>
+                (x.Location?.FieldType ?? "").ToLower().Contains("eastern"));
+
+            _dashboard.FieldDistribution = new List<int>
+            {
+                central,
+                western,
+                eastern
+            };
+
+            await JSRuntime.InvokeVoidAsync(
+                "initPmDashboardCharts",
+                _dashboard);
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+        _loading = false;
+
+        StateHasChanged();
     }
 }
