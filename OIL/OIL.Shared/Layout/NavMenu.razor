@@ -5,14 +5,14 @@
             @* --- GLOBAL LINKS (Everyone) --- *@
             <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
             <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
-            
+
             <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
 
             @* <MudNavLink Href="/coststatic" Icon="@Icons.Material.Filled.Money">FY26 Cost</MudNavLink>
 
             <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM Dashboard</MudNavLink> *@
 
-          @*   <MudNavLink Href="/Pdb" Icon="@Icons.Material.Filled.Dashboard">Our Presence</MudNavLink> *@
+            @*   <MudNavLink Href="/Pdb" Icon="@Icons.Material.Filled.Dashboard">Our Presence</MudNavLink> *@
 
             <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
 
@@ -21,9 +21,9 @@
             <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID (Digital Assets Mapping)</MudNavLink>
 
             <MudNavLink Href="pidmainup" Icon="@Icons.Material.Filled.ControlPoint">P&ID (Update Marker)</MudNavLink>
-            
 
             
+
             @* <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink> *@
 
             @* <MudNavLink Href="/locatoionmap" Icon="@Icons.Material.Filled.Map">Sites Locations Map</MudNavLink> *@
@@ -49,10 +49,10 @@
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.caption" Class="px-4">ADMIN & MANAGEMENT</MudText>
 
-               @*  <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
-                
-                <MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink> *@
-                
+                @*  <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+
+<MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink> *@
+
                 <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Analytics">
                     <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
                     <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
@@ -70,7 +70,7 @@
                     <MudNavLink Href="/managelocations">Manage Locations</MudNavLink>
                 </MudNavGroup>
 
-               @*  <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
+                @*  <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID Mapping</MudNavLink>
                 <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink> *@
 
 
@@ -85,9 +85,9 @@
                 <MudText Typo="Typo.caption" Class="px-4">FINANCIALS</MudText>
                 <MudNavGroup Title="Cost Monitoring" Icon="@Icons.Material.Filled.MonetizationOn">
                     <MudNavLink Href="/coststatic">Cost</MudNavLink>
-                    
+
                     @* <MudNavLink Href="/fmcost">Dept. Cost Portal</MudNavLink> *@
-                   
+
                     @* <MudNavLink Href="/jobcosts">Job Cost Analysis</MudNavLink> *@
                 </MudNavGroup>
             }
@@ -95,7 +95,7 @@
             @* --- INSTRUMENTATION PM SECTION --- *@
             <MudDivider Class="my-2" />
             <MudText Typo="Typo.caption" Class="px-4">MAINTENANCE (PM)</MudText>
-            
+
             @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
 
@@ -110,8 +110,12 @@
 
                 </MudNavGroup>
 
-                <MudNavLink Href="/CalibrationCert" Icon="@Icons.Material.Filled.Receipt">Calibration Certificates</MudNavLink>
 
+                <MudNavGroup Title="Calibration" Icon="@Icons.Material.Filled.Receipt">
+                    <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
+
+                    <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
+                </MudNavGroup>
                 @* <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
 
                 @* PM Planning for Managers *@

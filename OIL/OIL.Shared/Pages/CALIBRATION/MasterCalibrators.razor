@@ -1,0 +1,232 @@
+﻿@page "/mastercalibrators"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudPaper Elevation="3" Class="pa-6">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-6">
+            <div>
+                <MudText Typo="Typo.h5" Class="font-bold">Master Calibrators Directory</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Manage instrumentation validation standards and track expiration profiles.</MudText>
+            </div>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="() => OpenEditorDialog(new SupabaseMasterCalibrator { ValidityDate = DateTime.Today.AddYears(1) })">
+                Add New Calibrator
+            </MudButton>
+        </MudStack>
+
+        <MudDataGrid T="SupabaseMasterCalibrator" Items="_calibrators" Dense="true" Hover="true" Bordered="true" Loading="_loading">
+            <Columns>
+                <PropertyColumn Property="x => x.Id" Title="ID" HeaderStyle="width: 80px;" />
+                <PropertyColumn Property="x => x.Name" Title="Equipment Name" />
+                <PropertyColumn Property="x => x.Model" Title="Model Variant" />
+                <PropertyColumn Property="x => x.SerialNumber" Title="Serial Number" FallbackValue="N/A" />
+                <TemplateColumn Title="Validity Expiration Date">
+                    <CellTemplate>
+                        <span class="@(context.Item.IsExpired ? "text-danger font-bold" : "")">
+                            @context.Item.ValidityDate.ToString("dd/MM/yyyy")
+                            @if (context.Item.IsExpired)
+                            {
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Class="ml-2">EXPIRED</MudChip>
+                            }
+                        </span>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Actions" HeaderStyle="width: 120px;" Sortable="false">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Color="Color.Info"
+                                           Size="Size.Small"
+                                           OnClick="() => OpenEditorDialog(context.Item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="() => ConfirmDeleteAsync(context.Item)" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText Class="pa-4" Align="Align.Center">No hardware records located in database registry.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+<MudDialog @bind-Visible="_isDialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(_editingModel.Id == 0 ? Icons.Material.Filled.AddCard : Icons.Material.Filled.ModeEdit)" Class="mr-2" />
+            @(_editingModel.Id == 0 ? "Register New Asset" : $"Modify Asset ID: {_editingModel.Id}")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isFormValid">
+            <MudTextField T="string" Label="Equipment Name" @bind-Value="_editingModel.Name" Required="true" RequiredError="Name declaration required." Variant="Variant.Outlined" Class="mb-4" />
+            <MudTextField T="string" Label="Model Variant" @bind-Value="_editingModel.Model" Required="true" RequiredError="Model designation required." Variant="Variant.Outlined" Class="mb-4" />
+            <MudTextField T="string" Label="Serial Number" @bind-Value="_editingModel.SerialNumber" Variant="Variant.Outlined" Class="mb-4" />
+            <MudDatePicker Label="Calibration Expiration Date" @bind-Date="_selectedDate" DateFormat="dd/MM/yyyy" Editable="true" Required="true" Variant="Variant.Outlined" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _isDialogOpen = false">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAssetAsync" Disabled="!_isFormValid" Loading="_processing">Save Configuration</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<SupabaseMasterCalibrator> _calibrators = new();
+    private SupabaseMasterCalibrator _editingModel = new();
+
+    private MudForm _form = null!;
+    private bool _loading = false;
+    private bool _processing = false;
+    private bool _isDialogOpen = false;
+    private bool _isFormValid = false;
+    private DateTime? _selectedDate = DateTime.Today;
+
+    private readonly DialogOptions _dialogOptions = new() { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshGridAsync();
+    }
+
+    private async Task RefreshGridAsync()
+    {
+        try
+        {
+            _loading = true;
+
+            // Explicitly typed Postgrest ordering literal to avoid "Constants is a type" compile errors
+            var response = await SupabaseClient
+                .From<SupabaseMasterCalibrator>()
+                .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+
+            _calibrators = response.Models;
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to read master calibrator data from Supabase.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenEditorDialog(SupabaseMasterCalibrator model)
+    {
+        _editingModel = new SupabaseMasterCalibrator
+        {
+            Id = model.Id,
+            Name = model.Name,
+            Model = model.Model,
+            SerialNumber = model.SerialNumber,
+            ValidityDate = model.ValidityDate
+        };
+        _selectedDate = _editingModel.Id == 0 ? DateTime.Today.AddYears(1) : _editingModel.ValidityDate;
+        _isDialogOpen = true;
+
+        // Force Blazor to process the visibility rendering pass immediately
+        StateHasChanged();
+    }
+
+    private async Task SaveAssetAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_isFormValid || _selectedDate == null) return;
+
+        try
+        {
+            _processing = true;
+            _editingModel.ValidityDate = _selectedDate.Value;
+            _editingModel.UpdatedAt = DateTime.UtcNow;
+
+            if (_editingModel.Id == 0)
+            {
+                _editingModel.CreatedAt = DateTime.UtcNow;
+                await SupabaseClient.From<SupabaseMasterCalibrator>().Insert(_editingModel);
+                Snackbar.Add("Asset successfully added to directory.", Severity.Success);
+            }
+            else
+            {
+                await SupabaseClient.From<SupabaseMasterCalibrator>().Update(_editingModel);
+                Snackbar.Add("Asset configurations updated successfully.", Severity.Success);
+            }
+
+            _isDialogOpen = false;
+            await RefreshGridAsync();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Error saving asset details.", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    private async Task ConfirmDeleteAsync(SupabaseMasterCalibrator target)
+    {
+        bool? consent = await DialogService.ShowMessageBoxAsync(
+            "Warning",
+            $"Are you sure you want to delete asset {target.Name} [{target.Model}]? This action cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (consent == true)
+        {
+            try
+            {
+                await SupabaseClient.From<SupabaseMasterCalibrator>().Delete(target);
+                Snackbar.Add("Asset purged from registry.", Severity.Success);
+                await RefreshGridAsync();
+            }
+            catch (Exception)
+            {
+                Snackbar.Add("Error deleting asset.", Severity.Error);
+            }
+        }
+    }
+}
+
+@* MODEL DEFINITION MAPS DIRECTLY TO DATABASE TABLE *@
+@code {
+    [Table("master_calibrators")]
+    public class SupabaseMasterCalibrator : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; } // bigint maps to long in C#
+
+        [Column("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [Column("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [Column("serial_number")]
+        public string? SerialNumber { get; set; }
+
+        [Column("validity_date")]
+        public DateTime ValidityDate { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+
+        public bool IsExpired => ValidityDate.Date < DateTime.Today;
+    }
+}
