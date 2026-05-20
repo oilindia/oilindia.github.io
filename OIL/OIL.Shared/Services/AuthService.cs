@@ -56,6 +56,12 @@ namespace OIL.Shared.Services
                             var userPerm = response.Models.FirstOrDefault();
                             string assignedRole = userPerm?.AppRole ?? "User";
 
+
+                            GlobalVariables.GlobalCurrentUserID = session?.User?.Id?.ToString();
+                            GlobalVariables.GlobalCurrentUserEmail = session?.User?.Email?.ToString();
+                            GlobalVariables.GlobalCurrentUserTok = session?.AccessToken?.ToString();
+                            GlobalVariables.GlobalCurrentUserRole = assignedRole; // Assumed safely handled or nullable
+
                             await _authStateProvider.UpdateAuthenticationState(email, assignedRole);
                             return true;
                         }
@@ -70,6 +76,14 @@ namespace OIL.Shared.Services
                             if (employee != null && employee.PersonalCode == password)
                             {
                                 Console.WriteLine($"Manual verification successful for: {employee.Designation}");
+
+
+                                GlobalVariables.GlobalCurrentUserID = session?.User?.Id?.ToString();
+                                GlobalVariables.GlobalCurrentUserEmail = session?.User?.Email?.ToString();
+                                GlobalVariables.GlobalCurrentUserTok = session?.AccessToken?.ToString();
+                                //GlobalVariables.GlobalCurrentUserRole = assignedRole; // Assumed safely handled or nullable
+
+                                GlobalVariables.GlobalCurrentUserRole = "Engineer";
 
                                 // Fixed: Persist the manual user state to LocalStorage
                                 await _authStateProvider.AdminUpdateAuthenticationStateAsync(email, "Engineer");
@@ -98,7 +112,7 @@ namespace OIL.Shared.Services
             }
 
 
-           
+
         }
 
         //public async Task<bool> Login(string email, string password, bool isAdminMode)

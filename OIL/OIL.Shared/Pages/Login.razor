@@ -11,6 +11,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject DailyDieselPriceService _dailyDieselPriceService
 
 @inject AuthenticationStateProvider AuthProvider
 
@@ -127,6 +128,9 @@
     private InputType _passwordInput = InputType.Password;
     private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
     private readonly CustomAuthStateProvider _authStateProvider;
+
+    //public  DailyDieselPriceService _dailyDieselPriceService;
+
     private bool _isAdminMode; // Add this variable
     bool isAdminChecked;
     private void ToggleMode()
@@ -151,7 +155,13 @@
         try
         {
             _isProcessingCheck = true;
+
+
+
             StateHasChanged(); // Show spinner on login button instantly
+
+
+            
 
             var success = await AuthService.Login(_email, _password, _isAdminMode);
             if (success)
@@ -160,13 +170,15 @@
                 //await ((CustomAuthStateProvider)AuthStateProvider).UpdateAuthenticationState(_email, response.Role);
 
                 // 3. CRITICAL: Yield thread control back to Android to process the state change event
-                await Task.Delay(2550);
+                await Task.Delay(550);
 
                 Console.WriteLine("[LoginUI]: Navigation thread cleared. Routing safely to dashboard.");
 
                 // 4. Navigate now that identity context has caught up
-                Nav.NavigateTo("homeDB");
-
+                //Nav.NavigateTo("homeDB");
+                _dailyDieselPriceService.GetLatestDieselPrice();
+                // 3. Force a hard reload if necessary, or execute standard routing
+                Nav.NavigateTo("homeDB", forceLoad: false);
                 // Small delay helps the StateProvider sync with the UI components
                 // await Task.Delay(2000);
                 // Nav.NavigateTo("homeDB");
