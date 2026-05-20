@@ -47,9 +47,14 @@ public static class MauiProgram
 
         // Use AddSingleton for Auth state in MAUI
         builder.Services.AddAuthorizationCore();
-        builder.Services.AddSingleton<CustomAuthStateProvider>();
-        builder.Services.AddSingleton<AuthenticationStateProvider>(s =>
+        builder.Services.AddScoped<CustomAuthStateProvider>();
+        builder.Services.AddScoped<AuthenticationStateProvider>(s =>
             s.GetRequiredService<CustomAuthStateProvider>());
+
+        builder.Services.AddScoped<AuthService>();
+        builder.Services.AddScoped<IFormFactor, FormFactor>();
+
+
 
         //// Register Supabase WITHOUT calling BuildServiceProvider()
         //builder.Services.AddSingleton(async sp =>
@@ -83,8 +88,7 @@ public static class MauiProgram
         });
 
 
-        builder.Services.AddSingleton<AuthService>();
-        builder.Services.AddSingleton<IFormFactor, FormFactor>();
+       
 
 
 

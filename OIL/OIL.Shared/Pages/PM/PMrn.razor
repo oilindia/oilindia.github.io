@@ -7,6 +7,10 @@
 @using System.Text.Json
 @using Microsoft.JSInterop
 @using System.Text.Json.Serialization
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using static Supabase.Postgrest.Constants
+@using System.Text.Json.Serialization
 
 @inject ISnackbar Snackbar
 @inject Supabase.Client SupabaseClient
@@ -446,6 +450,72 @@
 
         <h3>PM Completion Reports</h3>
 
+        <!-- FILTER -->
+        <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-radius:18px;">
+
+            <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudDatePicker T="DateTime?"
+                                   Label="From Date"
+                                   @bind-Date="_startDate"
+                                   Editable="true"
+                                   Variant="Variant.Outlined" />
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudDatePicker T="DateTime?"
+                                   Label="To Date"
+                                   @bind-Date="_endDate"
+                                   Editable="true"
+                                   Variant="Variant.Outlined" />
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="LoadData"
+                               Loading="_loading"
+                               FullWidth>
+
+                        Apply Filter
+
+                    </MudButton>
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudPaper Class="pa-3"
+                              Style="background:#f1f5f9;border-radius:14px;">
+
+                        <MudText Typo="Typo.caption">
+                            ACTIVE RANGE
+                        </MudText>
+
+                        <MudText Typo="Typo.subtitle1"
+                                 Style="font-weight:700;">
+
+                            @_startDate?.ToString("dd MMM yyyy")
+                            -
+                            @_endDate?.ToString("dd MMM yyyy")
+
+                        </MudText>
+
+                    </MudPaper>
+
+                </MudItem>
+
+            </MudGrid>
+
+        </MudPaper>
+
+
         <MudDataGrid T="ReportView"
                      Items="@_reports"
                      Loading="@_loading"
@@ -477,6 +547,8 @@
     </MudPaper>
 
 </MudContainer>
+
+
 
 @if (_isGcsModalOpen)
 {
@@ -1075,6 +1147,9 @@
     </div>
 }
 
+
+
+
 @if (_isOcsModalOpen)
 {
     <div class="modal-overlay">
@@ -1236,6 +1311,9 @@
 
 
 @code {
+    private DateTime? _startDate = DateTime.Today.AddMonths(-1);
+
+    private DateTime? _endDate = DateTime.Today;
 
     private List<SectionItem> _currentJobItems = new();
 
@@ -1358,6 +1436,10 @@
     {
         try
         {
+            var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+
             _loading = true;
 
             var locRes = await SupabaseClient
@@ -1369,6 +1451,14 @@
             var res = await SupabaseClient
                 .From<PmReport>()
                 .Get();
+
+            var reportsTask = SupabaseClient
+                            .From<PmReport>()
+                            .Select("*")
+                            .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                            .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                            .Get();
+
 
             _reports = res.Models.Select(r => new ReportView
             {

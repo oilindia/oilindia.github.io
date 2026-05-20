@@ -35,9 +35,14 @@
     </Authorized>
 
     <NotAuthorized>
-        <div class="d-flex align-center justify-center" style="min-height:100vh;">
+        <!-- CHANGED: min-height: 100vh to height: 100vh to ensure it scrolls internally when body is locked -->
+        <div style="height: 100vh; overflow-y: auto; -webkit-overflow-scrolling: touch; background-color: #f8fafc; padding: 1rem;">
             @Body
         </div>
+
+        @* <div style="min-height: 100vh; overflow-y: auto; background-color: #f8fafc; padding: 1rem;">
+            @Body
+        </div> *@
     </NotAuthorized>
 </AuthorizeView>
 

@@ -6,23 +6,27 @@
             <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
             <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
 
-            <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+            <MudNavGroup Title="Field Maintenance Dept." Icon="@Icons.Material.Filled.DepartureBoard">
 
+                <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+
+                <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
+
+                <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+
+            </MudNavGroup>
             @* <MudNavLink Href="/coststatic" Icon="@Icons.Material.Filled.Money">FY26 Cost</MudNavLink>
 
             <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM Dashboard</MudNavLink> *@
 
             @*   <MudNavLink Href="/Pdb" Icon="@Icons.Material.Filled.Dashboard">Our Presence</MudNavLink> *@
+            <MudNavGroup Title="PID all" Icon="@Icons.Material.Filled.Sensors">
 
-            <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
+                <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID (Digital Assets Mapping)</MudNavLink>
 
-            <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+                <MudNavLink Href="pidmainup" Icon="@Icons.Material.Filled.ControlPoint">P&ID (Update Marker)</MudNavLink>
 
-            <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID (Digital Assets Mapping)</MudNavLink>
-
-            <MudNavLink Href="pidmainup" Icon="@Icons.Material.Filled.ControlPoint">P&ID (Update Marker)</MudNavLink>
-
-            
+            </MudNavGroup>
 
             @* <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink> *@
 
@@ -99,23 +103,25 @@
             @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
 
-                <MudNavGroup Title="PM" Icon="@Icons.Material.Filled.Storage">
+                <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.Storage">
                     <MudNavLink Href="/PmDB">PM Dashboard</MudNavLink>
                     <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
                     <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
                     <MudNavLink Href="/PMrn">PM Reports</MudNavLink>
 
-
-
-
-                </MudNavGroup>
-
-
-                <MudNavGroup Title="Calibration" Icon="@Icons.Material.Filled.Receipt">
                     <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
 
                     <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
+
+
                 </MudNavGroup>
+
+
+                @* <MudNavGroup Title="Calibration" Icon="@Icons.Material.Filled.Receipt">
+                    <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
+
+                    <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
+                </MudNavGroup> *@
                 @* <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
 
                 @* PM Planning for Managers *@

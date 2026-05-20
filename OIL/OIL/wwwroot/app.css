@@ -16,10 +16,22 @@ html, body {
 /*}*/
 
 /* Adjust MudBlazor Main Content so it starts below the AppBar + Notch */
+/*.mud-main-content {*/
+    /* 64px is standard MudAppBar height */
+    /*padding-top: calc(64px + env(safe-area-inset-top)) !important;
+}*/
+/* Adjust MudBlazor Main Content so it handles the scrolling container internally */
 .mud-main-content {
     /* 64px is standard MudAppBar height */
     padding-top: calc(64px + env(safe-area-inset-top)) !important;
+    /* FORCE INTERNAL SCROLLING HERE */
+    height: 100vh; /* Occupy the full viewport height */
+    overflow-y: auto; /* Allow vertical scrolling inside the main content view */
+    -webkit-overflow-scrolling: touch; /* Ensures smooth, native-feeling momentum scrolling on iOS */
 }
+
+
+
 
 /* Ensure the AppBar itself sits below the status bar color block */
 .mud-appbar {
