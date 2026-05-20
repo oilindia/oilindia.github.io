@@ -1,48 +1,80 @@
-﻿@page "/jobhistory"
+﻿@page "/job-history"
+
+@using System.Data
+@using ClosedXML.Excel
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 @using MudBlazor
+@using Microsoft.JSInterop
+
 @using MudBlazor
 @using Supabase
-@using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
+@using Supabase.Postgrest.Attributes
+@using Newtonsoft.Json
+@using System.Globalization
 @using System.Runtime.Serialization
-@using Microsoft.AspNetCore.Components.Forms
+
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
-@inject NavigationManager Navigation
-@using Newtonsoft.Json
-@using OIL.Shared.Services
-@inject CustomAuthStateProvider AuthStateProvider
-@using System.Security.Claims
+@inject IJSRuntime JS
+@inject IJSRuntime JSRuntime
+@inject OIL.Shared.Services.AttendanceService AttendanceData
+@using MemberType = OIL.Shared.Pages.JOB.JobAssign.Member
+
+@using Supabase.Postgrest.Attributes;
+@using Supabase.Postgrest.Models;
+@using System.Runtime.Serialization;
+
+
+@inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
 
     <MudPaper Class="pa-4 mb-4">
+
         <MudGrid>
 
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudDatePicker Label="From Date"
                                @bind-Date="_fromDate"
                                Variant="Variant.Outlined" />
             </MudItem>
 
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudDatePicker Label="To Date"
                                @bind-Date="_toDate"
                                Variant="Variant.Outlined" />
             </MudItem>
 
-            <MudItem xs="12" sm="4" Class="d-flex align-center">
+            <MudItem xs="12" sm="3" Class="d-flex align-center">
+
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
-                           OnClick="LoadJobHistory"
-                           StartIcon="@Icons.Material.Filled.Search">
+                           StartIcon="@Icons.Material.Filled.Search"
+                           OnClick="LoadJobHistory">
+
                     Search Jobs
+
                 </MudButton>
+
+            </MudItem>
+
+            <MudItem xs="12" sm="3" Class="d-flex align-center">
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportToExcel">
+
+                    Export Excel
+
+                </MudButton>
+
             </MudItem>
 
         </MudGrid>
+
     </MudPaper>
 
     <MudTable Items="_jobHistory"
@@ -50,25 +82,30 @@
               Dense="true"
               Bordered="true"
               Striped="true"
-              Loading="_loading">
+              Loading="_loading"
+              Elevation="4">
 
         <HeaderContent>
 
-            <MudTh>Job</MudTh>
+            <MudTh>Job Name</MudTh>
             <MudTh>Status</MudTh>
             <MudTh>Type</MudTh>
-            <MudTh>Location</MudTh>
+            <MudTh>Location ID</MudTh>
             <MudTh>Area</MudTh>
             <MudTh>Installation</MudTh>
-            <MudTh>Assigned Engineers</MudTh>
+            <MudTh>Installation Type</MudTh>
+            <MudTh>Engineers</MudTh>
             <MudTh>Driver</MudTh>
             <MudTh>Vehicle</MudTh>
             <MudTh>Action</MudTh>
             <MudTh>Action By</MudTh>
             <MudTh>Action Time</MudTh>
             <MudTh>Overtime</MudTh>
+            <MudTh>Priority</MudTh>
+            <MudTh>Description</MudTh>
             <MudTh>Remarks</MudTh>
             <MudTh>PM Status</MudTh>
+            <MudTh>PM Remarks</MudTh>
 
         </HeaderContent>
 
@@ -77,10 +114,14 @@
             <MudTd>@context.JobName</MudTd>
 
             <MudTd>
+
                 <MudChip T="string"
                          Color="@(context.JobStatus == "completed" ? Color.Success : Color.Warning)">
+
                     @context.JobStatus
+
                 </MudChip>
+
             </MudTd>
 
             <MudTd>@context.JobType</MudTd>
@@ -91,15 +132,21 @@
 
             <MudTd>@context.InstallationName</MudTd>
 
+            <MudTd>@context.InstallationType</MudTd>
+
             <MudTd>
+
                 @foreach (var eng in context.Engineers)
                 {
                     <MudChip T="string"
-                             Class="mr-1 mb-1"
-                             Color="Color.Info">
+                             Color="Color.Info"
+                             Class="mr-1 mb-1">
+
                         @eng
+
                     </MudChip>
                 }
+
             </MudTd>
 
             <MudTd>@context.DriverName</MudTd>
@@ -111,16 +158,28 @@
             <MudTd>@context.JobActionBy</MudTd>
 
             <MudTd>
+
                 @(context.JobActionTime?.ToString("dd-MMM-yyyy HH:mm"))
+
             </MudTd>
 
-            <MudTd>@context.JobOvertime</MudTd>
+            <MudTd>@context.JobOverTime</MudTd>
+
+            <MudTd>@context.Priority</MudTd>
+
+            <MudTd Style="max-width:300px; white-space:pre-wrap;">
+                @context.Description
+            </MudTd>
 
             <MudTd Style="max-width:300px; white-space:pre-wrap;">
                 @context.JobActionRemarks
             </MudTd>
 
             <MudTd>@context.PmWorkStatus</MudTd>
+
+            <MudTd Style="max-width:300px; white-space:pre-wrap;">
+                @context.PmRemarks
+            </MudTd>
 
         </RowTemplate>
 
@@ -150,8 +209,17 @@
         [Column("job_type")]
         public string JobType { get; set; }
 
+        [Column("priority")]
+        public string Priority { get; set; }
+
+        [Column("description")]
+        public string Description { get; set; }
+
         [Column("created_at")]
         public DateTime? CreatedAt { get; set; }
+
+        [Column("job_action_remarks")]
+        public string JobActionRemarks { get; set; }
     }
 
     [Table("job_assignments")]
@@ -251,7 +319,7 @@
 
     #endregion
 
-    #region VIEW MODEL
+    #region VIEWMODEL
 
     public class JobHistoryViewModel
     {
@@ -269,6 +337,8 @@
 
         public string InstallationName { get; set; }
 
+        public string InstallationType { get; set; }
+
         public List<string> Engineers { get; set; } = new();
 
         public string DriverName { get; set; }
@@ -281,11 +351,17 @@
 
         public DateTime? JobActionTime { get; set; }
 
-        public float? JobOvertime { get; set; }
+        public float? JobOverTime { get; set; }
 
         public string JobActionRemarks { get; set; }
 
+        public string Priority { get; set; }
+
+        public string Description { get; set; }
+
         public string PmWorkStatus { get; set; }
+
+        public string PmRemarks { get; set; }
     }
 
     #endregion
@@ -297,8 +373,6 @@
     private DateTime? _toDate = DateTime.Today;
 
     private List<JobHistoryViewModel> _jobHistory = new();
-
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -313,7 +387,7 @@
 
             _jobHistory.Clear();
 
-            // MAIN TABLE
+            // JOB ASSIGNMENTS
             var assignmentRes = await SupabaseClient
                 .From<JobAssignment>()
                 .Get();
@@ -355,7 +429,6 @@
 
             var pmReports = pmRes.Models;
 
-            // FILTER DATE
             foreach (var assignment in assignments)
             {
                 if (_fromDate.HasValue &&
@@ -375,11 +448,11 @@
                 {
                     Job foundJob = null;
 
-                    foreach (var j in jobs)
+                    foreach (var job in jobs)
                     {
-                        if (j.Id == jobId)
+                        if (job.Id == jobId)
                         {
-                            foundJob = j;
+                            foundJob = job;
                             break;
                         }
                     }
@@ -409,7 +482,7 @@
                         }
                     }
 
-                    var engineerNames = new List<string>();
+                    List<string> engineerNames = new();
 
                     if (assignment.PersonnelIds != null)
                     {
@@ -444,9 +517,12 @@
                         JobStatus = foundJob.Status,
                         JobType = foundJob.JobType,
                         LocationId = foundJob.LocationId,
+                        Priority = foundJob.Priority,
+                        Description = foundJob.Description,
 
                         AreaName = foundLocation?.AreaName,
                         InstallationName = foundLocation?.InstallationName,
+                        InstallationType = foundLocation?.InstallationType,
 
                         Engineers = engineerNames,
 
@@ -456,10 +532,11 @@
                         JobAction = assignment.JobAction,
                         JobActionBy = assignment.JobActionBy,
                         JobActionTime = assignment.JobActionTime,
-                        JobOvertime = assignment.JobOverTime,
+                        JobOverTime = assignment.JobOverTime,
                         JobActionRemarks = assignment.JobActionRemarks,
 
-                        PmWorkStatus = foundPm?.WorkStatus
+                        PmWorkStatus = foundPm?.WorkStatus,
+                        PmRemarks = foundPm?.Remarks
                     });
                 }
             }
@@ -471,6 +548,83 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task ExportToExcel()
+    {
+        try
+        {
+            using var workbook = new XLWorkbook();
+
+            var worksheet = workbook.Worksheets.Add("Job History");
+
+            worksheet.Cell(1, 1).Value = "Job Name";
+            worksheet.Cell(1, 2).Value = "Status";
+            worksheet.Cell(1, 3).Value = "Type";
+            worksheet.Cell(1, 4).Value = "Location ID";
+            worksheet.Cell(1, 5).Value = "Area";
+            worksheet.Cell(1, 6).Value = "Installation";
+            worksheet.Cell(1, 7).Value = "Installation Type";
+            worksheet.Cell(1, 8).Value = "Engineers";
+            worksheet.Cell(1, 9).Value = "Driver";
+            worksheet.Cell(1, 10).Value = "Vehicle";
+            worksheet.Cell(1, 11).Value = "Action";
+            worksheet.Cell(1, 12).Value = "Action By";
+            worksheet.Cell(1, 13).Value = "Action Time";
+            worksheet.Cell(1, 14).Value = "Overtime";
+            worksheet.Cell(1, 15).Value = "Priority";
+            worksheet.Cell(1, 16).Value = "Description";
+            worksheet.Cell(1, 17).Value = "Remarks";
+            worksheet.Cell(1, 18).Value = "PM Status";
+            worksheet.Cell(1, 19).Value = "PM Remarks";
+
+            int row = 2;
+
+            foreach (var item in _jobHistory)
+            {
+                worksheet.Cell(row, 1).Value = item.JobName;
+                worksheet.Cell(row, 2).Value = item.JobStatus;
+                worksheet.Cell(row, 3).Value = item.JobType;
+                worksheet.Cell(row, 4).Value = item.LocationId;
+                worksheet.Cell(row, 5).Value = item.AreaName;
+                worksheet.Cell(row, 6).Value = item.InstallationName;
+                worksheet.Cell(row, 7).Value = item.InstallationType;
+                worksheet.Cell(row, 8).Value = string.Join(", ", item.Engineers);
+                worksheet.Cell(row, 9).Value = item.DriverName;
+                worksheet.Cell(row, 10).Value = item.VehicleNumber;
+                worksheet.Cell(row, 11).Value = item.JobAction;
+                worksheet.Cell(row, 12).Value = item.JobActionBy;
+                worksheet.Cell(row, 13).Value = item.JobActionTime?.ToString("dd-MMM-yyyy HH:mm");
+                worksheet.Cell(row, 14).Value = item.JobOverTime;
+                worksheet.Cell(row, 15).Value = item.Priority;
+                worksheet.Cell(row, 16).Value = item.Description;
+                worksheet.Cell(row, 17).Value = item.JobActionRemarks;
+                worksheet.Cell(row, 18).Value = item.PmWorkStatus;
+                worksheet.Cell(row, 19).Value = item.PmRemarks;
+
+                row++;
+            }
+
+            worksheet.Columns().AdjustToContents();
+
+            using var stream = new MemoryStream();
+
+            workbook.SaveAs(stream);
+
+            var content = stream.ToArray();
+
+            var fileName = $"JobHistory_{DateTime.Now:ddMMyyyyHHmmss}.xlsx";
+
+            await JS.InvokeVoidAsync(
+                "downloadFile",
+                fileName,
+                Convert.ToBase64String(content)
+            );
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
         }
     }
 }
