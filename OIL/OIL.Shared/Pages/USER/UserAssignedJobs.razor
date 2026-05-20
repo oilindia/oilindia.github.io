@@ -152,16 +152,20 @@
                                             @if (!entry.IsManualLocation)
                                             {
                                                 <MudSelect T="string" Label="Device Location"
-                                                           Value="entry.DeviceLocation"
-                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "location"))"
-                                                           AnchorOrigin="Origin.BottomCenter"
-                                                           AdornmentIcon="@Icons.Material.Filled.Search">
+                                                           Value="@entry.DeviceLocation"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "location"))">
+
                                                     @foreach (var loc in _availableLocations)
                                                     {
                                                         <MudSelectItem Value="@loc">@loc</MudSelectItem>
                                                     }
-                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth="true" Color="Color.Primary">+ Add New Location</MudButton>
                                                 </MudSelect>
+
+                                                <MudButton OnClick="@(() => entry.IsManualLocation = true)"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary">
+                                                    + Add New Location
+                                                </MudButton>
                                             }
                                             else
                                             {

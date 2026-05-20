@@ -217,8 +217,9 @@
     }
 
     .sunday-cell {
-        background-color: #fff1f0 !important;
-        color: #cf1322 !important;
+        background-color: #7f1d1d !important;
+        color: white !important;
+        font-weight: bold;
     }
 
     .today-focus {
@@ -420,10 +421,52 @@
         }
     }
 
+
+
+    .status-p {
+        background: #bbf7d0 !important;
+        color: #14532d !important;
+    }
+
+    .status-g {
+        background: #bfdbfe !important;
+        color: #1e3a8a !important;
+    }
+
+    .status-m {
+        background: #fef9c3 !important;
+        color: #713f12 !important;
+    }
+
+    .status-e {
+        background: #fbcfe8 !important;
+        color: #831843 !important;
+    }
+
+    .status-a {
+        background: #fecaca !important;
+        color: #7f1d1d !important;
+    }
+
+    .status-o {
+        background: #ffffff !important;
+        color: #222 !important;
+    }
+
+    .status-cl {
+        background: #ddd6fe !important;
+        color: #4c1d95 !important;
+    }
+
+    .status-sl {
+        background: #fed7aa !important;
+        color: #9a3412 !important;
+    }
+
 </style>
 
 
-`
+
 
 <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
     <div class="d-flex flex-column align-items-center">
@@ -438,14 +481,40 @@
     <MudExpansionPanels Class="mb-4 mx-2">
         <MudExpansionPanel Text="Bulk Mark Attendance" Icon="@Icons.Material.Filled.BatchPrediction">
             <MudGrid AlignItems="AlignItems.Center" Class="pa-2">
-                <MudItem xs="12" md="3">
+               @*  <MudItem xs="12" md="3">
                     <MudSelect T="Member" Label="Resource" @bind-Value="_bulkMember" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense">
                         @foreach (var m in AttendanceData.Engineers.Concat(AttendanceData.Drivers))
                         {
                             <MudSelectItem Value="@m">@m.FullName</MudSelectItem>
                         }
                     </MudSelect>
+                </MudItem> *@
+
+                <MudItem xs="12" md="3">
+
+                    <MudSelect T="Member"
+                               Label="Resources"
+                               MultiSelection="true"
+                               SelectAll="true"
+                               SelectedValues="_bulkMembers"
+                               SelectedValuesChanged="@(x => _bulkMembers = x.ToList())"
+                               ToStringFunc="@(m => m?.FullName ?? "")"
+                               Variant="Variant.Outlined"
+                               Dense="true"
+                               Margin="Margin.Dense">
+
+                        @foreach (var m in AttendanceData.Engineers.Concat(AttendanceData.Drivers))
+                        {
+                            <MudSelectItem T="Member" Value="@m">
+                                @m.FullName (@m.Role)
+                            </MudSelectItem>
+                        }
+
+                    </MudSelect>
+
                 </MudItem>
+
+
                 <MudItem xs="12" md="2">
                     <MudDateRangePicker Label="Dates" @bind-DateRange="_bulkRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
@@ -481,7 +550,9 @@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
             <div class="grid-scroll-container">
-                <MudTable Items="@AttendanceData.Engineers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                <MudTable Items="@(AttendanceData.Engineers
+                              .OrderBy(x => x.Role)
+                              .ThenBy(x => GetTodayPriority(x.UniqueId)))" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
                         <MudTh Class="sticky-col">E.Code</MudTh>
@@ -496,10 +567,12 @@
                         @foreach (var day in _daysInMonth)
                         {
                             var d = day; var m = context;
-                            <MudTd Class="@GetCellClass(d)">
+                            <MudTd Class="@($"{GetCellClass(d)} {GetStatusClass(GetStatus(m.UniqueId, d))}")">
                                 <div class="cell-input-stack">
                                     <select value="@GetStatus(m.UniqueId, d)"
-                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            class="native-select
+       @(IsModified(m.UniqueId, d) ? "modified" : "")
+       @GetStatusClass(GetStatus(m.UniqueId, d))"
                                             @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
                                         <option value="">--</option>
                                         @foreach (var s in _shiftCodes)
@@ -521,7 +594,9 @@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Secondary">DRIVERS</MudText>
             <div class="grid-scroll-container">
-                <MudTable Items="@AttendanceData.Drivers" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                <MudTable Items="@(AttendanceData.Drivers
+    .OrderBy(x => x.Role)
+    .ThenBy(x => GetTodayPriority(x.UniqueId)))"  T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
                         <MudTh Class="sticky-col">VehicleNo.</MudTh>
@@ -536,10 +611,12 @@
                         @foreach (var day in _daysInMonth)
                         {
                             var d = day; var m = context;
-                            <MudTd Class="@GetCellClass(d)">
+                            <MudTd Class="@($"{GetCellClass(d)} {GetStatusClass(GetStatus(m.UniqueId, d))}")">
                                 <div class="cell-input-stack">
                                     <select value="@GetStatus(m.UniqueId, d)"
-                                            class="native-select @(IsModified(m.UniqueId, d) ? "modified" : "")"
+                                            class="native-select
+                                        @(IsModified(m.UniqueId, d) ? "modified" : "")
+                                        @GetStatusClass(GetStatus(m.UniqueId, d))"
                                             @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
                                         <option value="">--</option>
                                         @foreach (var s in _shiftCodes)
@@ -984,7 +1061,10 @@ else
     private Dictionary<string, AttendanceScheduleModel> _pendingChanges = new();
     private bool _isSaving = false;
     private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
-    private Member _bulkMember;
+    //private Member _bulkMember;
+    private IReadOnlyCollection<Member> _bulkMembers = new List<Member>();
+
+
     private DateRange _bulkRange = new(DateTime.Today, DateTime.Today.AddDays(7));
     private string _bulkStatus = "P";
     private string _bulkReason = "";
@@ -1000,6 +1080,44 @@ else
         }
 
         LoadData();
+
+        
+        await JS.InvokeVoidAsync("scrollToToday");
+       
+
+    }
+
+    private int GetTodayPriority(string id)
+    {
+        var status = GetStatus(id, DateTime.Today);
+
+        return status switch
+        {
+            "P" => 1,
+            "G" => 2,
+            "M" => 3,
+            "E" => 4,
+            "O" => 5,
+            "A" => 6,
+            "CL" => 7,
+            "SL" => 8,
+            _ => 99
+        };
+    }
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "P" => "status-p",
+            "G" => "status-g",
+            "M" => "status-m",
+            "E" => "status-e",
+            "A" => "status-a",
+            "O" => "status-o",
+            "CL" => "status-cl",
+            "SL" => "status-sl",
+            _ => ""
+        };
     }
 
     private string GetStatus(string id, DateTime date) =>
@@ -1054,16 +1172,45 @@ else
         Snackbar.Add("Changes discarded", Severity.Info);
     }
 
+    // private void ApplyBulkUpdate()
+    // {
+    //     if (_bulkMember == null || _bulkRange.Start == null || _bulkRange.End == null) return;
+
+    //     for (var dt = _bulkRange.Start.Value.Date; dt <= _bulkRange.End.Value.Date; dt = dt.AddDays(1))
+    //     {
+    //         OnEntryChanged(_bulkMember, dt, _bulkStatus, _bulkReason);
+    //     }
+    //     Snackbar.Add("Bulk updates staged (pending save)", Severity.Info);
+    // }
+
+
     private void ApplyBulkUpdate()
     {
-        if (_bulkMember == null || _bulkRange.Start == null || _bulkRange.End == null) return;
+        if (!_bulkMembers.Any()
+            || _bulkRange.Start == null
+            || _bulkRange.End == null)
+            return;
 
-        for (var dt = _bulkRange.Start.Value.Date; dt <= _bulkRange.End.Value.Date; dt = dt.AddDays(1))
+        foreach (var member in _bulkMembers)
         {
-            OnEntryChanged(_bulkMember, dt, _bulkStatus, _bulkReason);
+            for (
+                var dt = _bulkRange.Start.Value.Date;
+                dt <= _bulkRange.End.Value.Date;
+                dt = dt.AddDays(1))
+            {
+                OnEntryChanged(
+                    member,
+                    dt,
+                    _bulkStatus,
+                    _bulkReason);
+            }
         }
-        Snackbar.Add("Bulk updates staged (pending save)", Severity.Info);
+
+        Snackbar.Add(
+            $"{_bulkMembers.Count} resources updated",
+            Severity.Success);
     }
+
 
     private string GetHeaderClass(DateTime d) => d.DayOfWeek == DayOfWeek.Sunday ? "sunday-cell" : "";
     private string GetCellClass(DateTime d) => (d.Date == DateTime.Today ? "today-focus " : "") + (d.DayOfWeek == DayOfWeek.Sunday ? "sunday-cell" : "");
@@ -1114,6 +1261,18 @@ else
         public long? DbId { get; set; }
         public string Role { get; set; }
         public string VehicleNumber { get; set; }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is Member other
+                   && UniqueId == other.UniqueId;
+        }
+
+        public override int GetHashCode()
+        {
+            return UniqueId.GetHashCode();
+        }
+
     }
 
 

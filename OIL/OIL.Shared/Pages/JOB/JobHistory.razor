@@ -1,0 +1,476 @@
+﻿@page "/jobhistory"
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using MudBlazor
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
+@using Microsoft.AspNetCore.Components.Forms
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@using Newtonsoft.Json
+@using OIL.Shared.Services
+@inject CustomAuthStateProvider AuthStateProvider
+@using System.Security.Claims
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+
+            <MudItem xs="12" sm="4">
+                <MudDatePicker Label="From Date"
+                               @bind-Date="_fromDate"
+                               Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" sm="4">
+                <MudDatePicker Label="To Date"
+                               @bind-Date="_toDate"
+                               Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="LoadJobHistory"
+                           StartIcon="@Icons.Material.Filled.Search">
+                    Search Jobs
+                </MudButton>
+            </MudItem>
+
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="_jobHistory"
+              Hover="true"
+              Dense="true"
+              Bordered="true"
+              Striped="true"
+              Loading="_loading">
+
+        <HeaderContent>
+
+            <MudTh>Job</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Location</MudTh>
+            <MudTh>Area</MudTh>
+            <MudTh>Installation</MudTh>
+            <MudTh>Assigned Engineers</MudTh>
+            <MudTh>Driver</MudTh>
+            <MudTh>Vehicle</MudTh>
+            <MudTh>Action</MudTh>
+            <MudTh>Action By</MudTh>
+            <MudTh>Action Time</MudTh>
+            <MudTh>Overtime</MudTh>
+            <MudTh>Remarks</MudTh>
+            <MudTh>PM Status</MudTh>
+
+        </HeaderContent>
+
+        <RowTemplate>
+
+            <MudTd>@context.JobName</MudTd>
+
+            <MudTd>
+                <MudChip T="string"
+                         Color="@(context.JobStatus == "completed" ? Color.Success : Color.Warning)">
+                    @context.JobStatus
+                </MudChip>
+            </MudTd>
+
+            <MudTd>@context.JobType</MudTd>
+
+            <MudTd>@context.LocationId</MudTd>
+
+            <MudTd>@context.AreaName</MudTd>
+
+            <MudTd>@context.InstallationName</MudTd>
+
+            <MudTd>
+                @foreach (var eng in context.Engineers)
+                {
+                    <MudChip T="string"
+                             Class="mr-1 mb-1"
+                             Color="Color.Info">
+                        @eng
+                    </MudChip>
+                }
+            </MudTd>
+
+            <MudTd>@context.DriverName</MudTd>
+
+            <MudTd>@context.VehicleNumber</MudTd>
+
+            <MudTd>@context.JobAction</MudTd>
+
+            <MudTd>@context.JobActionBy</MudTd>
+
+            <MudTd>
+                @(context.JobActionTime?.ToString("dd-MMM-yyyy HH:mm"))
+            </MudTd>
+
+            <MudTd>@context.JobOvertime</MudTd>
+
+            <MudTd Style="max-width:300px; white-space:pre-wrap;">
+                @context.JobActionRemarks
+            </MudTd>
+
+            <MudTd>@context.PmWorkStatus</MudTd>
+
+        </RowTemplate>
+
+    </MudTable>
+
+</MudContainer>
+
+@code
+{
+    #region TABLE MODELS
+
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("job_name")]
+        public string JobName { get; set; }
+
+        [Column("location_id")]
+        public long? LocationId { get; set; }
+
+        [Column("status")]
+        public string Status { get; set; }
+
+        [Column("job_type")]
+        public string JobType { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+    }
+
+    [Table("job_assignments")]
+    public class JobAssignment : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("job_ids")]
+        public List<Guid> JobIds { get; set; }
+
+        [Column("personnel_ids")]
+        public List<long> PersonnelIds { get; set; }
+
+        [Column("driver_id")]
+        public long? DriverId { get; set; }
+
+        [Column("job_action")]
+        public string JobAction { get; set; }
+
+        [Column("job_action_time")]
+        public DateTime? JobActionTime { get; set; }
+
+        [Column("job_action_by")]
+        public string JobActionBy { get; set; }
+
+        [Column("job_action_remarks")]
+        public string JobActionRemarks { get; set; }
+
+        [Column("status")]
+        public string Status { get; set; }
+
+        [Column("job_overtime")]
+        public float? JobOverTime { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("area_name")]
+        public string AreaName { get; set; }
+
+        [Column("installation_name")]
+        public string InstallationName { get; set; }
+
+        [Column("installation_type")]
+        public string InstallationType { get; set; }
+    }
+
+    [Table("employees_engineers")]
+    public class Engineer : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+    }
+
+    [Table("drivers")]
+    public class Driver : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("vehicle_number")]
+        public string VehicleNumber { get; set; }
+    }
+
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public int Id { get; set; }
+
+        [Column("job_id")]
+        public Guid JobId { get; set; }
+
+        [Column("work_status")]
+        public string WorkStatus { get; set; }
+
+        [Column("remarks")]
+        public string Remarks { get; set; }
+    }
+
+    #endregion
+
+    #region VIEW MODEL
+
+    public class JobHistoryViewModel
+    {
+        public Guid JobId { get; set; }
+
+        public string JobName { get; set; }
+
+        public string JobStatus { get; set; }
+
+        public string JobType { get; set; }
+
+        public long? LocationId { get; set; }
+
+        public string AreaName { get; set; }
+
+        public string InstallationName { get; set; }
+
+        public List<string> Engineers { get; set; } = new();
+
+        public string DriverName { get; set; }
+
+        public string VehicleNumber { get; set; }
+
+        public string JobAction { get; set; }
+
+        public string JobActionBy { get; set; }
+
+        public DateTime? JobActionTime { get; set; }
+
+        public float? JobOvertime { get; set; }
+
+        public string JobActionRemarks { get; set; }
+
+        public string PmWorkStatus { get; set; }
+    }
+
+    #endregion
+
+    private bool _loading = false;
+
+    private DateTime? _fromDate = DateTime.Today.AddDays(-30);
+
+    private DateTime? _toDate = DateTime.Today;
+
+    private List<JobHistoryViewModel> _jobHistory = new();
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadJobHistory();
+    }
+
+    private async Task LoadJobHistory()
+    {
+        try
+        {
+            _loading = true;
+
+            _jobHistory.Clear();
+
+            // MAIN TABLE
+            var assignmentRes = await SupabaseClient
+                .From<JobAssignment>()
+                .Get();
+
+            var assignments = assignmentRes.Models;
+
+            // JOBS
+            var jobRes = await SupabaseClient
+                .From<Job>()
+                .Get();
+
+            var jobs = jobRes.Models;
+
+            // LOCATIONS
+            var locationRes = await SupabaseClient
+                .From<Location>()
+                .Get();
+
+            var locations = locationRes.Models;
+
+            // ENGINEERS
+            var engineerRes = await SupabaseClient
+                .From<Engineer>()
+                .Get();
+
+            var engineers = engineerRes.Models;
+
+            // DRIVERS
+            var driverRes = await SupabaseClient
+                .From<Driver>()
+                .Get();
+
+            var drivers = driverRes.Models;
+
+            // PM REPORTS
+            var pmRes = await SupabaseClient
+                .From<PmReport>()
+                .Get();
+
+            var pmReports = pmRes.Models;
+
+            // FILTER DATE
+            foreach (var assignment in assignments)
+            {
+                if (_fromDate.HasValue &&
+                    assignment.CreatedAt.HasValue &&
+                    assignment.CreatedAt.Value.Date < _fromDate.Value.Date)
+                    continue;
+
+                if (_toDate.HasValue &&
+                    assignment.CreatedAt.HasValue &&
+                    assignment.CreatedAt.Value.Date > _toDate.Value.Date)
+                    continue;
+
+                if (assignment.JobIds == null)
+                    continue;
+
+                foreach (var jobId in assignment.JobIds)
+                {
+                    Job foundJob = null;
+
+                    foreach (var j in jobs)
+                    {
+                        if (j.Id == jobId)
+                        {
+                            foundJob = j;
+                            break;
+                        }
+                    }
+
+                    if (foundJob == null)
+                        continue;
+
+                    Location foundLocation = null;
+
+                    foreach (var loc in locations)
+                    {
+                        if (loc.Id == foundJob.LocationId)
+                        {
+                            foundLocation = loc;
+                            break;
+                        }
+                    }
+
+                    Driver foundDriver = null;
+
+                    foreach (var drv in drivers)
+                    {
+                        if (drv.Id == assignment.DriverId)
+                        {
+                            foundDriver = drv;
+                            break;
+                        }
+                    }
+
+                    var engineerNames = new List<string>();
+
+                    if (assignment.PersonnelIds != null)
+                    {
+                        foreach (var engId in assignment.PersonnelIds)
+                        {
+                            foreach (var eng in engineers)
+                            {
+                                if (eng.Id == engId)
+                                {
+                                    engineerNames.Add(eng.FullName);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    PmReport foundPm = null;
+
+                    foreach (var pm in pmReports)
+                    {
+                        if (pm.JobId == foundJob.Id)
+                        {
+                            foundPm = pm;
+                            break;
+                        }
+                    }
+
+                    _jobHistory.Add(new JobHistoryViewModel
+                    {
+                        JobId = foundJob.Id,
+                        JobName = foundJob.JobName,
+                        JobStatus = foundJob.Status,
+                        JobType = foundJob.JobType,
+                        LocationId = foundJob.LocationId,
+
+                        AreaName = foundLocation?.AreaName,
+                        InstallationName = foundLocation?.InstallationName,
+
+                        Engineers = engineerNames,
+
+                        DriverName = foundDriver?.FullName,
+                        VehicleNumber = foundDriver?.VehicleNumber,
+
+                        JobAction = assignment.JobAction,
+                        JobActionBy = assignment.JobActionBy,
+                        JobActionTime = assignment.JobActionTime,
+                        JobOvertime = assignment.JobOverTime,
+                        JobActionRemarks = assignment.JobActionRemarks,
+
+                        PmWorkStatus = foundPm?.WorkStatus
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

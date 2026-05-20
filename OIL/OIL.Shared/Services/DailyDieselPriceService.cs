@@ -40,12 +40,12 @@ namespace OIL.Shared.Services
 
                 if (string.IsNullOrWhiteSpace(rawUpstoxJson))
                 {
-                    Console.WriteLine("Warning: Received empty data payload from proxy backend.");
+                    //Console.WriteLine("Warning: Received empty data payload from proxy backend.");
                     return;
                 }
 
-                Console.WriteLine("Raw Upstox JSON successfully retrieved via proxy:");
-                Console.WriteLine(rawUpstoxJson);
+                //Console.WriteLine("Raw Upstox JSON successfully retrieved via proxy:");
+                //Console.WriteLine(rawUpstoxJson);
 
                 // 4. Deserialize the nested text content directly into your FuelResponse objects
                 var response = JsonSerializer.Deserialize<FuelResponse>(rawUpstoxJson, new JsonSerializerOptions
@@ -57,7 +57,7 @@ namespace OIL.Shared.Services
 
                 if (latest == null)
                 {
-                    Console.WriteLine("Notice: No diesel price history records found inside the response.");
+                    //Console.WriteLine("Notice: No diesel price history records found inside the response.");
                     return;
                 }
 
