@@ -1,4 +1,4 @@
-﻿@page "/reportnewjob"
+﻿@page "/reportnewjob3"
 @using OIL.Shared.Models
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -38,7 +38,7 @@
                             </MudSelect>
                         </MudItem>
 
-                        @* --- FIELD FILTER CONTROLS --- *@
+                        @* --- FILTER CONTROLS FOR LOCATION --- *@
                         <MudItem xs="12" md="4">
                             <MudSelect T="string" Label="Field Area" Value="_selectedFieldArea" ValueChanged="OnFieldAreaChanged" Variant="Variant.Outlined">
                                 <MudSelectItem Value="@("All")">All Areas</MudSelectItem>
@@ -62,106 +62,74 @@
                             </MudSelect>
                         </MudItem>
 
-                        @* --- MAIN INSTALLATION LOCATION --- *@
                         <MudItem xs="12" md="4">
                             <MudSelect T="LocationTable" Label="Installation Location" 
                                        Value="@_selectedLocation" 
                                        ValueChanged="OnLocationChanged"
-                                       ToStringFunc="@(loc => loc?.Id == -1 ? "Other (Manual Entry)" : loc?.InstallationName)"
-                                       Variant="Variant.Outlined" Required="!_isManualLocation"
-                                       HelperText="Select to load instrumentation markers">
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true"
+                                       HelperText="Filtered by Area & Type">
                                 @foreach (var loc in _filteredLocations)
                                 {
                                     <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
                                 }
-                                <MudSelectItem Value="@_manualLocationPlaceholder"><i>+ Installation Not Listed (Manual Entry)</i></MudSelectItem>
                             </MudSelect>
-                            @if (_isManualLocation)
-                            {
-                                <MudTextField T="string" Class="mt-2" Label="Specify Installation Location" @bind-Value="_manualLocationText" Variant="Variant.Outlined" Required="true" />
-                            }
                         </MudItem>
 
-                        @* --- DYNAMIC CASCADE DROPDOWNS --- *@
-                        
-                        @* 1. GCS INSTRUMENT LOCATION (Only visible if Installation Type is GCS) *@
-                        @if (_selectedInstType == "GCS")
-                        {
-                            <MudItem xs="12" md="4">
-                                <MudSelect T="string" Label="If GCS Instrument - Location"
-                                           Value="@_selectedGCSInstrument"
-                                           ValueChanged="OnGCSInstrumentChanged"
-                                           Variant="Variant.Outlined" Required="!_isManualGCSInstrument"
-                                           Disabled="@(_selectedLocation == null || _isManualLocation)">
-                                    @foreach (var val in _gcsInstrumentOptions)
-                                    {
-                                        <MudSelectItem Value="@val">@val</MudSelectItem>
-                                    }
-                                    <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Instrument Not Listed (Manual Entry)</i></MudSelectItem>
-                                </MudSelect>
-                                @if (_isManualGCSInstrument)
-                                {
-                                    <MudTextField T="string" Class="mt-2" Label="Specify GCS Instrument Location" @bind-Value="_manualGCSInstrumentText" Variant="Variant.Outlined" Required="true"/>
-                                }
-                            </MudItem>
-                        }
-
-                        @* 2. DEVICE LOCATION *@
                         <MudItem xs="12" md="4">
-                            <MudSelect T="string" Label="Device Location"
-                                       Value="@_selectedDeviceLocation"
-                                       ValueChanged="OnDeviceLocationChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualDeviceLocation"
-                                       Disabled="@(_selectedLocation == null || _isManualLocation)">
-                                @foreach (var val in _deviceLocationOptions)
+                            <MudSelect T="LocationTable" Label="If GCS Instrument- Location"
+                                       Value="@_selectedLocation"
+                                       ValueChanged="OnLocationChanged"
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true"
+                                       HelperText="Filtered by Area & Type">
+                                @foreach (var loc in _filteredLocations)
                                 {
-                                    <MudSelectItem Value="@val">@val</MudSelectItem>
+                                    <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
                                 }
-                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Device Location Not Listed (Manual Entry)</i></MudSelectItem>
                             </MudSelect>
-                            @if (_isManualDeviceLocation)
-                            {
-                                <MudTextField T="string" Class="mt-2" Label="Specify Device Location" @bind-Value="_manualDeviceLocationText" Variant="Variant.Outlined" Required="true"/>
-                            }
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="LocationTable" Label="Device Location"
+                                       Value="@_selectedLocation"
+                                       ValueChanged="OnLocationChanged"
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true"
+                                       HelperText="Filtered by Area & Type">
+                                @foreach (var loc in _filteredLocations)
+                                {
+                                    <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudSelect T="LocationTable" Label="Instrument Type"
+                                       Value="@_selectedLocation"
+                                       ValueChanged="OnLocationChanged"
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true"
+                                       HelperText="Filtered by Area & Type">
+                                @foreach (var loc in _filteredLocations)
+                                {
+                                    <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
+                                }
+                            </MudSelect>
                         </MudItem>
 
-                        @* 3. INSTRUMENT TYPE *@
                         <MudItem xs="12" md="4">
-                            <MudSelect T="string" Label="Instrument Type"
-                                       Value="@_selectedInstrumentType"
-                                       ValueChanged="OnInstrumentTypeChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualInstrumentType"
-                                       Disabled="@(_selectedLocation == null || _isManualLocation || (string.IsNullOrEmpty(_selectedDeviceLocation) && !_isManualDeviceLocation))">
-                                @foreach (var val in _instrumentTypeOptions)
+                            <MudSelect T="LocationTable" Label="Tag Number"
+                                       Value="@_selectedLocation"
+                                       ValueChanged="OnLocationChanged"
+                                       ToStringFunc="@(loc => loc?.InstallationName)"
+                                       Variant="Variant.Outlined" Required="true"
+                                       HelperText="Filtered by Area & Type">
+                                @foreach (var loc in _filteredLocations)
                                 {
-                                    <MudSelectItem Value="@val">@val</MudSelectItem>
+                                    <MudSelectItem Value="@loc">@loc.InstallationName</MudSelectItem>
                                 }
-                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Type Not Listed (Manual Entry)</i></MudSelectItem>
                             </MudSelect>
-                            @if (_isManualInstrumentType)
-                            {
-                                <MudTextField T="string" Class="mt-2" Label="Specify Instrument Type" @bind-Value="_manualInstrumentTypeText" Variant="Variant.Outlined" Required="true"/>
-                            }
                         </MudItem>
 
-                        @* 4. TAG NUMBER *@
-                        <MudItem xs="12" md="4">
-                            <MudSelect T="string" Label="Tag Number"
-                                       Value="@_selectedTagNumber"
-                                       ValueChanged="OnTagNumberChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualTagNumber"
-                                       Disabled="@(_selectedLocation == null || _isManualLocation || (string.IsNullOrEmpty(_selectedInstrumentType) && !_isManualInstrumentType))">
-                                @foreach (var val in _tagNumberOptions)
-                                {
-                                    <MudSelectItem Value="@val">@val</MudSelectItem>
-                                }
-                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Tag Not Listed (Manual Entry)</i></MudSelectItem>
-                            </MudSelect>
-                            @if (_isManualTagNumber)
-                            {
-                                <MudTextField T="string" Class="mt-2" Label="Specify Tag Number" @bind-Value="_manualTagNumberText" Variant="Variant.Outlined" Required="true"/>
-                            }
-                        </MudItem>
 
                         <MudItem xs="12" md="4">
                             <MudSelect T="string" Label="Priority Level" @bind-Value="_newJob.Priority" Variant="Variant.Outlined">
@@ -322,29 +290,7 @@
     
     private string? _selectedFieldArea = "All";
     private string? _selectedInstType = "All";
-
-    // Top-level dropdown model bindings
     private LocationTable? _selectedLocation;
-    private string? _selectedGCSInstrument;
-    private string? _selectedDeviceLocation;
-    private string? _selectedInstrumentType;
-    private string? _selectedTagNumber;
-
-    // Manual validation flags & string fields
-    private bool _isManualLocation;
-    private string _manualLocationText = "";
-    private bool _isManualGCSInstrument;
-    private string _manualGCSInstrumentText = "";
-    private bool _isManualDeviceLocation;
-    private string _manualDeviceLocationText = "";
-    private bool _isManualInstrumentType;
-    private string _manualInstrumentTypeText = "";
-    private bool _isManualTagNumber;
-    private string _manualTagNumberText = "";
-
-    // Virtual fallbacks
-    private readonly LocationTable _manualLocationPlaceholder = new() { Id = -1, InstallationName = "Other (Manual Entry)" };
-    private readonly string _manualTextPlaceholder = "__MANUAL_ENTRY_SELECTED__";
 
     private JobModel _newJob = new() { Priority = "Normal", Status = "pending", JobType = "breakdown" };
     private JobModel _selectedJob = new();
@@ -352,14 +298,6 @@
     private List<JobModel> _displayJobs = new();
     private List<LocationTable> _allLocations = new();
     private List<LocationTable> _filteredLocations = new();
-    private List<PidMarkerTable> _currentLocationMarkers = new(); // Raw markers for active location
-
-    // Dynamic distinct text arrays for dropdown binding options
-    private List<string> _gcsInstrumentOptions = new();
-    private List<string> _deviceLocationOptions = new();
-    private List<string> _instrumentTypeOptions = new();
-    private List<string> _tagNumberOptions = new();
-
     private List<IBrowserFile> _tempFiles = new();
     private List<string> _jobPhotos = new();
 
@@ -377,10 +315,6 @@
         [Column("reported_by_email")] public string ReportedByEmail { get; set; } = "";
         [Column("reported_by_id")] public Guid? ReportedById { get; set; }
         [Column("job_type")] public string JobType { get; set; } = "breakdown";
-
-        [Column("loc_tag_number")] public string? Loc_Tag_Number { get; set; } = "";
-
-
     }
 
     [Table("job_photos")] public class JobPhotoModel : BaseModel {
@@ -396,19 +330,9 @@
         [Column("installation_type")] public string? InstallationType { get; set; }
     }
 
-    [Table("pid_markers")] public class PidMarkerTable : BaseModel {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("location_id")] public long? LocationId { get; set; }
-        [Column("tag_number")] public string? TagNumber { get; set; }
-        [Column("instrument_type")] public string? InstrumentType { get; set; }
-        [Column("device_location")] public string? DeviceLocation { get; set; }
-        [Column("Instrument")] public string? Instrument { get; set; }
-        [Column("location_type")] public string? LocationType { get; set; }
-    }
-
     protected override async Task OnInitializedAsync() => await LoadData();
 
-    private string GetLocationName(long? id) => _allLocations.FirstOrDefault(l => l.Id == id)?.InstallationName ?? "Manual Entry / Unknown";
+    private string GetLocationName(long? id) => _allLocations.FirstOrDefault(l => l.Id == id)?.InstallationName ?? "Unknown";
 
     private async Task LoadData() {
         _loadingTable = true;
@@ -439,7 +363,7 @@
 
             var result = await request.Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending).Get();
             _displayJobs = result.Models;
-        } catch (Exception ex) { Snackbar.Add("Error loading layout: " + ex.Message, Severity.Error); }
+        } catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
         finally { _loadingTable = false; StateHasChanged(); }
     }
 
@@ -457,7 +381,11 @@
 
     private async Task FilterLocations() {
         var query = SupabaseClient.From<LocationTable>();
+
+        // Change 'object' to 'string' here
         var filters = new Dictionary<string, string>();
+
+        //var filters = new Dictionary<string, object>();
 
         if (!string.IsNullOrEmpty(_selectedFieldArea) && _selectedFieldArea != "All") 
             filters.Add("field_type", _selectedFieldArea);
@@ -466,229 +394,24 @@
             filters.Add("installation_type", _selectedInstType);
 
         if (filters.Any()) {
+            // Now Match(filters) will be happy!
             var result = await query.Match(filters).Get();
             _filteredLocations = result.Models;
         } else {
             _filteredLocations = _allLocations;
         }
 
-        ResetAllCascadingFormDropdowns();
-        StateHasChanged();
-    }
-
-    private void ResetAllCascadingFormDropdowns() {
         _selectedLocation = null;
-        _currentLocationMarkers.Clear();
-        _isManualLocation = false;
-        _manualLocationText = "";
         _newJob.LocationId = null;
-
-        ClearGCSInstrumentState();
-        ClearDeviceLocationState();
-        ClearInstrumentTypeState();
-        ClearTagNumberState();
-    }
-
-    // --- CASCADING ACTION STATE MACHINE HANDLERS ---
-
-    private async Task OnLocationChanged(LocationTable loc) {
-        _selectedLocation = loc;
-        _isManualLocation = (loc?.Id == -1);
-        _newJob.LocationId = _isManualLocation ? null : loc?.Id;
-
-        // Clear children
-        _currentLocationMarkers.Clear();
-        ClearGCSInstrumentState();
-        ClearDeviceLocationState();
-        ClearInstrumentTypeState();
-        ClearTagNumberState();
-
-        if (loc != null && !_isManualLocation) {
-            try {
-                // Fetch context tags matching the active Location configuration key
-                var response = await SupabaseClient.From<PidMarkerTable>()
-                    .Filter("location_id", Supabase.Postgrest.Constants.Operator.Equals, loc.Id.ToString())
-                    .Get();
-                _currentLocationMarkers = response.Models;
-
-                // Load initial state options
-                BuildGCSInstrumentOptions();
-                BuildDeviceLocationOptions();
-            }
-            catch (Exception ex) { Snackbar.Add("Error downloading markers: " + ex.Message, Severity.Error); }
-        }
         StateHasChanged();
     }
 
-    private void OnGCSInstrumentChanged(string value) {
-        _selectedGCSInstrument = value;
-        _isManualGCSInstrument = (value == _manualTextPlaceholder);
-        if (_isManualGCSInstrument) _manualGCSInstrumentText = "";
-
-        // Cascading reset down the pipeline
-        ClearDeviceLocationState();
-        ClearInstrumentTypeState();
-        ClearTagNumberState();
-
-        BuildDeviceLocationOptions();
-        StateHasChanged();
-    }
-
-    private void OnDeviceLocationChanged(string value) {
-        _selectedDeviceLocation = value;
-        _isManualDeviceLocation = (value == _manualTextPlaceholder);
-        if (_isManualDeviceLocation) _manualDeviceLocationText = "";
-
-        // Cascading reset down the pipeline
-        ClearInstrumentTypeState();
-        ClearTagNumberState();
-
-        BuildInstrumentTypeOptions();
-        StateHasChanged();
-    }
-
-    private void OnInstrumentTypeChanged(string value) {
-        _selectedInstrumentType = value;
-        _isManualInstrumentType = (value == _manualTextPlaceholder);
-        if (_isManualInstrumentType) _manualInstrumentTypeText = "";
-
-        // Cascading reset down the pipeline
-        ClearTagNumberState();
-
-        BuildTagNumberOptions();
-        StateHasChanged();
-    }
-
-    private void OnTagNumberChanged(string value) {
-        _selectedTagNumber = value;
-        _isManualTagNumber = (value == _manualTextPlaceholder);
-        if (_isManualTagNumber) _manualTagNumberText = "";
-        StateHasChanged();
-    }
-
-    // --- PIPELINE COMPILATION CONTROLLERS ---
-
-    private void BuildGCSInstrumentOptions() {
-        _gcsInstrumentOptions = _currentLocationMarkers
-            .Where(m => !string.IsNullOrEmpty(m.Instrument))
-            .Select(m => m.Instrument!)
-            .Distinct()
-            .ToList();
-    }
-
-    private void BuildDeviceLocationOptions() {
-        var query = _currentLocationMarkers.AsEnumerable();
-
-        // 1. Filter sequentially on GCS parent choices if applicable
-        if (_selectedInstType == "GCS" && !_isManualGCSInstrument && !string.IsNullOrEmpty(_selectedGCSInstrument)) {
-            query = query.Where(m => m.Instrument == _selectedGCSInstrument);
-        }
-
-        _deviceLocationOptions = query
-            .Where(m => !string.IsNullOrEmpty(m.DeviceLocation))
-            .Select(m => m.DeviceLocation!)
-            .Distinct()
-            .ToList();
-    }
-
-    private void BuildInstrumentTypeOptions() {
-        var query = _currentLocationMarkers.AsEnumerable();
-
-        if (_selectedInstType == "GCS" && !_isManualGCSInstrument && !string.IsNullOrEmpty(_selectedGCSInstrument)) {
-            query = query.Where(m => m.Instrument == _selectedGCSInstrument);
-        }
-        if (!_isManualDeviceLocation && !string.IsNullOrEmpty(_selectedDeviceLocation)) {
-            query = query.Where(m => m.DeviceLocation == _selectedDeviceLocation);
-        }
-
-        _instrumentTypeOptions = query
-            .Where(m => !string.IsNullOrEmpty(m.InstrumentType))
-            .Select(m => m.InstrumentType!)
-            .Distinct()
-            .ToList();
-    }
-
-    private void BuildTagNumberOptions() {
-        var query = _currentLocationMarkers.AsEnumerable();
-
-        if (_selectedInstType == "GCS" && !_isManualGCSInstrument && !string.IsNullOrEmpty(_selectedGCSInstrument)) {
-            query = query.Where(m => m.Instrument == _selectedGCSInstrument);
-        }
-        if (!_isManualDeviceLocation && !string.IsNullOrEmpty(_selectedDeviceLocation)) {
-            query = query.Where(m => m.DeviceLocation == _selectedDeviceLocation);
-        }
-        if (!_isManualInstrumentType && !string.IsNullOrEmpty(_selectedInstrumentType)) {
-            query = query.Where(m => m.InstrumentType == _selectedInstrumentType);
-        }
-
-        _tagNumberOptions = query
-            .Where(m => !string.IsNullOrEmpty(m.TagNumber))
-            .Select(m => m.TagNumber!)
-            .Distinct()
-            .ToList();
-    }
-
-    // --- STATE RECOVERY CLEANSERS ---
-
-    private void ClearGCSInstrumentState() {
-        _selectedGCSInstrument = null; _isManualGCSInstrument = false; _manualGCSInstrumentText = ""; _gcsInstrumentOptions.Clear();
-    }
-    private void ClearDeviceLocationState() {
-        _selectedDeviceLocation = null; _isManualDeviceLocation = false; _manualDeviceLocationText = ""; _deviceLocationOptions.Clear();
-    }
-    private void ClearInstrumentTypeState() {
-        _selectedInstrumentType = null; _isManualInstrumentType = false; _manualInstrumentTypeText = ""; _instrumentTypeOptions.Clear();
-    }
-    private void ClearTagNumberState() {
-        _selectedTagNumber = null; _isManualTagNumber = false; _manualTagNumberText = ""; _tagNumberOptions.Clear();
-    }
-
-    // --- POST TRANSACTION ENTRY ---
+    private void OnLocationChanged(LocationTable loc) { _selectedLocation = loc; _newJob.LocationId = loc?.Id; }
 
     private async Task SubmitJob() {
         if (_isProcessing) return;
         _isProcessing = true;
         try {
-            var manualCompilation = new List<string>();
-
-            // Compile Locations metadata safely
-            if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText)) 
-                manualCompilation.Add($"[Inst Loc: {_manualLocationText}]");
-
-            // Compile dynamic sub-dropdown metrics
-            if (_selectedInstType == "GCS") {
-                var gcsVal = _isManualGCSInstrument ? _manualGCSInstrumentText : _selectedGCSInstrument;
-                if (!string.IsNullOrWhiteSpace(gcsVal)) manualCompilation.Add($"[GCS Inst: {gcsVal}]");
-            }
-
-            var devVal = _isManualDeviceLocation ? _manualDeviceLocationText : _selectedDeviceLocation;
-            if (!string.IsNullOrWhiteSpace(devVal)) manualCompilation.Add($"[Device Loc: {devVal}]");
-
-            var typeVal = _isManualInstrumentType ? _manualInstrumentTypeText : _selectedInstrumentType;
-            if (!string.IsNullOrWhiteSpace(typeVal)) manualCompilation.Add($"[Inst Type: {typeVal}]");
-
-            var tagVal = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
-            if (!string.IsNullOrWhiteSpace(tagVal)) manualCompilation.Add($"[Tag No: {tagVal}]");
-
-            // ---> CAPTURE AND ASSIGN TAG NUMBER HERE <---
-            var tagValAssign = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
-            if (!string.IsNullOrWhiteSpace(tagValAssign))
-            {
-                manualCompilation.Add($"[Tag No: {tagValAssign}]");
-                _newJob.Loc_Tag_Number = tagValAssign; // Directly populates the structural table field
-            }
-            else
-            {
-                _newJob.Loc_Tag_Number = null;
-            }
-
-
-
-            // Append metadata tags directly down onto details payload summary string column
-            if (manualCompilation.Any()) {
-                _newJob.Description = $"{string.Join(" ", manualCompilation)} - {_newJob.Description}".TrimEnd(' ', '-');
-            }
-
             var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
             _newJob.Id = Guid.NewGuid();
             _newJob.CreatedAt = DateTime.UtcNow;
@@ -710,15 +433,15 @@
                     await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel { Id = Guid.NewGuid(), JobId = confirmed.Id, StoragePath = path });
                 }
             }
-            Snackbar.Add("Job Logged successfully!", Severity.Success);
+            Snackbar.Add("Job Logged!", Severity.Success);
             
+            // Reset state
             _tempFiles.Clear();
             _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown" };
-            _selectedFieldArea = "All"; _selectedInstType = "All";
-            ResetAllCascadingFormDropdowns();
+            _selectedFieldArea = "All"; _selectedInstType = "All"; _selectedLocation = null;
             _filteredLocations = _allLocations;
             await LoadData();
-        } catch (Exception ex) { Snackbar.Add("Submission Error: " + ex.Message, Severity.Error); }
+        } catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
         finally { _isProcessing = false; StateHasChanged(); }
     }
 
@@ -764,8 +487,17 @@
                 await SupabaseClient.From<JobPhotoModel>().Where(x => x.JobId == job.Id).Delete();
                 if (paths.Any()) await SupabaseClient.Storage.From("job-photos").Remove(paths);
 
-                await SupabaseClient.From<JobModel>().Where(x => x.Id == job.Id).Set(x => x.Status, "Deleted").Update();
+                // Update the status column to "dltd" for the specific Job ID
+                await SupabaseClient
+                    .From<JobModel>()
+                    .Where(x => x.Id == job.Id)
+                    .Set(x => x.Status, "Deleted")
+                    .Update();
+
                 Snackbar.Add("Job marked as deleted", Severity.Info);
+
+                // await SupabaseClient.From<JobModel>().Where(x => x.Id == job.Id).Delete();
+                // Snackbar.Add("Job deleted", Severity.Info);
                 await LoadData();
             } catch (Exception ex) { Snackbar.Add("Delete Error: " + ex.Message, Severity.Error); }
         }
