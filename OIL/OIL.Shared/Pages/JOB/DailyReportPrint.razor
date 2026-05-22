@@ -413,6 +413,7 @@ else
                     <th style="width: 60px;">TAG NO.</th>
                     <th class="text-left">FIELD REPORT</th>
                     <th>JOB DONE</th>
+                    <th>SPARE USED</th>
                     <th style="width: 70px;">REMARKS</th>
                 </tr>
             </thead>
@@ -429,6 +430,7 @@ else
                         <td>@item.TagNo</td>
                         <td class="text-left">@item.FieldReport</td>
                         <td class="text-left">@item.JobDoneDetails</td>
+                        <td>@GetSpareDetails(item.JobIds.FirstOrDefault())</td>
                         <td></td>
                     </tr>
                 }
@@ -462,10 +464,13 @@ else
                         <td>@item.ShiftName</td>
                         <td>@item.NotificationNo</td>
                         <td class="text-left">@GetLocationName(item.JobIds.FirstOrDefault())</td>
-                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        <td class="text-left">@GetEquipmentName(item.JobIds.FirstOrDefault())</td>
+                        @* <td>@item.Equipment</td> *@
                         <td>@item.DeviceType</td>
-                        <td class="text-left">@item.PlannedTask</td>
-                        <td>@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td>
+                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        @* <td class="text-left">@item.PlannedTask</td> *@
+                       @*  <td>@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td> *@
+                        <td class="text-left">@GetDriverVehicleNumber(item.JobIds.FirstOrDefault())</td>
                         <td class="text-left">@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
                         <td></td>
                     </tr>
@@ -483,7 +488,8 @@ else
 
             <div class="stats-card">
                 <div style="font-size: 16px;">Today's Jobs: @_todayEntries.Count</div>
-                <div style="font-size: 16px; margin-top: 10px;">Notification Pending: 4</div>
+
+               @*  <div style="font-size: 16px; margin-top: 10px;">Notification Pending: 4</div> *@
             </div>
         </div>
     </div>
@@ -500,6 +506,10 @@ else
     private List<Engineer> _engineers = new();
     private List<Location> _locations = new();
 
+    private List<Marker> _markers = new();
+
+    private List<Assignment> _assignments_alljobs = new List<Assignment>();
+
     private string selectedFieldType = "Eastern Fields";
 
     protected override async Task OnInitializedAsync() => await RefreshData();
@@ -514,6 +524,7 @@ else
             _jobs = (await SupabaseClient.From<Job>().Get()).Models;
             _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
             _locations = (await SupabaseClient.From<Location>().Get()).Models;
+            //_assignments_alljobs = (await SupabaseClient.From<Assignment>().Get()).Models;
 
             var todayStr = _todayDate?.ToString("yyyy-MM-dd");
             var prevStr = _prevDate?.ToString("yyyy-MM-dd");
@@ -535,11 +546,19 @@ else
             {
                 _prevDayEntries = FilterAssignmentsByFieldType(rawPrevDayEntries, selectedFieldType);
                 _todayEntries = FilterAssignmentsByFieldType(rawTodayEntries, selectedFieldType);
+
+                _assignments_alljobs.Clear();
+                _assignments_alljobs = new List<Assignment>(_prevDayEntries);
+                _assignments_alljobs.AddRange(_todayEntries);
             }
             else
             {
                 _prevDayEntries = rawPrevDayEntries;
                 _todayEntries = rawTodayEntries;
+
+                _assignments_alljobs.Clear();
+                _assignments_alljobs = new List<Assignment>(_prevDayEntries);
+                _assignments_alljobs.AddRange(_todayEntries);
             }
         }
         finally
@@ -568,9 +587,75 @@ else
             .ToList();
     }
 
-    private string GetLocationName(Guid jobId) => _locations.FirstOrDefault(l => l.Id == _jobs.FirstOrDefault(j => j.Id == jobId)?.LocationId)?.InstallationName ?? "N/A";
-    private string GetJobName(Guid jobId) => _jobs.FirstOrDefault(j => j.Id == jobId)?.JobName ?? "N/A";
-    private string GetEngineerName(long id) => _engineers.FirstOrDefault(e => e.Id == id)?.FullName ?? "N/A";
+    private string GetEquipmentName(Guid jobId)
+    {
+        // 1. Fetch the tag number string from the jobs collection using the Guid
+        var tagNumber = _jobs.FirstOrDefault(j => j.Id == jobId)?.LocTagNumber;
+        if (string.IsNullOrWhiteSpace(tagNumber) || tagNumber == "")
+        {
+            return "";
+        }
+        // 2. Fetch the corresponding marker from pid_markers using that tag number string
+        var InstrumentName = _markers.FirstOrDefault(m => m.TagNumber == tagNumber)?.InstrumentName;
+
+        // 3. Return the data from the Instrument column
+        return InstrumentName ?? "";
+    }
+
+
+    private string GetDriverVehicleNumber(Guid jobId)
+    {
+        // 1. Scan job assignments to find records containing our specific jobId in their array
+        // 2. Sort by CreatedAt descending to ensure the latest assignment is evaluated first
+        var latestAssignment = _assignments_alljobs
+            .Where(a => a.JobIds != null && a.JobIds.Contains(jobId))
+            .OrderByDescending(a => a.CreatedAt)
+            .FirstOrDefault();
+
+        // 3. If an assignment is found and contains a valid driver reference, cross-reference the drivers table
+        if (latestAssignment?.DriverId.HasValue == true)
+        {
+            var driver = _drivers.FirstOrDefault(d => d.Id == latestAssignment.DriverId.Value);
+            if (driver != null && !string.IsNullOrWhiteSpace(driver.VehicleNumber))
+            {
+                return driver.VehicleNumber;
+            }
+        }
+
+        return "";
+    }
+
+
+    private string GetSpareDetails(Guid jobId)
+    {
+        var latestAssignment = _assignments_alljobs
+        .Where(a => a.JobIds != null && a.JobIds.Contains(jobId))
+        .OrderByDescending(a => a.CreatedAt)
+        .FirstOrDefault();
+
+        string _localspareused = "";
+
+        if (latestAssignment?.DriverId.HasValue == true)
+        {
+            var spareused = _assignments_alljobs.FirstOrDefault(d => d.Id == latestAssignment.Id);
+            if (spareused != null && !string.IsNullOrWhiteSpace(spareused.SpareUsed))
+            {
+                _localspareused = spareused.SpareUsed;
+
+                return spareused.SpareUsed;
+            }
+            else
+            {
+                return "";
+            }
+        }
+
+        return _localspareused;
+    }
+
+    private string GetLocationName(Guid jobId) => _locations.FirstOrDefault(l => l.Id == _jobs.FirstOrDefault(j => j.Id == jobId)?.LocationId)?.InstallationName ?? "";
+    private string GetJobName(Guid jobId) => _jobs.FirstOrDefault(j => j.Id == jobId)?.JobName ?? "";
+    private string GetEngineerName(long id) => _engineers.FirstOrDefault(e => e.Id == id)?.FullName ?? "";
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
 
     [Table("job_assignments")]
@@ -588,11 +673,28 @@ else
         [Column("field_report")] public string FieldReport { get; set; }
         [Column("job_done_details")] public string JobDoneDetails { get; set; }
         [Column("planned_task")] public string PlannedTask { get; set; }
+        [Column("spare_used")] public string SpareUsed { get; set; }
+    }
+
+    [Table("pid_markers")]
+    public class Marker : BaseModel
+    {
+        [PrimaryKey("id", false)] public long? Id { get; set; }
+        [Column("location_id")] public long LocationId { get; set; }
+        [Column("tag_number")] public string TagNumber { get; set; }
+        [Column("instrument_type")] public string InstrumentType { get; set; }
+        [Column("make_model_type")] public string MakeModelType { get; set; }
+        [Column("range")] public string Range { get; set; }
+        [Column("coord_x")] public double? CoordX { get; set; }
+        [Column("coord_y")] public double? CoordY { get; set; }
+        [Column("serial_number")] public string? Serial_number { get; set; }
+        [Column("replacement_cost")] public long? Replacement_cost { get; set; }
+        [Column("InstrumentName")] public string? InstrumentName { get; set; }
     }
 
     /* Keep existing models for Driver, Job, Engineer, Location */
     [Table("locations")] public class Location : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("installation_name")] public string InstallationName { get; set; } [Column("field_type")] public string FieldType { get; set; } }
-    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } [Column("location_id")] public long? LocationId { get; set; } }
-    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } [Column("location_id")] public long? LocationId { get; set; } [Column("loc_tag_number")] public string LocTagNumber { get; set; } }
+    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } }
 }

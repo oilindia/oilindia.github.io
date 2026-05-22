@@ -1,4 +1,4 @@
-﻿@page "/userassignedjobs"
+﻿@page "/userassignedjobs4"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -25,86 +25,42 @@
             <MudButton Variant="Variant.Outlined" OnClick="LoadInitialData">Refresh</MudButton>
         </MudStack>
 
-        <MudTable Items="@_pendingJobs"
-                  Hover="true"
-                  Elevation="4"
-                  Class="rounded-lg responsive-job-table"
-                  Loading="@_loading"
-                  Breakpoint="Breakpoint.Sm">
-
+        <MudTable Items="@_pendingJobs" Hover="true" Elevation="4" Class="rounded-lg" Loading="@_loading">
             <HeaderContent>
-                <MudTh Class="job-col-name">Job Name</MudTh>
-                <MudTh Class="job-col-type">Type</MudTh>
-                <MudTh Class="job-col-description">Description</MudTh>
-                <MudTh Class="job-col-location">Location</MudTh>
-                <MudTh Class="job-col-action">Action</MudTh>
+                <MudTh>Job Name</MudTh>
+
+                <MudTh>Type</MudTh>
+
+                <MudTh>Description</MudTh>
+
+                <MudTh>Location</MudTh>
+                <MudTh>Action</MudTh>
             </HeaderContent>
-
             <RowTemplate>
-                <MudTd DataLabel="Job Name" Class="job-name-cell">
-                    @context.JobName
-                </MudTd>
-
-                <MudTd DataLabel="Type" Class="job-type-cell">
-                    <MudChip T="string"
-                             Color="@(context.JobType == "preventive" ? Color.Info : Color.Warning)"
-                             Size="Size.Small">
+                <MudTd>@context.JobName</MudTd>
+                <MudTd>
+                    <MudChip T="string" Color="@(context.JobType == "preventive" ? Color.Info : Color.Warning)" Size="Size.Small">
                         @context.JobType.ToUpper()
                     </MudChip>
                 </MudTd>
-
-                <MudTd DataLabel="Description" Class="job-description-cell">
-
-                    <div class="description-wrapper">
-
-                        <div class="user-description-block">
-                            <MudText Typo="Typo.caption"
-                                     Color="Color.Primary"
-                                     Class="fw-bold section-title">
-                                USER REPORTED DESCRIPTION:
-                            </MudText>
-
-                            <MudText Typo="Typo.body2"
-                                     Class="description-text">
-                                @context.Description
-                            </MudText>
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(context.JobActionRemarks))
-                        {
-                            <MudDivider Class="my-2" />
-
-                            <div class="remarks-block">
-
-                                <MudText Typo="Typo.caption"
-                                         Color="Color.Secondary"
-                                         Class="fw-bold section-title">
-                                    ENGINEER OBSERVATIONS:
-                                </MudText>
-
-                                <div class="remarks-text">
-                                    @((MarkupString)context.JobActionRemarks.Replace("\n", "<br />"))
-                                </div>
-
-                            </div>
-                        }
-
+                <MudTd DataLabel="Description" Style="white-space: pre-wrap; word-break: break-word; min-width: 350px;">
+                    <div class="mb-2">
+                        <MudText Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">USER REPORTED DESCRIPTION:</MudText>
+                        <MudText Typo="Typo.body2">@context.Description</MudText>
                     </div>
 
+                    @if (!string.IsNullOrEmpty(context.JobActionRemarks))
+                    {
+                        <MudDivider Class="mb-2" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">ENGINEER OBSERVATIONS:</MudText>
+                        <div style="font-size: 0.85rem; color: #555;">
+                            @((MarkupString)context.JobActionRemarks.Replace("\n", "<br />"))
+                        </div>
+                    }
                 </MudTd>
-
-                <MudTd DataLabel="Location" Class="job-location-cell">
-                    @context.LocationId
-                </MudTd>
-
-                <MudTd DataLabel="Action" Class="job-action-cell">
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Small"
-                               FullWidth="true"
-                               OnClick="@(() => StartJobExecution(context))">
-                        Execute
-                    </MudButton>
+                <MudTd>@context.LocationId</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => StartJobExecution(context))">Execute</MudButton>
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -219,27 +175,6 @@
                                             }
                                         </MudItem>
 
-
-                                        @* Instrument Type Selection *@
-                                        <MudItem xs="12" sm="3">
-                                            @if (!entry.IsManualType)
-                                            {
-                                                <MudSelect T="string" Label="Instrument Type"
-                                                           Value="entry.InstrumentType"
-                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "type"))">
-                                                    @foreach (var type in _availableTypes)
-                                                    {
-                                                        <MudSelectItem Value="@type">@type</MudSelectItem>
-                                                    }
-                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth="true" Color="Color.Primary">+ Add New Type</MudButton>
-                                                </MudSelect>
-                                            }
-                                            else
-                                            {
-                                                <MudTextField Label="New Instrument Type" @bind-Value="entry.InstrumentType" />
-                                            }
-                                        </MudItem>
-
                                         @* Tag Selection *@
                                         <MudItem xs="12" sm="3">
                                             @if (!entry.IsManualLocation)
@@ -265,7 +200,25 @@
                                         </MudItem>
 
 
-                                        
+                                        @* Instrument Type Selection *@
+                                        <MudItem xs="12" sm="3">
+                                            @if (!entry.IsManualType)
+                                            {
+                                                <MudSelect T="string" Label="Instrument Type"
+                                                           Value="entry.InstrumentType"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "type"))">
+                                                    @foreach (var type in _availableTypes)
+                                                    {
+                                                        <MudSelectItem Value="@type">@type</MudSelectItem>
+                                                    }
+                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth="true" Color="Color.Primary">+ Add New Type</MudButton>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Instrument Type" @bind-Value="entry.InstrumentType" />
+                                            }
+                                        </MudItem>
 
                                         @* Old Data Display *@
                                         <MudItem xs="12" sm="3">
@@ -924,145 +877,7 @@
 }
 
 
-<style>
 
-    .responsive-job-page {
-        overflow-x: hidden;
-    }
-
-    .responsive-job-table {
-        width: 100%;
-    }
-
-        .responsive-job-table table {
-            table-layout: fixed;
-            width: 100%;
-        }
-
-    .job-col-name {
-        width: 14%;
-    }
-
-    .job-col-type {
-        width: 10%;
-    }
-
-    .job-col-description {
-        width: 48%;
-    }
-
-    .job-col-location {
-        width: 10%;
-    }
-
-    .job-col-action {
-        width: 18%;
-    }
-
-    .job-description-cell {
-        white-space: normal !important;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        vertical-align: top;
-        padding-top: 12px !important;
-        padding-bottom: 12px !important;
-    }
-
-    .description-wrapper {
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    .description-text {
-        white-space: pre-wrap;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        line-height: 1.5;
-    }
-
-    .remarks-block {
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    .remarks-text {
-        font-size: 0.85rem;
-        color: #555;
-        white-space: pre-wrap;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        line-height: 1.5;
-        max-width: 100%;
-    }
-
-    .section-title {
-        display: block;
-        margin-bottom: 6px;
-    }
-
-    .job-action-cell {
-        min-width: 110px;
-    }
-
-    /* MOBILE FIXES */
-
-    @@media (max-width: 768px) {
-
-        .responsive-job-table {
-            font-size: 0.85rem;
-        }
-
-        .job-description-cell {
-            min-width: unset !important;
-            width: 100% !important;
-            padding: 10px !important;
-        }
-
-        .remarks-text,
-        .description-text {
-            font-size: 0.82rem;
-            line-height: 1.4;
-        }
-
-        .job-action-cell .mud-button-root {
-            width: 100%;
-        }
-
-        .mud-table-cell {
-            padding: 8px !important;
-        }
-
-        .mud-table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .description-wrapper {
-            max-width: 100%;
-        }
-    }
-
-    /* EXTRA SMALL DEVICES */
-
-    @@media (max-width: 480px) {
-
-        .remarks-text,
-        .description-text {
-            font-size: 0.78rem;
-        }
-
-        .section-title {
-            font-size: 0.72rem !important;
-        }
-
-        .mud-chip {
-            max-width: 100%;
-        }
-    }
-
-</style>
 
 
 
