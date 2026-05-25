@@ -1,0 +1,667 @@
+﻿@page "/coststatic4"
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using Supabase
+@using System.Text.Json
+@inject Client SupabaseClient
+@inject ISnackbar Snackbar
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using static Supabase.Postgrest.Constants
+@using System.Text.Json.Serialization
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+
+
+<MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-radius:18px;">
+    <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker T="DateTime?"
+                           Label="From Date"
+                           @bind-Date="_startDate"
+                           Editable="true"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker T="DateTime?"
+                           Label="To Date"
+                           @bind-Date="_endDate"
+                           Editable="true"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="RefreshDashboardAsync"
+                       Loading="_loading"
+                       FullWidth>
+                Apply Filter
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-3" Style="background:#f1f5f9;border-radius:14px;">
+                <MudText Typo="Typo.caption">ACTIVE RANGE</MudText>
+                <MudText Typo="Typo.subtitle1" Style="font-weight:700;">
+                    @_startDate?.ToString("dd MMM yyyy") - @_endDate?.ToString("dd MMM yyyy")
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Elevation="0"
+          Class="pa-6 mb-6"
+          Style="border-radius:20px;background:linear-gradient(135deg,#0f172a,#1e293b);color:white;">
+    <MudText Typo="Typo.h4" Style="font-weight:800;">Cost Dashboard</MudText>
+    <MudText Typo="Typo.subtitle1">Field Maintenance Cost Analytics (Based on Assignments & PM Reports)</MudText>
+</MudPaper>
+
+<MudGrid Class="mb-6">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4 border-l-4" Style="border-color: #3b82f6; border-radius: 12px;">
+            <MudText Typo="Typo.caption" Class="text-muted" Style="font-weight:700;">OVERTIME SPEND</MudText>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #3b82f6;">₹ @TotalOvertimeCost.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4 border-l-4" Style="border-color: #10b981; border-radius: 12px;">
+            <MudText Typo="Typo.caption" Class="text-muted" Style="font-weight:700;">SPARES & PARTS SPEND</MudText>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #10b981;">₹ @TotalSparesCost.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4 border-l-4" Style="border-color: #6366f1; border-radius: 12px;">
+            <MudText Typo="Typo.caption" Class="text-muted" Style="font-weight:700;">EMPLOYEE BASE COST</MudText>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #6366f1;">₹ @TotalEmployeeCost.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="3" Class="pa-4 border-l-4" Style="border-color: #f59e0b; border-radius: 12px;">
+            <MudText Typo="Typo.caption" Class="text-muted" Style="font-weight:700;">TRAVEL LOGISTICS COST</MudText>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #f59e0b;">₹ @TotalTravelCost.ToString("N2")</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Class="mb-6">
+    @* Stacked Quarterly Expenditure Trend *@
+    <MudItem xs="12" md="7">
+        <MudCard Elevation="4" Style="border-radius: 16px;">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #1a237e;">Quarterly Cost Trajectory</MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">Tracking Breakdowns, Overtime, Spares, and Travel Spend Optimization (in ₹)</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (_loading)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+                }
+                else if (QuarterlyCostSeries == null || !QuarterlyCostSeries.Any())
+                {
+                    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Class="my-4">No series data configured to render trajectory chart.</MudAlert>
+                }
+                else
+                {
+                    @* Added explicit padding style block to safeguard Y-axis labels overflow visibility *@
+                    <div style="padding: 0 15px 0 25px;">
+                        <MudChart T="double"
+                                  ChartType="ChartType.StackedBar"
+                                  ChartSeries="@QuarterlyCostSeries"
+                                  XAxisLabels="@QuarterlyLabels"
+                                  Width="100%"
+                                  Height="320px"
+                                  ChartOptions="@_barChartOptions"
+                                  LegendPosition="Position.Bottom" />
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    @* Budget Proportional Breakdown Share *@
+    <MudItem xs="12" md="5">
+        <MudCard Elevation="4" Style="border-radius: 16px;">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #1a237e;">Expense Share Allocation</MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">Proportional distribution across all asset cost vectors</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (_loading)
+                {
+                    <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-7" />
+                }
+                else if (TotalCalculatedCost == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" ContentAlignment="HorizontalAlignment.Center">No parsed expenditure data to compute proportional share chart.</MudAlert>
+                }
+                else
+                {
+                    <MudChart T="double"
+                              ChartType="ChartType.Donut"
+                              Width="100%"
+                              Height="320px"
+                              InputData="@ProportionalShareData"
+                              InputLabels="@ProportionalShareLabels"
+                              LegendPosition="Position.Bottom" />
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    @* NEW: DAILY CHRONOLOGICAL COST MULTI-COLOR STACKED BAR CHART *@
+    <MudItem xs="12">
+        <MudCard Elevation="4" Style="border-radius: 16px;">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #1a237e;">Daily Cost Variance Profile</MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">Chronological multi-color resource stack items mapped day-by-day</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (_loading)
+                {
+                    <MudProgressLinear Color="Color.Info" Indeterminate="true" Class="my-7" />
+                }
+                else if (DailyCostSeries == null || !DailyCostSeries.Any() || DailyLabels.Length == 0)
+                {
+                    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Class="my-4">No logged assignment data inside selected active range to render daily timelines.</MudAlert>
+                }
+                else
+                {
+                    <div style="padding: 0 15px 0 25px;">
+                        <MudChart T="double"
+                                  ChartType="ChartType.StackedBar"
+                                  ChartSeries="@DailyCostSeries"
+                                  XAxisLabels="@DailyLabels"
+                                  Width="100%"
+                                  Height="380px"
+                                  ChartOptions="@_barChartOptions"
+                                  LegendPosition="Position.Bottom" />
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    @* Micro Metric Callouts for Key Insights *@
+    <MudItem xs="12">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="4" Class="pa-4 border-l-4" Style="border-color: var(--mud-palette-error); border-radius: 12px;">
+                    <MudText Typo="Typo.overline" Style="color: #78909c; font-weight: 700;">TOTAL DISPATCHED COST</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 900; color: #1e293b;">₹ @TotalCalculatedCost.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted">Combined financial tracking matrix metrics baseline</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="4" Class="pa-4 border-l-4" Style="border-color: var(--mud-palette-success); border-radius: 12px;">
+                    <MudGrid>
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.caption" Style="color: #78909c; font-weight:700;">Overtime Hrs</MudText>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:700;">@TotalOvertimeHours Hrs</MudText>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.caption" Style="color: #78909c; font-weight:700;">PM Matches</MudText>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:700;">@TotalPmReportsMatched</MudText>
+                        </MudItem>
+                        <MudItem xs="4">
+                            <MudText Typo="Typo.caption" Style="color: #78909c; font-weight:700;">Assignments</MudText>
+                            <MudText Typo="Typo.subtitle1" Style="font-weight:700;">@TotalAssignmentsProcessed</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+</MudGrid>
+
+<MudCard Elevation="4" Class="mt-6 mb-8" Style="border-radius: 16px;">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #1a237e;">Assignment Breakdown & Joined Costs Data Ledger</MudText>
+            <MudText Typo="Typo.caption" Class="text-muted">Calculated row-by-row cost join itemization from database records</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudDataGrid Items="@GridRows" T="AssignmentGridRow" Bordered="true" Dense="true" Striped="true" Hover="true">
+            <Columns>
+                <PropertyColumn Property="x => x.AssignmentId" Title="Assignment ID" />
+                <PropertyColumn Property="x => x.CreatedAt" Title="Created Date" Format="dd MMM yyyy" />
+                <PropertyColumn Property="x => x.OvertimeHours" Title="OT Hrs" Format="N1" />
+                <PropertyColumn Property="x => x.OvertimeCost" Title="OT Cost (₹)" Format="N2" />
+                <PropertyColumn Property="x => x.PersonnelCount" Title="Staff Count" />
+                <PropertyColumn Property="x => x.EmployeeCost" Title="Staff Cost (₹)" Format="N2" />
+                <PropertyColumn Property="x => x.TravelCost" Title="Travel Cost (₹)" Format="N2" />
+                <PropertyColumn Property="x => x.SparesCost" Title="Spares/Parts (₹)" Format="N2" />
+                <PropertyColumn Property="x => x.RowTotalCost" Title="Total Row Cost (₹)" Format="N2">
+                    <CellTemplate>
+                        <MudText Style="font-weight:700; color:var(--mud-palette-primary);">₹ @context.Item.RowTotalCost.ToString("N2")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="AssignmentGridRow" />
+            </PagerContent>
+        </MudDataGrid>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool _loading = false;
+    private DateTime? _startDate = DateTime.Today.AddMonths(-1);
+    private DateTime? _endDate = DateTime.Today;
+
+    // Constants for Cost calculations
+    private const double HourlyOvertimeRate = 750.00;
+
+    // Metrics Data Aggregates
+    public double TotalCalculatedCost { get; set; }
+    public double TotalOvertimeHours { get; set; }
+    public int TotalPmReportsMatched { get; set; }
+    public int TotalAssignmentsProcessed { get; set; }
+
+    // Proportional breakdown metrics
+    public double TotalOvertimeCost { get; set; }
+    public double TotalSparesCost { get; set; }
+    public double TotalEmployeeCost { get; set; }
+    public double TotalTravelCost { get; set; }
+
+    // Chart Configuration Targets
+    public List<ChartSeries<double>> QuarterlyCostSeries { get; set; } = new();
+    public string[] QuarterlyLabels { get; set; } = { "Q1", "Q2", "Q3", "Q4" };
+
+    // Daily Chart Properties
+    public List<ChartSeries<double>> DailyCostSeries { get; set; } = new();
+    public string[] DailyLabels { get; set; } = Array.Empty<string>();
+
+    public double[] ProportionalShareData { get; set; } = new double[4];
+    public string[] ProportionalShareLabels { get; set; } = { "Overtime Spend", "Spares Spend", "Employee Base", "Travel Logistics" };
+
+    private ChartOptions _barChartOptions = new ChartOptions();
+
+    // Ledger Row Data Store list reference
+    public List<AssignmentGridRow> GridRows { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshDashboardAsync();
+    }
+
+    private async Task RefreshDashboardAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        // Clear previous state records explicitly
+        TotalCalculatedCost = 0; TotalOvertimeHours = 0; TotalPmReportsMatched = 0; TotalAssignmentsProcessed = 0;
+        TotalOvertimeCost = 0; TotalSparesCost = 0; TotalEmployeeCost = 0; TotalTravelCost = 0;
+        GridRows.Clear();
+        DailyCostSeries.Clear();
+
+        List<JobAssignmentModel> assignments = new();
+        List<PmReportModel> pmReports = new();
+        List<JobModel> jobs = new();
+        List<EmployeeEngineerModel> employees = new();
+        List<Location> locations = new();
+        List<DieselPriceModel> dieselPrices = new();
+
+        var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+        var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+        // 1. ISOLATED CONCURRENT DATABASE FETCH LAYERS
+        try
+        {
+            var assignmentResponse = await SupabaseClient.From<JobAssignmentModel>()
+                .Select("*")
+                .Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                .Get();
+            assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
+            Snackbar.Add($"Loaded {assignments.Count} assignments.", Severity.Info);
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching assignments: {ex.Message}", Severity.Error); }
+
+        try
+        {
+            var pmReportResponse = await SupabaseClient.From<PmReportModel>().Select("*").Get();
+            pmReports = pmReportResponse.Models ?? new List<PmReportModel>();
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching PM reports: {ex.Message}", Severity.Error); }
+
+        try
+        {
+            var jobsResponse = await SupabaseClient.From<JobModel>().Select("*").Get();
+            jobs = jobsResponse.Models ?? new List<JobModel>();
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching jobs: {ex.Message}", Severity.Error); }
+
+        try
+        {
+            var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
+            employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching employees: {ex.Message}", Severity.Error); }
+
+        try
+        {
+            var locationResponse = await SupabaseClient.From<Location>().Select("*").Get();
+            locations = locationResponse.Models ?? new List<Location>();
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching locations: {ex.Message}", Severity.Error); }
+
+        try
+        {
+            var dieselResponse = await SupabaseClient.From<DieselPriceModel>().Select("*").Get();
+            dieselPrices = dieselResponse.Models ?? new List<DieselPriceModel>();
+        }
+        catch (Exception ex) { Snackbar.Add($"Error fetching diesel prices: {ex.Message}", Severity.Error); }
+
+
+        // 2. DATA PIPELINE FILTERS & AGGREGATIONS
+        try
+        {
+            if (_startDate.HasValue) assignments = assignments.Where(a => a.CreatedAt >= _startDate.Value).ToList();
+            if (_endDate.HasValue) assignments = assignments.Where(a => a.CreatedAt <= _endDate.Value).ToList();
+
+            TotalAssignmentsProcessed = assignments.Count;
+
+            var uniqueDates = assignments.Select(a => a.CreatedAt.Date).Distinct().OrderBy(d => d).ToList();
+            DailyLabels = uniqueDates.Select(d => d.ToString("dd MMM")).ToArray();
+
+            double[] dailyOvertime = new double[uniqueDates.Count];
+            double[] dailySpares = new double[uniqueDates.Count];
+            double[] dailyEmployee = new double[uniqueDates.Count];
+            double[] dailyTravel = new double[uniqueDates.Count];
+
+            var dateToIndexMap = uniqueDates.Select((date, index) => new { date, index }).ToDictionary(x => x.date, x => x.index);
+
+            double[] overtimeCosts = new double[4];
+            double[] sparesCosts = new double[4];
+            double[] employeeCosts = new double[4];
+            double[] travelCosts = new double[4];
+
+            foreach (var assignment in assignments)
+            {
+                if (assignment.CreatedAt == DateTime.MinValue) continue;
+
+                int quarter = (assignment.CreatedAt.Month - 1) / 3;
+                if (quarter < 0 || quarter > 3) quarter = 0;
+
+                var gridRowItem = new AssignmentGridRow
+                {
+                    AssignmentId = assignment.Id,
+                    CreatedAt = assignment.CreatedAt
+                };
+
+                // A. Overtime Spend Parsing Engine
+                double otHours = assignment.JobOvertime ?? 0;
+                TotalOvertimeHours += otHours;
+                double calculatedOtCost = otHours * HourlyOvertimeRate;
+                overtimeCosts[quarter] += calculatedOtCost;
+                TotalOvertimeCost += calculatedOtCost;
+
+                gridRowItem.OvertimeHours = otHours;
+                gridRowItem.OvertimeCost = calculatedOtCost;
+
+                // B. Dynamic Employee Resource Cost Calculation (AnnualCost / 365 Daily Rate)
+                double calculatedEmployeeCost = 0;
+                int personnelCount = assignment.PersonnelIds?.Count ?? 0;
+
+                if (assignment.PersonnelIds != null)
+                {
+                    foreach (var pIdStr in assignment.PersonnelIds)
+                    {
+                        if (long.TryParse(pIdStr, out long empId))
+                        {
+                            var emp = employees.FirstOrDefault(e => e.Id == empId);
+                            if (emp != null && emp.AnnualCost.HasValue)
+                            {
+                                // Converts annual cost to a daily tracking rate baseline
+                                calculatedEmployeeCost += (emp.AnnualCost.Value / 365.0);
+                            }
+                        }
+                    }
+                }
+                employeeCosts[quarter] += calculatedEmployeeCost;
+                TotalEmployeeCost += calculatedEmployeeCost;
+
+                gridRowItem.PersonnelCount = personnelCount;
+                gridRowItem.EmployeeCost = calculatedEmployeeCost;
+
+                // C. Travel Logistics Calculation Engine (Distance * Target Date Diesel Price)
+                double calculatedTravelCost = 0;
+                var matchedLocation = locations.FirstOrDefault(l => l.Id == assignment.LocationId);
+
+                // Temporary debug trace inside the foreach loop
+                if (matchedLocation == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Assignment {assignment.Id} has no matching location for ID: {assignment.LocationId}");
+                }
+                else if (matchedLocation.DistanceFhqKm == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Location {matchedLocation.Id} has a null distance value.");
+                }
+
+
+                if (matchedLocation != null && matchedLocation.DistanceFhqKm.HasValue)
+                {
+                    var assignmentDate = assignment.CreatedAt.Date;
+
+                    // Finds exact date match or defaults to the absolute chronologically closest date record
+                    var targetDieselRecord = dieselPrices
+                        .OrderBy(p => Math.Abs(((p.PriceDate ?? DateTime.Today) - assignmentDate).TotalDays))
+                        .FirstOrDefault();
+
+                    double fallbackOrMatchedPrice = targetDieselRecord?.DieselPrice ?? 0.0;
+                    calculatedTravelCost = matchedLocation.DistanceFhqKm.Value * fallbackOrMatchedPrice;
+                }
+
+                travelCosts[quarter] += calculatedTravelCost;
+                TotalTravelCost += calculatedTravelCost;
+                gridRowItem.TravelCost = calculatedTravelCost;
+
+                // D. Spares Component Aggregation (PmReport ApproxTotalCost + Job PartsCost)
+                double itemSparesCost = 0;
+                if (assignment.JobIds != null && assignment.JobIds.Any())
+                {
+                    foreach (var jobId in assignment.JobIds)
+                    {
+                        if (string.IsNullOrWhiteSpace(jobId)) continue;
+
+                        double jobSpecificSpares = 0;
+
+                        var matchedPm = pmReports.FirstOrDefault(p => string.Equals(p.JobId, jobId, StringComparison.OrdinalIgnoreCase));
+                        if (matchedPm != null)
+                        {
+                            jobSpecificSpares += matchedPm.ApproxTotalCost ?? 0;
+                            TotalPmReportsMatched++;
+                        }
+
+                        var matchedJob = jobs.FirstOrDefault(j => string.Equals(j.Id, jobId, StringComparison.OrdinalIgnoreCase));
+                        if (matchedJob != null)
+                        {
+                            jobSpecificSpares += matchedJob.PartsCost ?? 0;
+                        }
+
+                        itemSparesCost += jobSpecificSpares;
+                    }
+                }
+                sparesCosts[quarter] += itemSparesCost;
+                TotalSparesCost += itemSparesCost;
+                gridRowItem.SparesCost = itemSparesCost;
+
+                // Row Total Calculation Compilation
+                gridRowItem.RowTotalCost = calculatedOtCost + calculatedEmployeeCost + calculatedTravelCost + itemSparesCost;
+                GridRows.Add(gridRowItem);
+
+                // Populate Daily Accumulator Buckets
+                if (dateToIndexMap.TryGetValue(assignment.CreatedAt.Date, out int dayIndex))
+                {
+                    dailyOvertime[dayIndex] += calculatedOtCost;
+                    dailyEmployee[dayIndex] += calculatedEmployeeCost;
+                    dailyTravel[dayIndex] += calculatedTravelCost;
+                    dailySpares[dayIndex] += itemSparesCost;
+                }
+            }
+
+            // 3. COMPILE CHART COMPONENT DATA SERIES ARRAYS
+            QuarterlyCostSeries = new List<ChartSeries<double>>
+            {
+                new ChartSeries<double> { Name = "Overtime Cost", Data = overtimeCosts },
+                new ChartSeries<double> { Name = "Spares Cost", Data = sparesCosts },
+                new ChartSeries<double> { Name = "Employee Cost", Data = employeeCosts },
+                new ChartSeries<double> { Name = "Travel Cost", Data = travelCosts }
+            };
+
+            DailyCostSeries = new List<ChartSeries<double>>
+            {
+                new ChartSeries<double> { Name = "Overtime Cost", Data = dailyOvertime },
+                new ChartSeries<double> { Name = "Spares Cost", Data = dailySpares },
+                new ChartSeries<double> { Name = "Employee Cost", Data = dailyEmployee },
+                new ChartSeries<double> { Name = "Travel Cost", Data = dailyTravel }
+            };
+
+            TotalCalculatedCost = TotalOvertimeCost + TotalSparesCost + TotalEmployeeCost + TotalTravelCost;
+            ProportionalShareData = new double[] { TotalOvertimeCost, TotalSparesCost, TotalEmployeeCost, TotalTravelCost };
+
+
+            var dynamicData = new List<double>();
+            var dynamicLabels = new List<string>();
+
+            if (TotalOvertimeCost > 0)
+            {
+                dynamicData.Add(TotalOvertimeCost);
+                dynamicLabels.Add("Overtime Spend");
+            }
+            if (TotalSparesCost > 0)
+            {
+                dynamicData.Add(TotalSparesCost);
+                dynamicLabels.Add("Spares Spend");
+            }
+            if (TotalEmployeeCost > 0)
+            {
+                dynamicData.Add(TotalEmployeeCost);
+                dynamicLabels.Add("Employee Base");
+            }
+            if (TotalTravelCost > 0)
+            {
+                dynamicData.Add(TotalTravelCost);
+                dynamicLabels.Add("Travel Logistics");
+            }
+
+            // Re-assign the finalized total
+            TotalCalculatedCost = dynamicData.Sum();
+
+            // Bind the filtered arrays directly to the UI properties
+            ProportionalShareData = dynamicData.ToArray();
+            ProportionalShareLabels = dynamicLabels.ToArray();
+
+
+        }
+        catch (Exception pipelineEx)
+        {
+            Snackbar.Add($"Data Processing Loop Fault: pipelineEx.Message", Severity.Error);
+        }
+
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    // --- VIEW MODEL HELPER FOR THE DATA GRID ROWS JOINS ---
+    public class AssignmentGridRow
+    {
+        public string AssignmentId { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public double OvertimeHours { get; set; }
+        public double OvertimeCost { get; set; }
+        public int PersonnelCount { get; set; }
+        public double EmployeeCost { get; set; }
+        public double TravelCost { get; set; }
+        public double SparesCost { get; set; }
+        public double RowTotalCost { get; set; }
+    }
+
+    // --- SUPABASE ORM POSTGREST DATA MODELS MAPPINGS ---
+
+    [Table("job_assignments")]
+    public class JobAssignmentModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
+        [Column("created_at")] public DateTime CreatedAt { get; set; }
+        [Column("job_ids")] public List<string>? JobIds { get; set; }
+        [Column("personnel_ids")] public List<string>? PersonnelIds { get; set; }
+        [Column("job_overtime")] public double? JobOvertime { get; set; }
+
+        // Added field helper to map travel distances cleanly
+        [Column("location_id")] public long? LocationId { get; set; }
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("sub_area")] public string? SubArea { get; set; }
+        [Column("area_name")] public string? AreaName { get; set; }
+        [Column("installation_name")] public string? InstallationName { get; set; }
+        [Column("field_type")] public string? FieldType { get; set; }
+        [Column("image_url")] public string? ImageUrl { get; set; }
+        [Column("installation_type")] public string? InstallationType { get; set; }
+        [Column("is_active")] public bool? IsActive { get; set; }
+        [Column("distance_fhq_km")] public float? DistanceFhqKm { get; set; }
+    }
+
+    [Table("pm_reports")]
+    public class PmReportModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("job_id")] public string JobId { get; set; } = string.Empty;
+        [Column("approx_total_cost")] public double? ApproxTotalCost { get; set; }
+    }
+
+    [Table("jobs")]
+    public class JobModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
+        [Column("parts_cost")] public double? PartsCost { get; set; }
+    }
+
+    [Table("diesel_prices")]
+    public class DieselPriceModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("price")] public double? DieselPrice { get; set; }
+        [Column("price_date")] public DateTime? PriceDate { get; set; }
+        [Column("price_perc_chg")] public double? PriceChangePercent { get; set; }
+    }
+
+    [Table("employees_engineers")]
+    public class EmployeeEngineerModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string? Email { get; set; }
+        [Column("emp_code")] public string EmpCode { get; set; } = string.Empty;
+        [Column("designation")] public string? Designation { get; set; }
+        [Column("grade")] public string? Grade { get; set; }
+        [Column("full_name")] public string? FullName { get; set; }
+        [Column("gender")] public string? Gender { get; set; }
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("department")] public string? Department { get; set; }
+        [Column("section")] public string? Section { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+        [Column("team_group")] public int? TeamGroup { get; set; }
+    }
+}

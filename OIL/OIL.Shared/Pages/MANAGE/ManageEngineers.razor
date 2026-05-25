@@ -130,7 +130,7 @@
         try
         {
             _loading = true;
-            var result = await SupabaseClient.From<Engineer>().Get();
+            var result = await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
             _engineers = result.Models;
             StateHasChanged();
         }

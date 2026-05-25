@@ -5,6 +5,11 @@
 @using Supabase.Postgrest.Models
 @using static Supabase.Postgrest.Constants
 @using System.Text.Json.Serialization
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject Client SupabaseClient
+
 
 @inject IJSRuntime JSRuntime
 @inject Supabase.Client Supabase
@@ -291,6 +296,9 @@
 
         [Column("completion_date")]
         public DateTime? CompletionDate { get; set; }
+
+        [Column("location_id")]
+        public int LocationId { get; set; }
     }
 
     [Table("locations")]
@@ -309,12 +317,27 @@
     [Table("job_assignments")]
     public class JobAssignment : BaseModel
     {
-        [PrimaryKey("id", false)]
-        public Guid Id { get; set; }
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("driver_id")] public long? DriverId { get; set; }
+        [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
+
+        [Column("shift_name")] public string ShiftName { get; set; } = "";
+
+        [Column("job_action")] public string JobAction { get; set; } = "";
+
+        [Column("job_action_time")] public DateTime? JobActionTime { get; set; }
+        [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
+        [Column("doc_number")] public string DocNumber { get; set; } = "";
+        [Column("status")] public string Status { get; set; } = ""; // Field for soft delete
+        [JsonIgnore] public string PrintableDate => CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "";
 
         [Column("job_overtime")]
         public double? JobOvertime { get; set; }
     }
+
+
+
 
     public class DashboardDto
     {
@@ -325,6 +348,8 @@
         public int NonPmJobs { get; set; }
 
         public int PmManDays { get; set; }
+
+        //public int TotalPMInstallations { get; set; }
 
         public List<string> DailyLabels { get; set; } = new();
 
@@ -353,148 +378,472 @@
         await LoadDashboardAsync();
     }
 
+    // private async Task LoadDashboardAsync()
+    // {
+    //     try
+    //     {
+    //         try
+    //         {
+    //             _dashboard = new DashboardDto();
+
+    //             var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+    //             var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+    //             var reportsTask = Supabase
+    //                 .From<DbPmReport>()
+    //                 .Select("*")
+    //                 .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //                 .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //                 .Get();
+
+    //             var jobsTask = Supabase
+    //                 .From<DbJob>()
+    //                 .Select("*")
+    //                  .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //                 .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //                 .Get();
+
+
+    //             int totalPreventiveJobsCount = await Supabase
+    //     .From<DbJob>()
+    //     .Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //     .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //     .Filter("job_type", Operator.Equals, "preventive")
+    //     .Count(CountType.Exact);
+
+    //             int totalBreakDownJobsCount = await Supabase
+    //    .From<DbJob>()
+    //    .Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //     .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //    .Filter("job_type", Operator.Equals, "breakdown")
+    //    .Count(CountType.Exact);
+
+    //             int totalJobsCount = await Supabase
+    //    .From<DbJob>()
+    //    .Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //     .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //    .Count(CountType.Exact);
+
+    //             var jobsAssignmentsTask = Supabase
+    //             .From<JobAssignment>()
+    //             .Select("*")
+    //              .Filter("job_action_time", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //             .Filter("job_action_time", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+    //             .Get();
+
+    //             var locationsTask = Supabase
+    //                 .From<DbLocation>()
+    //                 .Select("*")
+    //                 .Get();
+
+    //             await Task.WhenAll(reportsTask, jobsTask, locationsTask);
+
+    //             var reports = reportsTask.Result.Models ?? new();
+    //             var jobs = jobsTask.Result.Models ?? new();
+    //             var locations = locationsTask.Result.Models ?? new();
+
+    //             var reportMap = reports.ToDictionary(x => x.Id);
+    //             var jobsMap = jobs.ToDictionary(x => x.Id);
+    //             var locationMap = locations.ToDictionary(x => x.Id);
+
+    //             var joined = reports.Select(r =>
+    //             {
+    //                 jobsMap.TryGetValue(r.JobId ?? "", out var job);
+    //                 locationMap.TryGetValue(r.LocationId ?? "", out var location);
+
+    //                 return new
+    //                 {
+    //                     Report = r,
+    //                     Job = job,
+    //                     Location = location
+    //                 };
+    //             }).ToList();
+
+
+    //             // 1. Start with the source of truth: all jobs
+    //             var JOBSjoined = jobs.Select(job =>
+    //             {
+    //                 // Attempt to find the matching report for this specific job
+    //                 // If your reportMap is keyed by JobId:
+    //                 reportMap.TryGetValue(job.Id ?? "", out var report);
+
+    //                 // Find the location
+    //                 locationMap.TryGetValue(job.LocationId.ToString() ?? "", out var location);
+
+    //                 return new
+    //                 {
+    //                     Job = job,
+    //                     Report = report,     // Will be null for jobs that don't have a report yet
+    //                     Location = location
+    //                 };
+    //             }).ToList();
+
+
+
+
+
+    //             var preventive = joined.Where(x =>
+    //                 x.Job != null &&
+    //                 !string.IsNullOrWhiteSpace(x.Job.JobType) &&
+    //                 x.Job.JobType.ToLower().Contains("preventive"))
+    //                 .ToList();
+
+    //             var nonPreventive = joined.Where(x =>
+    //                 x.Job == null ||
+    //                 string.IsNullOrWhiteSpace(x.Job.JobType) ||
+    //                 !x.Job.JobType.ToLower().Contains("breakdown"))
+    //                 .ToList();
+
+    //             _dashboard.TotalPmInstalls =
+    //                 preventive
+    //                 .Select(x => x.Location?.Id)
+    //                 .Where(x => !string.IsNullOrWhiteSpace(x))
+    //                 .Distinct()
+    //                 .Count();
+
+    //             int TotalPMInstallationsResponse = await Supabase
+    //                .From<DbLocation>()
+    //                .Count(CountType.Exact);
+
+    //             _dashboard.TotalPmInstalls = TotalPMInstallationsResponse;
+
+
+    //             // _dashboard.NonPmJobs = nonPreventive.Count;
+    //             _dashboard.NonPmJobs = totalJobsCount - totalPreventiveJobsCount;
+
+
+
+    //             int totalJobs = joined.Count;
+
+    //             // _dashboard.PmSharePercent =
+    //             //     totalJobs == 0
+    //             //     ? 0
+    //             //     : ((double)preventive.Count / totalJobs) * 100;
+
+    //             _dashboard.PmSharePercent =
+    //                totalJobsCount == 0
+    //                ? 0
+    //                : ((double)totalPreventiveJobsCount / totalJobsCount) * 100;
+
+    //             int totalPmDays = 0;
+
+    //             foreach (var item in preventive)
+    //             {
+    //                 if (item.Job?.CreatedAt != null &&
+    //                     item.Job?.CompletionDate != null)
+    //                 {
+    //                     totalPmDays += Math.Max(
+    //                         1,
+    //                         (item.Job.CompletionDate.Value.Date -
+    //                          item.Job.CreatedAt.Value.Date).Days + 1);
+    //                 }
+    //             }
+
+    //             _dashboard.PmManDays = totalPmDays;
+
+    //             // var grouped = joined
+    //             //     .Where(x => x.Report.CompletionDate != null)
+    //             //     .GroupBy(x => x.Report.CompletionDate!.Value.Date)
+    //             //     .OrderBy(x => x.Key);
+
+    //             // foreach (var day in grouped)
+    //             // {
+    //             //     _dashboard.DailyLabels.Add(day.Key.ToString("dd MMM"));
+
+    //             //     int pmCount = day.Count(x =>
+    //             //         x.Job != null &&
+    //             //         x.Job.JobType.ToLower().Contains("preventive"));
+
+    //             //     int nonPmCount = day.Count() - pmCount;
+
+    //             //     _dashboard.DailyPmCounts.Add(pmCount);
+
+    //             //     _dashboard.DailyNonPmCounts.Add(nonPmCount);
+
+    //             //     double manDays = 0;
+
+    //             //     foreach (var item in day)
+    //             //     {
+    //             //         if (item.Job?.CreatedAt != null &&
+    //             //             item.Job?.CompletionDate != null)
+    //             //         {
+    //             //             manDays += Math.Max(
+    //             //                 1,
+    //             //                 (item.Job.CompletionDate.Value.Date -
+    //             //                  item.Job.CreatedAt.Value.Date).Days + 1);
+    //             //         }
+    //             //     }
+
+    //             //     _dashboard.DailyPmManDays.Add(manDays);
+    //             // }
+
+    //             // Update the grouping logic to handle null reports safely
+    //             var grouped = JOBSjoined
+    //                 .Where(x => x.Report != null && x.Report.CompletionDate != null) // Add null check here
+    //                 .GroupBy(x => x.Report!.CompletionDate!.Value.Date)             // Safe to access now
+    //                 .OrderBy(x => x.Key);
+
+
+    //             //         var grouped = JOBSjoined
+    //             // .Where(x => x.Report.CompletionDate != null)
+    //             // .GroupBy(x => x.Report.CompletionDate!.Value.Date)
+    //             // .OrderBy(x => x.Key);
+
+    //             foreach (var day in grouped)
+    //             {
+    //                 _dashboard.DailyLabels.Add(day.Key.ToString("dd MMM"));
+
+
+    //                 Console.WriteLine("Day  : ", day);
+    //                 Console.WriteLine("Day Count : ", day.Count());
+
+
+    //                 // Use null-conditional operators to prevent crashes
+    //                 int pmCount = day.Count(x =>
+    //                     x.Job?.JobType?.Contains("preventive", StringComparison.OrdinalIgnoreCase) == true);
+
+    //                 int nonPmCount = day.Count() - pmCount;
+
+    //                 _dashboard.DailyPmCounts.Add(pmCount);
+    //                 _dashboard.DailyNonPmCounts.Add(nonPmCount);
+
+    //                 double manDays = 0;
+
+    //                 foreach (var item in day)
+    //                 {
+
+    //                     // if (item.Job?.CreatedAt != null &&
+    //                     //    item.Job?.CompletionDate != null)
+    //                     if (item.Job?.CreatedAt != null)
+    //                     {
+    //                         manDays += Math.Max(
+    //                             1,
+    //                             (item.Job.CompletionDate.Value.Date -
+    //                              item.Job.CreatedAt.Value.Date).Days + 1);
+    //                     }
+    //                 }
+
+    //                 _dashboard.DailyPmManDays.Add(manDays);
+    //             }
+
+    //             var topLocations = preventive
+    //                 .GroupBy(x => x.Location?.LocationName ?? "Unknown")
+    //                 .Select(x => new
+    //                 {
+    //                     Name = x.Key,
+    //                     Count = x.Count()
+    //                 })
+    //                 .OrderByDescending(x => x.Count)
+    //                 .Take(5)
+    //                 .ToList();
+
+    //             _dashboard.TopLocationLabels =
+    //                 topLocations.Select(x => x.Name).ToList();
+
+    //             _dashboard.TopLocationCounts =
+    //                 topLocations.Select(x => x.Count).ToList();
+
+    //             _dashboard.PmVsNonPm = new List<int>
+    //         {
+    //             totalPreventiveJobsCount,
+    //             totalBreakDownJobsCount
+    //         };
+
+    //             int central = preventive.Count(x =>
+    //                 (x.Location?.FieldType ?? "").ToLower().Contains("central"));
+
+    //             int western = preventive.Count(x =>
+    //                 (x.Location?.FieldType ?? "").ToLower().Contains("western"));
+
+    //             int eastern = preventive.Count(x =>
+    //                 (x.Location?.FieldType ?? "").ToLower().Contains("eastern"));
+
+    //             _dashboard.FieldDistribution = new List<int>
+    //         {
+    //             central,
+    //             western,
+    //             eastern
+    //         };
+
+    //             await JSRuntime.InvokeVoidAsync(
+    //                 "initPmDashboardCharts",
+    //                 _dashboard);
+    //         }
+    //         catch (Exception ex)
+    //         {
+    //             Console.WriteLine(ex.Message);
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Method Error: {ex.Message}");
+    //         //await Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+    //     }
+
+
+
+    //     _loading = true;
+
+    //     StateHasChanged();
+
+
+
+    //     _loading = false;
+
+    //     StateHasChanged();
+    // }
+
+
     private async Task LoadDashboardAsync()
     {
-        _loading = true;
-
-        StateHasChanged();
-
         try
         {
+            _loading = true;
             _dashboard = new DashboardDto();
-
             var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
             var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
 
-            var reportsTask = Supabase
-                .From<DbPmReport>()
+            // Fetch everything in parallel
+            var jobsTask = Supabase.From<DbJob>()
                 .Select("*")
                 .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
                 .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
                 .Get();
 
-            var jobsTask = Supabase
-                .From<DbJob>()
-                .Select("*")
-                .Get();
+            var assignmentsTask = Supabase.From<JobAssignment>()
+                           .Select("*")
+                           .Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                           .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                           .Get();
 
-            var locationsTask = Supabase
-                .From<DbLocation>()
-                .Select("*")
-                .Get();
 
-            await Task.WhenAll(reportsTask, jobsTask, locationsTask);
+            var reportsTask = Supabase.From<DbPmReport>()
+             .Select("*")
+                           .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                           .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                           .Get(); // Fetch reports to link later
+            var locationsTask = Supabase.From<DbLocation>().Get();
 
-            var reports = reportsTask.Result.Models ?? new();
-            var jobs = jobsTask.Result.Models ?? new();
-            var locations = locationsTask.Result.Models ?? new();
+            await Task.WhenAll(jobsTask, reportsTask, locationsTask);
 
-            var jobsMap = jobs.ToDictionary(x => x.Id);
-            var locationMap = locations.ToDictionary(x => x.Id);
 
-            var joined = reports.Select(r =>
+
+
+
+
+
+            // Fetch assignments
+            // var assignments = assignmentsTask.Result.Models ?? new();
+
+            // Group assignments by JobId (Since one job might have multiple assignment records)
+            // Assuming DbJobAssignment has a 'JobIds' property (as per your data: list of strings)
+            // 1. Ensure the lookup is keyed by the correct type (Guid)
+           
+
+            // Update joinedData to include assignments
+
+
+
+
+            // var jobs = jobsTask.Result.Models ?? new();
+            // var reports = reportsTask.Result.Models ?? new();
+            // var locations = locationsTask.Result.Models ?? new();
+
+
+            // 1. Await the specific calls directly to get the Response objects
+            var jobsResponse = await jobsTask;
+            var assignmentsResponse = await assignmentsTask;
+            var reportsResponse = await reportsTask;
+            var locationsResponse = await locationsTask;
+
+            // 2. Extract the models
+            var jobs = jobsResponse.Models ?? new();
+            var assignments = assignmentsResponse.Models ?? new();
+            var reports = reportsResponse.Models ?? new();
+            var locations = locationsResponse.Models ?? new();
+
+            var assignmentLookup = assignments.ToLookup(a => a.JobIds.FirstOrDefault());
+            //var reportMap = reports.ToDictionary(x => x.JobId ?? "");
+            // Use ToLookup to handle multiple reports per JobId
+            var reportLookup = reports.ToLookup(x => x.JobId ?? "");
+            var locationMap = locations.ToDictionary(x => x.Id ?? "");
+            // Update your joinedData creation:
+            // var joinedData = jobs.Select(job => new
+            // {
+            //     Job = job,
+            //     // Pick the most recent report or the first one found
+            //     Report = reportLookup[job.Id ?? ""].OrderByDescending(r => r.CompletionDate).FirstOrDefault(),
+            //     Location = locationMap.TryGetValue(job.LocationId.ToString()?.ToString() ?? "", out var l) ? l : null
+            // }).ToList();
+            var joinedData = jobs.Select(job => new
             {
-                jobsMap.TryGetValue(r.JobId ?? "", out var job);
-                locationMap.TryGetValue(r.LocationId ?? "", out var location);
+                Job = job,
+                Report = reportLookup[job.Id ?? ""].OrderByDescending(r => r.CompletionDate).FirstOrDefault(),
+                Location = locationMap.TryGetValue(job.LocationId.ToString() ?? "", out var l) ? l : null,
 
-                return new
-                {
-                    Report = r,
-                    Job = job,
-                    Location = location
-                };
+                // 2. Convert job.Id (string) to Guid to match the key type of assignmentLookup
+                Assignments = Guid.TryParse(job.Id, out Guid jobGuid)
+                  ? assignmentLookup[jobGuid].ToList()
+                  : new List<JobAssignment>()
             }).ToList();
 
-            var preventive = joined.Where(x =>
-                x.Job != null &&
-                !string.IsNullOrWhiteSpace(x.Job.JobType) &&
-                x.Job.JobType.ToLower().Contains("preventive"))
-                .ToList();
 
-            var nonPreventive = joined.Where(x =>
-                x.Job == null ||
-                string.IsNullOrWhiteSpace(x.Job.JobType) ||
-                !x.Job.JobType.ToLower().Contains("preventive"))
-                .ToList();
 
-            _dashboard.TotalPmInstalls =
-                preventive
-                .Select(x => x.Location?.Id)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct()
-                .Count();
 
-            _dashboard.NonPmJobs = nonPreventive.Count;
+            // // Create the primary joined list
+            // var joinedData = jobs.Select(job => new
+            // {
+            //     Job = job,
+            //     Report = reportMap.TryGetValue(job.Id ?? "", out var r) ? r : null,
+            //     Location = locationMap.TryGetValue(job.LocationId.ToString()?.ToString() ?? "", out var l) ? l : null
+            // }).ToList();
 
-            int totalJobs = joined.Count;
+            // --- DASHBOARD CALCULATIONS ---
 
-            _dashboard.PmSharePercent =
-                totalJobs == 0
-                ? 0
-                : ((double)preventive.Count / totalJobs) * 100;
-
-            int totalPmDays = 0;
-
-            foreach (var item in preventive)
-            {
-                if (item.Job?.CreatedAt != null &&
-                    item.Job?.CompletionDate != null)
-                {
-                    totalPmDays += Math.Max(
-                        1,
-                        (item.Job.CompletionDate.Value.Date -
-                         item.Job.CreatedAt.Value.Date).Days + 1);
-                }
-            }
-
-            _dashboard.PmManDays = totalPmDays;
-
-            var grouped = joined
-                .Where(x => x.Report.CompletionDate != null)
-                .GroupBy(x => x.Report.CompletionDate!.Value.Date)
+            // 1. Grouping by Completion Date (Use Job date, not Report date)
+            var grouped = joinedData
+                .Where(x => x.Job.CompletionDate.HasValue)
+                .GroupBy(x => x.Job.CompletionDate!.Value.Date)
                 .OrderBy(x => x.Key);
 
             foreach (var day in grouped)
             {
                 _dashboard.DailyLabels.Add(day.Key.ToString("dd MMM"));
 
+                // Use string comparison safely
                 int pmCount = day.Count(x =>
-                    x.Job != null &&
-                    x.Job.JobType.ToLower().Contains("preventive"));
+                    x.Job.JobType?.Equals("preventive", StringComparison.OrdinalIgnoreCase) == true);
 
-                int nonPmCount = day.Count() - pmCount;
+                int nonPmCount = day.Count(x =>
+                                x.Job.JobType?.Equals("breakdown", StringComparison.OrdinalIgnoreCase) == true);
 
                 _dashboard.DailyPmCounts.Add(pmCount);
-
                 _dashboard.DailyNonPmCounts.Add(nonPmCount);
 
-                double manDays = 0;
+                // Calculate Man Days
+                // Calculate Man Days based on actual personnel deployed from assignments
+                double dailyManDays = day.Sum(x =>
+                    x.Assignments.Sum(a => a.PersonnelIds?.Count ?? 0)
+                );
 
-                foreach (var item in day)
-                {
-                    if (item.Job?.CreatedAt != null &&
-                        item.Job?.CompletionDate != null)
-                    {
-                        manDays += Math.Max(
-                            1,
-                            (item.Job.CompletionDate.Value.Date -
-                             item.Job.CreatedAt.Value.Date).Days + 1);
-                    }
-                }
-
-                _dashboard.DailyPmManDays.Add(manDays);
+                _dashboard.DailyPmManDays.Add(dailyManDays);
+                //_dashboard.DailyPmManDays.Add(manDays);
             }
 
-            var topLocations = preventive
-                .GroupBy(x => x.Location?.LocationName ?? "Unknown")
-                .Select(x => new
-                {
-                    Name = x.Key,
-                    Count = x.Count()
-                })
-                .OrderByDescending(x => x.Count)
-                .Take(5)
-                .ToList();
+            // Update total for the KPI card
+            _dashboard.PmManDays = (int)joinedData.Sum(x =>
+                x.Assignments.Sum(a => a.PersonnelIds?.Count ?? 0));
+
+            var topLocations = joinedData
+               .GroupBy(x => x.Location?.LocationName ?? "Unknown")
+               .Select(x => new
+               {
+                   Name = x.Key,
+                   Count = x.Count()
+               })
+               .OrderByDescending(x => x.Count)
+               .Take(5)
+               .ToList();
 
             _dashboard.TopLocationLabels =
                 topLocations.Select(x => x.Name).ToList();
@@ -502,39 +851,42 @@
             _dashboard.TopLocationCounts =
                 topLocations.Select(x => x.Count).ToList();
 
-            _dashboard.PmVsNonPm = new List<int>
-            {
-                preventive.Count,
-                nonPreventive.Count
-            };
 
-            int central = preventive.Count(x =>
-                (x.Location?.FieldType ?? "").ToLower().Contains("central"));
 
-            int western = preventive.Count(x =>
-                (x.Location?.FieldType ?? "").ToLower().Contains("western"));
+            // 2. Summary Statistics
+            _dashboard.TotalPmInstalls = locations.Count;
+            _dashboard.NonPmJobs = joinedData.Count(x => x.Job.JobType == "breakdown");
 
-            int eastern = preventive.Count(x =>
-                (x.Location?.FieldType ?? "").ToLower().Contains("eastern"));
+            int totalPm = joinedData.Count(x => x.Job.JobType == "preventive");
+            int totalJobs = joinedData.Count;
 
-            _dashboard.FieldDistribution = new List<int>
-            {
-                central,
-                western,
-                eastern
-            };
+            _dashboard.PmSharePercent = totalJobs == 0 ? 0 : ((double)totalPm / totalJobs) * 100;
 
-            await JSRuntime.InvokeVoidAsync(
-                "initPmDashboardCharts",
-                _dashboard);
+            _dashboard.PmVsNonPm = new List<int> { totalPm, (int)_dashboard.NonPmJobs };
+
+            // 3. Field Distribution
+            _dashboard.FieldDistribution = new List<int> {
+            joinedData.Count(x => x.Location?.FieldType?.Contains("central", StringComparison.OrdinalIgnoreCase) == true),
+            joinedData.Count(x => x.Location?.FieldType?.Contains("western", StringComparison.OrdinalIgnoreCase) == true),
+            joinedData.Count(x => x.Location?.FieldType?.Contains("eastern", StringComparison.OrdinalIgnoreCase) == true)
+        };
+
+
+
+
+            // 4. Update UI
+            await JSRuntime.InvokeVoidAsync("initPmDashboardCharts", _dashboard);
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Dashboard Error: {ex.Message}");
         }
-
-        _loading = false;
-
-        StateHasChanged();
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
     }
+
+
 }

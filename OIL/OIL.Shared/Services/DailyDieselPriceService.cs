@@ -4,51 +4,57 @@ using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace OIL.Shared.Services
 {
     public class DailyDieselPriceService
     {
-        private readonly HttpClient _http = new HttpClient();
+        private readonly HttpClient _http;
         private readonly Supabase.Client _supabase;
 
-        // Constructor ensures Supabase client is passed in and initialized safely
-        public DailyDieselPriceService(Supabase.Client supabase)
+        public DailyDieselPriceService(HttpClient http, Supabase.Client supabase)
         {
+            _http = http;
             _supabase = supabase;
+
+            if (!_http.DefaultRequestHeaders.Contains("User-Agent"))
+            {
+                _http.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            }
         }
 
         public async Task GetLatestDieselPrice()
         {
             try
             {
-                // 1. URL encode the target Upstox endpoint
-                string targetUrl = "https://service.upstox.com/commodity/open/v1/diesel-price/charts?city=guwahati&days=30";
-                string proxyUrl = $"https://api.allorigins.win/get?url={HttpUtility.UrlEncode(targetUrl)}";
+                // 1. Pre-Check: Prevent unnecessary API calls if today's data already exists
+                var today = DateTime.Today;
 
-                // 2. Fetch the wrapper payload from AllOrigins
-                var proxyResponse = await _http.GetFromJsonAsync<AllOriginsResponse>(proxyUrl);
+                var existingData = await _supabase
+                    .From<DieselPrice>()
+                    .Select("id") // Select only the ID to minimize payload size
+                    .Filter("city", Supabase.Postgrest.Constants.Operator.Equals, "Guwahati")
+                    .Filter("price_date", Supabase.Postgrest.Constants.Operator.Equals, today.ToString("yyyy-MM-dd"))
+                    .Get();
 
-                // 3. Extract the nested string data payload returned by Upstox
-                string rawUpstoxJson = proxyResponse?.Contents ?? "";
-
-                if (string.IsNullOrWhiteSpace(rawUpstoxJson))
+                if (existingData.Models.Any())
                 {
-                    //Console.WriteLine("Warning: Received empty data payload from proxy backend.");
+                    // Today's record already exists. Circuit breaker triggered.
                     return;
                 }
 
-                //Console.WriteLine("Raw Upstox JSON successfully retrieved via proxy:");
-                //Console.WriteLine(rawUpstoxJson);
+                // 2. Define the target URL and proxy
+                string targetUrl = "https://service.upstox.com/commodity/open/v1/diesel-price/charts?city=guwahati&days=30";
+                string proxyUrl = $"https://corsproxy.io/?url={Uri.EscapeDataString(targetUrl)}";
 
-                // 4. Deserialize the nested text content directly into your FuelResponse objects
-                var response = JsonSerializer.Deserialize<FuelResponse>(rawUpstoxJson, new JsonSerializerOptions
+                // 3. Fetch and deserialize
+                var response = await _http.GetFromJsonAsync<FuelResponse>(proxyUrl, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 });
@@ -57,44 +63,36 @@ namespace OIL.Shared.Services
 
                 if (latest == null)
                 {
-                    //Console.WriteLine("Notice: No diesel price history records found inside the response.");
                     return;
                 }
 
                 var price = latest.Price;
                 var dateStr = latest.Date;
 
-                // 5. Update global runtime monitoring contexts
-                GlobalVariables.GlobalLatestDieselPrice = price.ToString() ?? "0.00";
+                // 4. Update global runtime monitoring contexts
+                GlobalVariables.GlobalLatestDieselPrice = price.ToString(CultureInfo.InvariantCulture) ?? "0.00";
                 GlobalVariables.GlobalLatestDieselPriceDate = dateStr ?? "N/A";
 
-                // 6. Map model structure to save into your Supabase database state table
+                // 5. Map model structure
                 var item = new DieselPrice
                 {
                     City = "Guwahati",
                     Price = latest.Price,
                     PricePercChg = latest.PricePercChg,
-                    PriceDate = DateTime.Parse(latest.Date),
+                    PriceDate = DateTime.Parse(latest.Date, CultureInfo.InvariantCulture),
                     UpdatedBy = GlobalVariables.GlobalCurrentUserName
                 };
 
+                // 6. Insert the new record
                 await _supabase
                     .From<DieselPrice>()
                     .Insert(item);
-
-                //Console.WriteLine($"Database state updated successfully. Guwahati Diesel Price: {price}");
             }
             catch (Exception ex)
             {
-                //Console.WriteLine($"Method Error inside DailyDieselPriceService: {ex.Message}");
+                Console.WriteLine($"Method Error inside DailyDieselPriceService: {ex.Message}");
             }
         }
-    }
-
-    // Helper class to map the AllOrigins wrapper structure
-    public class AllOriginsResponse
-    {
-        public string Contents { get; set; } = "";
     }
 
     public class FuelResponse

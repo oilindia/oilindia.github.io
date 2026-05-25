@@ -770,6 +770,80 @@
 
                 </table>
 
+                <div class="report-footer">
+
+                    <div class="remarks-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">REMARKS:</div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. @_selectedReport.Remarks</div>
+                        <div class="remark-item">2. The above PM job is carried out on : @_selectedReport.MultiSelectionPmDates</div>
+                    </div>
+
+                    <div class="carried-out-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
+                        @if (_selectedReport.CarriedByEmpCodes != null && _selectedReport.CarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.CarriedByEmpCodes)
+                            {
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
+                        <div class="approval-box left" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
+                            <div class="signature-line">
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box center" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
+                            <div class="signature-line">
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box right" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
+                            <div class="signature-line">
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
             </div>
 
             @if (_jobCertificates != null && _jobCertificates.Any())
@@ -1241,6 +1315,8 @@
 
                 </table>
 
+                
+
                 <table class="report-table">
 
                     <thead>
@@ -1301,6 +1377,80 @@
 
                 </table>
 
+                <div class="report-footer">
+
+                    <div class="remarks-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">REMARKS:</div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. @_selectedReport.Remarks</div>
+                        <div class="remark-item">2. The above PM job is carried out on : @_selectedReport.MultiSelectionPmDates</div>
+                    </div>
+
+                    <div class="carried-out-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
+                        @if (_selectedReport.CarriedByEmpCodes != null && _selectedReport.CarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.CarriedByEmpCodes)
+                            {
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
+                        <div class="approval-box left" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
+                            <div class="signature-line">
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box center" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
+                            <div class="signature-line">
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box right" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
+                            <div class="signature-line">
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
             </div>
 
         </div>
@@ -1311,6 +1461,9 @@
 
 
 @code {
+
+
+
     private DateTime? _startDate = DateTime.Today.AddMonths(-1);
 
     private DateTime? _endDate = DateTime.Today;
@@ -1333,6 +1486,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var empResponse = await SupabaseClient.From<EmployeeEngineer>().Get();
+        _employees = empResponse.Models;
+
         await LoadData();
     }
 
@@ -1440,6 +1596,13 @@
             var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
 
 
+            var response = await SupabaseClient.From<EmployeeEngineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
+            _employees = response.Models;
+
+            var executiveResponse = await SupabaseClient.From<EmployeeExecutive>().Where(x => x.Department == "FIELD MAINTENANCE").Get();
+            _executives = executiveResponse.Models;
+
+
             _loading = true;
 
             var locRes = await SupabaseClient
@@ -1450,14 +1613,17 @@
 
             var res = await SupabaseClient
                 .From<PmReport>()
-                .Get();
-
-            var reportsTask = SupabaseClient
-                            .From<PmReport>()
-                            .Select("*")
+                 .Select("*")
                             .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
                             .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
-                            .Get();
+                .Get();
+
+            // var reportsTask = await SupabaseClient
+            //                 .From<PmReport>()
+            //                 .Select("*")
+            //                 .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+            //                 .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+            //                 .Get();
 
 
             _reports = res.Models.Select(r => new ReportView
@@ -1553,6 +1719,118 @@
         public string Remarks { get; set; } = "";
     }
 
+    // 3. Model mapping to your PostgreSQL table
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
+
+        [Column("email")]
+        public string Email { get; set; }
+
+        [Column("emp_code")]
+        public string EmpCode { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("grade")]
+        public string Grade { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("gender")]
+        public string Gender { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("department")]
+        public string Department { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
+    }
+
+    [Table("employees_executives")]
+    public class EmployeeExecutive : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
+
+        [Column("email")]
+        public string Email { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("Department")]
+        public string Department { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
+
+        [Column("isLocalAdmin")]
+        public bool? IsLocalAdmin { get; set; }
+
+        [Column("team_group")]
+        public int? TeamGroup { get; set; }
+    }
+
+    // 1. Hold the list of employees for this page
+    private List<EmployeeEngineer> _employees = new();
+    private List<EmployeeExecutive> _executives = new();
+    // 2. Fetch the employees when the report page loads
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     // Load the employees so we can resolve names on the report
+        
+
+    //     // ... your existing code to load _selectedReport goes here ...
+    // }
+
+    // 3. Helper method used by the HTML to find the employee details
+    private EmployeeEngineer GetEmployee(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode) || _employees == null)
+            return null;
+
+        return _employees.FirstOrDefault(e => e.EmpCode.ToString() == empCode.ToString());
+    }
+
+
+
+    private EmployeeExecutive GetExecutive(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode) || _executives == null)
+            return null;
+
+        return _executives.FirstOrDefault(e => e.Id.ToString() == empCode.ToString());
+    }
+
     [Table("pm_reports")]
     public class PmReport : BaseModel
     {
@@ -1577,8 +1855,24 @@
         [Column("section_b_transmitters")]
         public object? SectionB { get; set; }
 
-        [Column("pm_dates")]
-        public string? PmDates { get; set; }
+        [Supabase.Postgrest.Attributes.Column("remarks")] public string Remarks { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("pm_dates")]
+        public string? MultiSelectionPmDates { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("Job_Carried_By")]
+        public List<string>? CarriedByEmpCodes { get; set; }
+
+        [Column("Report_Prepared_By")]
+        public string? ReportPreparedBy { get; set; }
+
+        [Column("Report_Supervised_By")]
+        public string? ReportSupervisedBy { get; set; }
+
+        
+        [Column("Report_Verified_By")]
+        public string? ReportVerifiedBy { get; set; }
+
     }
 
     [Table("pm_calibration_details")]

@@ -1364,7 +1364,7 @@ else
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
             _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
-            _dbEngineers = (await SupabaseClient.From<Engineer>().Get()).Models;
+            _dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
             _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
 
 
@@ -1537,11 +1537,24 @@ else
     }
 
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; }
-    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } = ""; [Column("status")] public string JobStatus { get; set; } = ""; [Column("description")] public string JobDescription { get; set; } = ""; [Column("location_id")] public int JobLocationId { get; set; }  }
-    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; }
+    [Table("jobs")] 
+    public class Job : BaseModel { 
+        [PrimaryKey("id")] public Guid Id { get; set; } 
+        [Column("job_name")] public string JobName { get; set; } = ""; 
+        [Column("status")] public string JobStatus { get; set; } = ""; 
+        [Column("description")] public string JobDescription { get; set; } = ""; 
+        [Column("location_id")] public int JobLocationId { get; set; } 
+        
+
+        // ADD THIS: The related Location object
+        // (Replace 'LocationModel' with your actual location class name)
+        [Reference(typeof(LocationTable))]
+        public LocationTable Location { get; set; }
+    }
+    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; [Column("section")] public string Section { get; set; } = ""; }
+    
+    
     [Table("job_assignments")]
-    
-    
     public class Assignment : BaseModel
     {
         [PrimaryKey("id", false)] public Guid Id { get; set; }

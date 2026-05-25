@@ -55,6 +55,10 @@ public static class MauiProgram
         builder.Services.AddScoped<IFormFactor, FormFactor>();
 
 
+        builder.Services.AddScoped<AttendanceService>();
+        builder.Services.AddScoped<GeminiService>();
+        builder.Services.AddScoped<DailyDieselPriceService>();
+
 
         //// Register Supabase WITHOUT calling BuildServiceProvider()
         //builder.Services.AddSingleton(async sp =>

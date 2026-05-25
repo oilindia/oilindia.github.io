@@ -1,4 +1,4 @@
-﻿@page "/userassignedjobs"
+﻿@page "/userassignedjobs5"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -191,76 +191,86 @@
                             {
                                 <MudPaper Class="pa-4 mb-4" Outlined="true">
                                     <MudGrid Spacing="2">
-
-                                        @* 1. DEVICE LOCATION *@
+                                        @* Location Selection *@
                                         <MudItem xs="12" sm="3">
-                                            <MudSelect T="string" Label="Device Location"
-                                                       Value="@entry.DeviceLocation"
-                                                       ValueChanged="@(v => OnEntryDeviceLocationChanged(entry, v))"
-                                                       Variant="Variant.Outlined"
-                                                       Required="!entry.IsManualDeviceLocation">
-                                                @foreach (var loc in GetAvailableLocations())
-                                                {
-                                                    <MudSelectItem Value="@loc">@loc</MudSelectItem>
-                                                }
-                                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Device Location Not Listed (Manual)</i></MudSelectItem>
-                                            </MudSelect>
-                                            @if (entry.IsManualDeviceLocation)
+                                            @if (!entry.IsManualLocation)
                                             {
-                                                <MudTextField T="string" Class="mt-2" Label="Specify Device Location"
-                                                              @bind-Value="entry.ManualDeviceLocationText"
-                                                              Variant="Variant.Outlined" Required="true" />
+                                                <MudSelect T="string" Label="Device Location"
+                                                           Value="@entry.DeviceLocation"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "location"))">
+
+                                                    @foreach (var loc in _availableLocations)
+                                                    {
+                                                        <MudSelectItem Value="@loc">@loc</MudSelectItem>
+                                                    }
+                                                </MudSelect>
+
+                                                <MudButton OnClick="@(() => entry.IsManualLocation = true)"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary">
+                                                    + Add New Location
+                                                </MudButton>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Location Name" @bind-Value="entry.DeviceLocation"
+                                                              AdornmentIcon="@Icons.Material.Filled.Edit"
+                                                              OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
                                             }
                                         </MudItem>
 
-                                        @* 2. INSTRUMENT TYPE *@
+
+                                        @* Instrument Type Selection *@
                                         <MudItem xs="12" sm="3">
-                                            <MudSelect T="string" Label="Instrument Type"
-                                                       Value="@entry.InstrumentType"
-                                                       ValueChanged="@(v => OnEntryInstrumentTypeChanged(entry, v))"
-                                                       Variant="Variant.Outlined"
-                                                       Required="!entry.IsManualInstrumentType"
-                                                       Disabled="@(string.IsNullOrEmpty(entry.DeviceLocation) && !entry.IsManualDeviceLocation)">
-                                                @foreach (var type in GetAvailableTypes(entry))
-                                                {
-                                                    <MudSelectItem Value="@type">@type</MudSelectItem>
-                                                }
-                                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Type Not Listed (Manual)</i></MudSelectItem>
-                                            </MudSelect>
-                                            @if (entry.IsManualInstrumentType)
+                                            @if (!entry.IsManualType)
                                             {
-                                                <MudTextField T="string" Class="mt-2" Label="Specify Instrument Type"
-                                                              @bind-Value="entry.ManualInstrumentTypeText"
-                                                              Variant="Variant.Outlined" Required="true" />
+                                                <MudSelect T="string" Label="Instrument Type"
+                                                           Value="entry.InstrumentType"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "type"))">
+                                                    @foreach (var type in _availableTypes)
+                                                    {
+                                                        <MudSelectItem Value="@type">@type</MudSelectItem>
+                                                    }
+                                                    <MudButton OnClick="@(() => entry.IsManualType = true)" FullWidth="true" Color="Color.Primary">+ Add New Type</MudButton>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Instrument Type" @bind-Value="entry.InstrumentType" />
                                             }
                                         </MudItem>
 
-                                        @* 3. TAG NUMBER *@
+                                        @* Tag Selection *@
                                         <MudItem xs="12" sm="3">
-                                            <MudSelect T="string" Label="Tag Number"
-                                                       Value="@entry.TagNumber"
-                                                       ValueChanged="@(async v => await OnEntryTagNumberChanged(entry, v))"
-                                                       Variant="Variant.Outlined"
-                                                       Required="!entry.IsManualTagNumber"
-                                                       Disabled="@(string.IsNullOrEmpty(entry.InstrumentType) && !entry.IsManualInstrumentType)">
-                                                @foreach (var tag in GetAvailableTags(entry))
-                                                {
-                                                    <MudSelectItem Value="@tag">@tag</MudSelectItem>
-                                                }
-                                                <MudSelectItem Value="@_manualTextPlaceholder"><i>+ Tag Not Listed (Manual)</i></MudSelectItem>
-                                            </MudSelect>
-                                            @if (entry.IsManualTagNumber)
+                                            @if (!entry.IsManualLocation)
                                             {
-                                                <MudTextField T="string" Class="mt-2" Label="Specify Tag Number"
-                                                              @bind-Value="entry.ManualTagNumberText"
-                                                              Variant="Variant.Outlined" Required="true" />
+                                                <MudSelect T="string" Label="Tag Selection"
+                                                           Value="entry.TagNumber"
+                                                           ValueChanged="@((v) => OnLocationOrTypeChanged(entry, v, "tag"))"
+                                                           AnchorOrigin="Origin.BottomCenter"
+                                                           AdornmentIcon="@Icons.Material.Filled.Search">
+                                                    @foreach (var tag in _availableTags)
+                                                    {
+                                                        <MudSelectItem Value="@tag">@tag</MudSelectItem>
+                                                    }
+                                                    <MudButton OnClick="@(() => entry.IsManualLocation = true)" FullWidth="true" Color="Color.Primary">+ Add New Location</MudButton>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField Label="New Location Name" @bind-Value="entry.TagNumber"
+                                                              AdornmentIcon="@Icons.Material.Filled.Edit"
+                                                              OnAdornmentClick="@(() => entry.IsManualLocation = false)" />
                                             }
                                         </MudItem>
+
+
+                                        
 
                                         @* Old Data Display *@
                                         <MudItem xs="12" sm="3">
                                             <MudField Label="Old Data (Fetched)" Variant="Variant.Text" InnerPadding="false">
-                                                @(string.IsNullOrEmpty(entry.OldMakeModel) ? "No existing record" : $"{entry.OldMakeModel} - {entry.OldRange}")
+                                                @(string.IsNullOrEmpty(entry.OldMakeModel) ? "No existing record" : $"{entry.OldMakeModel}  {entry.OldRange}")
                                             </MudField>
                                         </MudItem>
 
@@ -268,6 +278,12 @@
                                         <MudItem xs="12" sm="3">
                                             <MudTextField Label="New Make/Model" @bind-Value="entry.NewMakeModel" Variant="Variant.Outlined" />
                                         </MudItem>
+
+                                        <MudItem xs="12" sm="3">
+                                            <MudTextField Label="New Tag No" @bind-Value="entry.TagNumber" Variant="Variant.Outlined" />
+                                        </MudItem>
+
+
                                         <MudItem xs="12" sm="3">
                                             <MudTextField Label="New Range" @bind-Value="entry.NewRange" Variant="Variant.Outlined" />
                                         </MudItem>
@@ -283,7 +299,6 @@
                             <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" OnClick="AddNewRow" Variant="Variant.Filled">Add Another Part</MudButton>
                         </MudItem>
                     }
-
                 
 
                    
@@ -574,37 +589,30 @@
     {
         // Selection IDs
         public long? LocationId { get; set; }
-        public string? DeviceLocation { get; set; }
-        public string? InstrumentType { get; set; }
-        public string? TagNumber { get; set; }
+        public string DeviceLocation { get; set; }
+        public string InstrumentType { get; set; }
+        public string TagNumber { get; set; }
+
 
         // Old Data (Fetched)
-        public string? OldMakeModel { get; set; }
-        public string? OldRange { get; set; }
+        public string OldMakeModel { get; set; }
+        public string OldRange { get; set; }
 
         // Lists for cascading dropdowns
         public List<string> FilteredTags { get; set; } = new();
         public List<string> FilteredTypes { get; set; } = new();
 
+
         // New Data (User Input)
-        public string? NewMakeModel { get; set; }
-        public string? NewRange { get; set; }
-        public string? NewSerialNumber { get; set; }
+        public string NewMakeModel { get; set; }
+        public string NewRange { get; set; }
+        public string NewSerialNumber { get; set; }
         public long? ApproxCost { get; set; }
 
-        // --- CASCADING UI STATE PROPERTIES ---
-
-        // 1. Device Location Manual State
-        public bool IsManualDeviceLocation { get; set; }
-        public string? ManualDeviceLocationText { get; set; }
-
-        // 2. Instrument Type Manual State
-        public bool IsManualInstrumentType { get; set; }
-        public string? ManualInstrumentTypeText { get; set; }
-
-        // 3. Tag Number Manual State
-        public bool IsManualTagNumber { get; set; }
-        public string? ManualTagNumberText { get; set; }
+        // UI State: Toggle between dropdown and text input
+        // Renamed to match the logic exactly
+        public bool IsManualLocation { get; set; }
+        public bool IsManualType { get; set; }
     }
 
     [Parameter] public long CurrentLocationId { get; set; } // Installation ID
@@ -615,7 +623,6 @@
     private List<string> _availableTypes = new();
     private List<string> _availableTags = new();
 
-    //private List<PIDMarker> _currentLocationMarkers = new List<PIDMarker>();
 
     private bool _isBusy = false;
 
@@ -631,13 +638,6 @@
         var markers = await SupabaseClient.From<PIDMarker>()
             .Where(x => x.LocationId == CurrentLocationId)
             .Get();
-
-        var response = await SupabaseClient.From<PIDMarker>()
-    .Where(x => x.LocationId == CurrentLocationId)
-    .Get();
-
-        // Extract the Models list from the response
-        _currentLocationMarkers = response.Models ?? new List<PIDMarker>();
 
         _availableLocations = markers.Models
             .Select(x => x.Device_location)
@@ -723,7 +723,7 @@
         if (field == "type") entry.InstrumentType = newVal;
 
         // Fetch old data if both are selected
-        if (!entry.IsManualDeviceLocation && !entry.IsManualInstrumentType &&
+        if (!entry.IsManualLocation && !entry.IsManualType &&
             !string.IsNullOrEmpty(entry.DeviceLocation) && !string.IsNullOrEmpty(entry.InstrumentType))
         {
             try
@@ -886,7 +886,7 @@
                     };
 
                     // Logic: Insert new if manual/not found, otherwise update existing record
-                    if (item.IsManualDeviceLocation  || item.IsManualInstrumentType || item.LocationId == null)
+                    if (item.IsManualLocation  || item.IsManualType || item.LocationId == null)
                     {
                         await SupabaseClient.From<PIDMarker>().Insert(markerData);
                     }
@@ -919,143 +919,6 @@
 
 
 
-
-
-
-    private readonly string _manualTextPlaceholder = "MANUAL_ENTRY";
-
-    // 1. When Device Location Changes
-    private void OnEntryDeviceLocationChanged(ReplacementEntry entry, string value)
-    {
-        entry.DeviceLocation = value;
-        entry.IsManualDeviceLocation = (value == _manualTextPlaceholder);
-        if (entry.IsManualDeviceLocation) entry.ManualDeviceLocationText = "";
-
-        // Cascade Reset downwards
-        entry.InstrumentType = null;
-        entry.IsManualInstrumentType = false;
-        entry.ManualInstrumentTypeText = "";
-
-        entry.TagNumber = null;
-        entry.IsManualTagNumber = false;
-        entry.ManualTagNumberText = "";
-
-        ResetOldData(entry);
-    }
-
-    // 2. When Instrument Type Changes
-    private void OnEntryInstrumentTypeChanged(ReplacementEntry entry, string value)
-    {
-        entry.InstrumentType = value;
-        entry.IsManualInstrumentType = (value == _manualTextPlaceholder);
-        if (entry.IsManualInstrumentType) entry.ManualInstrumentTypeText = "";
-
-        // Cascade Reset downwards
-        entry.TagNumber = null;
-        entry.IsManualTagNumber = false;
-        entry.ManualTagNumberText = "";
-
-        ResetOldData(entry);
-    }
-
-    // 3. When Tag Number Changes (Triggers DB Fetch)
-    private async Task OnEntryTagNumberChanged(ReplacementEntry entry, string value)
-    {
-        entry.TagNumber = value;
-        entry.IsManualTagNumber = (value == _manualTextPlaceholder);
-        if (entry.IsManualTagNumber) entry.ManualTagNumberText = "";
-
-        // Only fetch if a valid, non-manual sequence is fully selected
-        if (!entry.IsManualDeviceLocation && !entry.IsManualInstrumentType && !entry.IsManualTagNumber &&
-            !string.IsNullOrEmpty(entry.DeviceLocation) && !string.IsNullOrEmpty(entry.InstrumentType) && !string.IsNullOrEmpty(entry.TagNumber))
-        {
-            await FetchOldDeviceData(entry);
-        }
-        else
-        {
-            ResetOldData(entry);
-        }
-    }
-
-    // --- Data Fetching & Helpers ---
-
-    private async Task FetchOldDeviceData(ReplacementEntry entry)
-    {
-        try
-        {
-            var match = await SupabaseClient.From<PIDMarker>()
-                .Where(x => x.LocationId == CurrentLocationId)
-                .Where(x => x.Device_location == entry.DeviceLocation)
-                .Where(x => x.InstrumentType == entry.InstrumentType)
-                .Where(x => x.TagNumber == entry.TagNumber) // Filtered by Tag instead of just type now
-                .Single();
-
-            if (match != null)
-            {
-                entry.LocationId = match.Id;
-                entry.OldMakeModel = match.MakeModelType;
-                entry.OldRange = match.Range;
-            }
-            else
-            {
-                ResetOldData(entry);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error fetching data: {ex.Message}");
-            ResetOldData(entry);
-        }
-
-        StateHasChanged();
-    }
-
-    private void ResetOldData(ReplacementEntry entry)
-    {
-        entry.LocationId = null;
-        entry.OldMakeModel = null;
-        entry.OldRange = null;
-    }
-
-    // --- Dynamic Dropdown Population Methods ---
-    // Assuming _currentLocationMarkers contains the downloaded markers for the current job location
-
-    private List<PIDMarker> _currentLocationMarkers = new List<PIDMarker>();
-
-    //private readonly string _manualTextPlaceholder = "MANUAL_ENTRY";
-
-    private IEnumerable<string> GetAvailableLocations()
-    {
-        if (_currentLocationMarkers == null) return Array.Empty<string>();
-        return _currentLocationMarkers
-            .Select(m => m.Device_location)
-            .Where(l => !string.IsNullOrEmpty(l))
-            .Distinct();
-    }
-
-    private IEnumerable<string> GetAvailableTypes(ReplacementEntry entry)
-    {
-        if (_currentLocationMarkers == null || string.IsNullOrEmpty(entry.DeviceLocation) || entry.IsManualDeviceLocation)
-            return Array.Empty<string>();
-
-        return _currentLocationMarkers
-            .Where(m => m.Device_location == entry.DeviceLocation)
-            .Select(m => m.InstrumentType)
-            .Where(t => !string.IsNullOrEmpty(t))
-            .Distinct();
-    }
-
-    private IEnumerable<string> GetAvailableTags(ReplacementEntry entry)
-    {
-        if (_currentLocationMarkers == null || string.IsNullOrEmpty(entry.InstrumentType) || entry.IsManualInstrumentType)
-            return Array.Empty<string>();
-
-        return _currentLocationMarkers
-            .Where(m => m.Device_location == entry.DeviceLocation && m.InstrumentType == entry.InstrumentType)
-            .Select(m => m.TagNumber) // Ensure your PIDMarker model maps the tag correctly
-            .Where(t => !string.IsNullOrEmpty(t))
-            .Distinct();
-    }
 
 
 }

@@ -437,7 +437,7 @@
                                             @if (context.TestingType == "Calibration")
                                             {
                                                 <MudTooltip Text="Open Calibration Overlay Report Screen Layer">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Medium" Color="Color.Info" Variant="Variant.Filled" OnClick="() => gcsOpenCalibration(context)" Class="rounded-lg shadow-sm" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Color="Color.Info" Variant="Variant.Filled" OnClick="() => gcsOpenCalibration(context)" Class="rounded-lg shadow-sm" />
                                                 </MudTooltip>
                                             }
                                             <MudSelect @bind-Value="context.TestingType" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Label="Evaluation Strategy" Style="min-width: 160px;">
@@ -461,7 +461,7 @@
                                     <MudTd Class="pa-2">
                                         <div class="action-buttons">
                                             <MudTooltip Text="Commit Structural Row Database Snapshot">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => SaveGcsReport())" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Large" Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => SaveGcsReport())" />
                                             </MudTooltip>
                                             <MudTooltip Text="Purge Operational Configuration Row Structure Block Layer">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" OnClick="@(() => _gcsRows.Remove(context))" />
@@ -515,6 +515,120 @@
                     </div>
                 </ChildContent>
             </MudExpansionPanel>
+
+           
+            @* --- GCS REMARKS AND MULTI DATE SELECTION SECTION --- *@
+            <MudGrid Class="mb-6 align-start" Spacing="3">
+
+                @* REMARKS SECTION *@
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Remarks" Variant="Variant.Outlined"
+                                  Lines="3" @bind-Value="_GCSremarks"
+                                  Placeholder="All the servo regulators drained for better operaration." />
+                </MudItem>
+
+                @* MULTI-DATE SELECTION SECTION *@
+                <MudItem xs="12" md="6">
+                    <div class="d-flex flex-column gap-2">
+                        <MudDatePicker Label="Select PM Dates"
+                                       Editable="true"
+                                       Variant="Variant.Outlined"
+                                       @bind-Date="_GCSdatePickerTemp"
+                                       DateFormat="dd/MM/yyyy"
+                                       Adornment="Adornment.End"
+                                       AdornmentIcon="@Icons.Material.Filled.CalendarToday" />
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="GCSAddDate">
+                            Add Date
+                        </MudButton>
+
+                        @* CHIP DISPLAY FOR SELECTED DATES *@
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            @foreach (var date in _GCSpmDates)
+                            {
+                                <MudChip T="string" OnClose="() => GCSRemoveDate(date)" Color="Color.Primary">
+                                    @date.ToString("dd/MM/yyyy")
+                                </MudChip>
+                            }
+                        </div>
+                    </div>
+                </MudItem>
+
+            </MudGrid>
+
+            @* --- SPARE CONSUMED AND OVERTIME SECTION --- *@
+            <MudGrid Class="mb-4 align-start" Spacing="3">
+                @* Spares Ledger - Adjusted to md="6" to make room *@
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Consumable Physical Asset Spares Consumed Record Ledger" Variant="Variant.Outlined" Lines="4" @bind-Value="_sparesConsumed" Placeholder="Specify full detailed logistical breakdown listing of serial tracked components deployed during maintenance execution lifecycle protocol..." />
+                </MudItem>
+
+                @* Total Cost - Adjusted to md="3" *@
+                <MudItem xs="12" md="3">
+                    <MudNumericField T="decimal?" Label="Approximate Consolidated Project Execution Cost Total (USD/INR)" Variant="Variant.Outlined" Placeholder="0.00" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_approxTotalCost" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" AdornmentColor="Color.Success" />
+                </MudItem>
+
+                @* NEW: Overtime Hours & Minutes - Takes remaining md="3" space *@
+                <MudItem xs="12" md="3">
+                    <div class="d-flex gap-2">
+                        <MudNumericField T="int?" Label="OT Hrs" Variant="Variant.Outlined" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_overtimeHours" Adornment="Adornment.End" AdornmentText="h" />
+                        <MudNumericField T="int?" Label="OT Mins" Variant="Variant.Outlined" Min="0" Max="59" HideSpinButtons="true" Immediate="true" @bind-Value="_overtimeMinutes" Adornment="Adornment.End" AdornmentText="m" />
+                    </div>
+                </MudItem>
+            </MudGrid>
+
+
+            @* --- NEW PERSONNEL ENTRY SECTION --- *@
+            <MudText Typo="Typo.h6" Class="mt-6 mb-3" Style="font-weight: 700; color: var(--mud-palette-text-primary);">
+                Job Execution & Verification Personnel
+            </MudText>
+
+            <MudGrid Class="mb-6 align-start" Spacing="3">
+
+                @* 1. Job Carried By (Multi-Selection) *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Job Carried By" MultiSelection="true" @bind-SelectedValues="_selectedCarriedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select one or more engineers">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 2. Report Prepared By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Report Prepared By" @bind-Value="_preparedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select reporter">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 3. Job Supervised By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Job Supervised By" @bind-Value="_supervisedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select supervisor">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 4. Report Verified By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Report Verified By" @bind-Value="_verifiedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select verifier">
+                        @foreach (var emp in _executives)
+                        {
+                            <MudSelectItem T="string" Value="@emp.Id.ToString()">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+            </MudGrid>
+
+
+
 
             <div class="d-flex justify-end mt-6">
                 <MudButton StartIcon="@Icons.Material.Filled.CloudUpload" Color="Color.Success" Variant="Variant.Filled" OnClick="SaveGcsReport" Class="py-3 px-8 rounded-lg font-weight-bold shadow-md" Size="Size.Large">
@@ -616,7 +730,7 @@
                                             @if (context.TestingType == "Calibration")
                                             {
                                                 <MudTooltip Text="Open Calibration Overlay Report Screen Layer">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Medium" Color="Color.Info" Variant="Variant.Filled" OnClick="() => OpenCalibration(context)" Class="rounded-lg shadow-sm" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Color="Color.Info" Variant="Variant.Filled" OnClick="() => OpenCalibration(context)" Class="rounded-lg shadow-sm" />
                                                 </MudTooltip>
                                             }
                                             <MudSelect @bind-Value="context.TestingType" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Label="Evaluation Strategy" Style="min-width: 160px;">
@@ -640,7 +754,7 @@
                                     <MudTd Class="pa-2">
                                         <div class="action-buttons">
                                             <MudTooltip Text="Commit Structural Row Database Snapshot">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => SaveOcsReport())" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Large" Color="Color.Success" Variant="Variant.Filled" OnClick="@(() => SaveOcsReport())" />
                                             </MudTooltip>
                                             <MudTooltip Text="Purge Operational Configuration Row Structure Block Layer">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" OnClick="@(() => _ocsRows.Remove(context))" />
@@ -664,6 +778,79 @@
                     </div>
                 </ChildContent>
             </MudExpansionPanel>
+
+
+            @* --- SPARE CONSUMED AND OVERTIME SECTION --- *@
+            <MudGrid Class="mb-4 align-start" Spacing="3">
+                @* Spares Ledger - Adjusted to md="6" to make room *@
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Consumable Physical Asset Spares Consumed Record Ledger" Variant="Variant.Outlined" Lines="4" @bind-Value="_sparesConsumed" Placeholder="Specify full detailed logistical breakdown listing of serial tracked components deployed during maintenance execution lifecycle protocol..." />
+                </MudItem>
+
+                @* Total Cost - Adjusted to md="3" *@
+                <MudItem xs="12" md="3">
+                    <MudNumericField T="decimal?" Label="Approximate Consolidated Project Execution Cost Total (USD/INR)" Variant="Variant.Outlined" Placeholder="0.00" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_approxTotalCost" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" AdornmentColor="Color.Success" />
+                </MudItem>
+
+                @* NEW: Overtime Hours & Minutes - Takes remaining md="3" space *@
+                <MudItem xs="12" md="3">
+                    <div class="d-flex gap-2">
+                        <MudNumericField T="int?" Label="OT Hrs" Variant="Variant.Outlined" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_overtimeHours" Adornment="Adornment.End" AdornmentText="h" />
+                        <MudNumericField T="int?" Label="OT Mins" Variant="Variant.Outlined" Min="0" Max="59" HideSpinButtons="true" Immediate="true" @bind-Value="_overtimeMinutes" Adornment="Adornment.End" AdornmentText="m" />
+                    </div>
+                </MudItem>
+            </MudGrid>
+
+
+            @* --- NEW PERSONNEL ENTRY SECTION --- *@
+            <MudText Typo="Typo.h6" Class="mt-6 mb-3" Style="font-weight: 700; color: var(--mud-palette-text-primary);">
+                Job Execution & Verification Personnel
+            </MudText>
+
+            <MudGrid Class="mb-6 align-start" Spacing="3">
+
+                @* 1. Job Carried By (Multi-Selection) *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Job Carried By" MultiSelection="true" @bind-SelectedValues="_selectedCarriedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select one or more engineers">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 2. Report Prepared By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Report Prepared By" @bind-Value="_preparedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select reporter">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 3. Job Supervised By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Job Supervised By" @bind-Value="_supervisedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select supervisor">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem T="string" Value="@emp.EmpCode">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 4. Report Verified By *@
+                <MudItem xs="12" md="3">
+                    <MudSelect T="string" Label="Report Verified By" @bind-Value="_verifiedBy" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" Clearable="true" Placeholder="Select verifier">
+                        @foreach (var emp in _executives)
+                        {
+                            <MudSelectItem T="string" Value="@emp.Id.ToString()">@emp.FullName - @emp.Designation</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+            </MudGrid>
+
 
             <div class="d-flex justify-end mt-6">
                 <MudButton StartIcon="@Icons.Material.Filled.CloudUpload" Color="Color.Success" Variant="Variant.Filled" OnClick="SaveOcsReport" Class="py-3 px-8 rounded-lg font-weight-bold shadow-md" Size="Size.Large">
@@ -742,6 +929,125 @@
 
 @code {
 
+    private string _GCSremarks = "";
+    private DateTime? _GCSdatePickerTemp; // Temp holder for the picker
+    private List<DateTime> _GCSpmDates = new(); // The actual list of selected dates
+
+    private void GCSAddDate()
+    {
+        if (_GCSdatePickerTemp.HasValue && !_GCSpmDates.Contains(_GCSdatePickerTemp.Value))
+        {
+            _GCSpmDates.Add(_GCSdatePickerTemp.Value);
+            _GCSdatePickerTemp = null; // Reset picker
+        }
+    }
+
+    private void GCSRemoveDate(DateTime date)
+    {
+        _GCSpmDates.Remove(date);
+    }
+
+
+
+    private IReadOnlyCollection<string> _selectedCarriedBy { get; set; } = new List<string>();
+    private string? _preparedBy;
+    private string? _supervisedBy;
+    private string? _verifiedBy;
+    private string _sparesConsumed;
+    private decimal? _approxTotalCost;
+
+    // New variables for Overtime tracking
+    private int? _overtimeHours;
+    private int? _overtimeMinutes;
+
+
+    // 2. Local list to hold data fetched from public.employees_engineers
+    private List<EmployeeEngineer> _employees = new();
+
+    private List<EmployeeExecutive> _executives = new();
+
+    // 3. Model mapping to your PostgreSQL table
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
+
+        [Column("email")]
+        public string Email { get; set; }
+
+        [Column("emp_code")]
+        public string EmpCode { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("grade")]
+        public string Grade { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("gender")]
+        public string Gender { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("department")]
+        public string Department { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
+    }
+
+    [Table("employees_executives")]
+    public class EmployeeExecutive : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
+
+        [Column("email")]
+        public string Email { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("Department")]
+        public string Department { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
+
+        [Column("isLocalAdmin")]
+        public bool? IsLocalAdmin { get; set; }
+
+        [Column("team_group")]
+        public int? TeamGroup { get; set; }
+    }
+
+
 
 
     // Master Data from Database
@@ -764,8 +1070,9 @@
     private Job? _selectedJob;
     private string? _detectedType;
     private bool _isSearching = false, _isCalibrationVisible = false;
-    private string _workPermit = "", _assignedTo = "", _sparesConsumed = "";
-    private decimal? _approxTotalCost = 0;
+    private string _workPermit = "", _assignedTo = "";
+    //_sparesConsumed = "";
+    //private decimal? _approxTotalCost = 0;
 
     private int currentPMlocationID;
     private string currentPMlocation = "";
@@ -787,6 +1094,12 @@
             _pendingJobs = jobRes.Models;
 
 
+
+            var response = await SupabaseClient.From<EmployeeEngineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
+            _employees = response.Models;
+
+            var executiveResponse = await SupabaseClient.From<EmployeeExecutive>().Where(x => x.Department == "FIELD MAINTENANCE").Get();
+            _executives = executiveResponse.Models;
 
             var auth = await AuthStateProvider.GetAuthenticationStateAsync();
             _assignedTo = auth.User.Identity?.Name ?? "";
@@ -1664,7 +1977,8 @@
                 // User cancelled or closed the dialog box
                 return;
             }
-
+            string serializedDates = string.Join(",", _GCSpmDates.Select(d => d.ToString("yyyy-MM-dd")));
+        
 
             // 1. Save PM Report
             var pmReport = new PmReport
@@ -1675,7 +1989,21 @@
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_gcsRows),
-                WorkPermit = _workPermit
+                WorkPermit = _workPermit,
+
+                Remarks = _GCSremarks,
+                MultiSelectionPmDates = serializedDates,
+
+
+                // FIX: Added .ToList() to fix the IReadOnlyCollection conversion error
+                JobCarriedByEmpCodes = _selectedCarriedBy?.ToList(),
+
+                // FIX: Mapped to matching state field variables
+                ReportPreparedBy = _preparedBy,
+                ReportSupervisedBy = _supervisedBy,
+                ReportVerifiedBy = _verifiedBy
+
+
             };
 
             // Use Upsert with the 'return' option to get the generated ID back
@@ -1832,7 +2160,14 @@
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_ocsRows),
-                WorkPermit = _workPermit
+                WorkPermit = _workPermit,
+                // FIX: Added .ToList() to fix the IReadOnlyCollection conversion error
+                JobCarriedByEmpCodes = _selectedCarriedBy?.ToList(),
+
+                // FIX: Mapped to matching state field variables
+                ReportPreparedBy = _preparedBy,
+                ReportSupervisedBy = _supervisedBy,
+                ReportVerifiedBy = _verifiedBy
             };
 
             // Use Upsert with the 'return' option to get the generated ID back
@@ -2329,6 +2664,20 @@
         [Supabase.Postgrest.Attributes.Column("section_d_spares")] public string SparesConsumed { get; set; } = "";
         [Supabase.Postgrest.Attributes.Column("approx_total_cost")] public decimal? ApproxTotalCost { get; set; } = 0;
 
+        [Supabase.Postgrest.Attributes.Column("pm_dates")]
+        public string? MultiSelectionPmDates { get; set; }
+
+
+
+        [Supabase.Postgrest.Attributes.Column("Job_Carried_By")]
+        public List<string>? JobCarriedByEmpCodes { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("Report_Prepared_By")]
+        public string? ReportPreparedBy { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Report_Supervised_By")]
+        public string? ReportSupervisedBy { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Report_Verified_By")]
+        public string? ReportVerifiedBy { get; set; }
     }
 
     [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]

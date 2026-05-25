@@ -36,22 +36,31 @@
     new Chart(document.getElementById("topInstallationsChart"), {
         type: 'bar',
         data: {
-            labels: data.topLocationLabels,
+            labels: data.topLocationLabels, // Ensure this is an array like ["Loc A", "Loc B", ...]
             datasets: [{
                 label: 'PM Jobs',
-                data: data.topLocationCounts,
+                data: data.topLocationCounts, // Ensure this is an array like [10, 5, ...]
                 backgroundColor: '#16a34a',
                 borderRadius: 8
             }]
         },
         options: {
-            indexAxis: 'y',
+            indexAxis: 'y', // This makes it a horizontal bar chart
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        autoSkip: false // Ensures all labels are shown even if crowded
+                    }
+                },
+                x: {
+                    beginAtZero: true
                 }
+            },
+            plugins: {
+                legend: { display: false }
             }
         }
     });
