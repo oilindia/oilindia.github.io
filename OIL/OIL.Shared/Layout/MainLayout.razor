@@ -2,6 +2,23 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject OIL.Shared.Services.CustomAuthStateProvider customAuthStateProvider
 
+
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+@* 1. Add your Models and Services namespaces so Blazor knows what 'UpdateStatus' is *@
+@using OIL.Shared.Models
+@using OIL.Shared.Services
+
+@* 2. Inject your Auth Provider *@
+@inject OIL.Shared.Services.CustomAuthStateProvider customAuthStateProvider
+
+@* 3. Inject the Version Checker and Platform services so they exist in the UI context *@
+@inject OIL.Shared.Services.VersionCheckerService VersionChecker
+@inject OIL.Shared.Services.IAppPlatformService PlatformService
+
+
+
 <MudThemeProvider Theme="_currentTheme" />
 <MudPopoverProvider />
 <MudDialogProvider />
@@ -46,10 +63,80 @@
     </NotAuthorized>
 </AuthorizeView>
 
+
+<MudOverlay Visible="ShowUpdateModal" DarkBackground="true" Absolute="false" ZIndex="9999">
+    <MudPaper Class="pa-6" Style="max-width: 450px; text-align: center; border-radius: 8px;">
+        <MudIcon Icon="@Icons.Material.Filled.SystemUpdate" Color="Color.Primary" Size="Size.Large" Class="mb-3" />
+        <MudText Typo="Typo.h5" GutterBottom="true" Style="font-weight: bold;">Update Available</MudText>
+        <MudText Typo="Typo.body1" Class="mb-6">@ModalMessage</MudText>
+
+        <div class="d-flex justify-center gap-4">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" OnClick="RedirectToStore">
+                Update Now
+            </MudButton>
+            @if (!IsForceUpdate)
+            {
+                <MudButton Color="Color.Dark" Variant="Variant.Text" Size="Size.Large" OnClick="DismissModal">
+                    Later
+                </MudButton>
+            }
+        </div>
+    </MudPaper>
+</MudOverlay>
+
 @code {
     private bool _drawerOpen = true; // Default open for better desktop feel
 
     [Inject] private NavigationManager Nav { get; set; }
+
+    // --- Version Control State Flags ---
+    private bool ShowUpdateModal = false;
+    private bool IsForceUpdate = false;
+    private string ModalMessage = "";
+    private string DownloadUrl = "";
+
+    // 1. Blazor Lifecycle Method: Fires immediately when the Layout starts rendering
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAppVersionAsync();
+    }
+
+    private async Task CheckAppVersionAsync()
+    {
+        // 2. Calls the shared service logic
+        var result = await VersionChecker.CheckForUpdatesAsync();
+
+        // 5. Evaluates the result and updates the UI state
+        if (result.Status == UpdateStatus.ForceUpdate)
+        {
+            DownloadUrl = result.UpdateUrl;
+            IsForceUpdate = true;
+            ModalMessage = "A critical update is required to continue using Field Maintenance Systems.";
+            ShowUpdateModal = true; // Displays overlay, hides "Later" button
+        }
+        else if (result.Status == UpdateStatus.FlexibleUpdate)
+        {
+            DownloadUrl = result.UpdateUrl;
+            IsForceUpdate = false;
+            ModalMessage = "A new version is available featuring upgrades and bug fixes. Would you like to update now?";
+            ShowUpdateModal = true; // Displays overlay, keeps "Later" button visible
+        }
+        // If UpToDate, ShowUpdateModal stays false, and nothing happens.
+    }
+
+    private async Task RedirectToStore()
+    {
+        // 6. Native execution redirection via DI bridge
+        await PlatformService.OpenUrlAsync(DownloadUrl);
+    }
+
+    private void DismissModal()
+    {
+        ShowUpdateModal = false;
+    }
+
+    // --- Existing Layout Logic ---
+
 
     private async void Logout()
     {

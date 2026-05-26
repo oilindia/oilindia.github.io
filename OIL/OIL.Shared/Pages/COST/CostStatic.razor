@@ -65,34 +65,74 @@
         </MudGrid>
     </MudPaper>
 
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" sm="6" md="3">
+    <div class="d-flex flex-wrap align-center justify-center gap-4 mb-4 width-100">
+
+        <div style="flex: 1 1 240px; max-width: 320px;">
             <MudPaper Class="pa-4 text-center border-left-primary" Elevation="2">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary text-uppercase font-weight-bold">Total Operations Cost</MudText>
                 <MudText Typo="Typo.h4" Class="font-weight-bold mt-2">₹ @TotalCalculatedCost.ToString("N2")</MudText>
             </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
+        </div>
+
+        <div class="d-flex align-center justify-center style-operator-shape">
+            <MudText Typo="Typo.h4" Class="text-secondary font-weight-bold" Style="line-height: 1; margin-top: -4px;">=</MudText>
+        </div>
+
+        <div style="flex: 1 1 240px; max-width: 320px;">
             <MudPaper Class="pa-4 text-center border-left-success" Elevation="2">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary text-uppercase font-weight-bold">Manpower Cost (Base)</MudText>
                 <MudText Typo="Typo.h4" Class="font-weight-bold mt-2">₹ @TotalEmployeeCost.ToString("N2")</MudText>
             </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
+        </div>
+
+        <div class="d-flex align-center justify-center style-operator-shape">
+            <MudText Typo="Typo.h4" Class="text-secondary font-weight-bold" Style="line-height: 1; margin-top: -4px;">+</MudText>
+        </div>
+
+        <div style="flex: 1 1 240px; max-width: 320px;">
             <MudPaper Class="pa-4 text-center border-left-warning" Elevation="2">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary text-uppercase font-weight-bold">Total Overtime Cost</MudText>
                 <MudText Typo="Typo.h4" Class="font-weight-bold mt-2">₹ @TotalOvertimeCost.ToString("N2")</MudText>
                 <MudText Typo="Typo.caption" Class="text-muted mt-1 d-block">Hours: @TotalOvertimeHours.ToString("N1") hrs</MudText>
             </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
+        </div>
+
+        <div class="d-flex align-center justify-center style-operator-shape">
+            <MudText Typo="Typo.h4" Class="text-secondary font-weight-bold" Style="line-height: 1; margin-top: -4px;">+</MudText>
+        </div>
+
+        <div style="flex: 1 1 240px; max-width: 320px;">
             <MudPaper Class="pa-4 text-center border-left-info" Elevation="2">
                 <MudText Typo="Typo.subtitle2" Class="text-secondary text-uppercase font-weight-bold">Travel & Logistics</MudText>
                 <MudText Typo="Typo.h4" Class="font-weight-bold mt-2">₹ @TotalTravelCost.ToString("N2")</MudText>
-                <MudText Typo="Typo.caption" Class="text-muted mt-1 d-block">Spares Total: ₹ @TotalSparesCost.ToString("N2")</MudText>
             </MudPaper>
-        </MudItem>
-    </MudGrid>
+        </div>
+
+        <div class="d-flex align-center justify-center style-operator-shape">
+            <MudText Typo="Typo.h4" Class="text-secondary font-weight-bold" Style="line-height: 1; margin-top: -4px;">+</MudText>
+        </div>
+
+        <div style="flex: 1 1 240px; max-width: 320px;">
+            <MudPaper Class="pa-4 text-center border-left-secondary" Elevation="2">
+                <MudText Typo="Typo.subtitle2" Class="text-secondary text-uppercase font-weight-bold">Spares Total</MudText>
+                <MudText Typo="Typo.h4" Class="font-weight-bold mt-2">₹ @TotalSparesCost.ToString("N2")</MudText>
+            </MudPaper>
+        </div>
+
+    </div>
+
+    <style>
+            .style-operator-shape {
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                background-color: var(--mud-palette-background-grey, #f4f4f4);
+                border: 2px solid var(--mud-palette-lines-inputs, #e0e0e0);
+                border-radius: 50%;
+                user-select: none;
+                box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            }
+    </style>
 
     <MudGrid Class="mb-4">
         <MudItem xs="12" md="7">
@@ -312,13 +352,13 @@
                         .Select(j => j.LocationId!.Value)
                         .Distinct();
 
-                    Console.WriteLine($"locationIds: {locationIds}");
+                    //Console.WriteLine($"locationIds: {locationIds}");
 
 
                     // 2. Fetch the corresponding locations
                     var assignmentLocations = locations.Where(l => locationIds.Contains(l.Id));
 
-                    Console.WriteLine($"assignmentLocations: {assignmentLocations}");
+                    //Console.WriteLine($"assignmentLocations: {assignmentLocations}");
 
                     // 3. Sum the round-trip distance (DistanceFhqKm * 2)
                     double totalRoundTripDistance = assignmentLocations.Sum(l => (l.DistanceFhqKm ?? 0f) * 2);
@@ -339,12 +379,12 @@
                         // 5. Calculate: (Total Round Trip Distance / Mileage) * Diesel Price
                         calculatedTravelCost = (totalRoundTripDistance / VehicleMileageKmPerLiter) * dieselPrice;
 
-                        Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
+                        //Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
+                    //Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
                 }
 
 
@@ -354,24 +394,77 @@
                 gridRowItem.TravelCost = calculatedTravelCost;
                 // --- TRAVEL LOGISTICS LOOKUP END ---
 
+                // double itemSparesCost = 0;
+                // if (assignment.JobIds != null && assignment.JobIds.Any())
+                // {
+                //     foreach (var jobId in assignment.JobIds)
+                //     {
+                //         if (string.IsNullOrWhiteSpace(jobId)) continue;
+                //         var matchedPm = pmReports.FirstOrDefault(p => string.Equals(p.JobId, jobId, StringComparison.OrdinalIgnoreCase));
+                //         if (matchedPm != null) { itemSparesCost += matchedPm.ApproxTotalCost ?? 0; TotalPmReportsMatched++; }
+                //         var matchedJob = jobs.FirstOrDefault(j => string.Equals(j.Id, jobId, StringComparison.OrdinalIgnoreCase));
+                //         if (matchedJob != null) { itemSparesCost += matchedJob.PartsCost ?? 0; }
+                //     }
+                // }
+                // quarterlySpares[quarter] += itemSparesCost;
+                // TotalSparesCost += itemSparesCost;
+                // gridRowItem.SparesCost = itemSparesCost;
+
+                // gridRowItem.RowTotalCost = calculatedOtCost + calculatedEmployeeCost + calculatedTravelCost + itemSparesCost;
+                // GridRows.Add(gridRowItem);
+
+                // --- SPARES COST CALCULATION START ---
                 double itemSparesCost = 0;
+
                 if (assignment.JobIds != null && assignment.JobIds.Any())
                 {
-                    foreach (var jobId in assignment.JobIds)
+                    // 1. Clean the incoming IDs to prevent whitespace mismatches
+                    var cleanAssignmentJobIds = assignment.JobIds
+                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(id => id.Trim())
+                        .ToList();
+
+                    Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
+
+                    if (cleanAssignmentJobIds.Any())
                     {
-                        if (string.IsNullOrWhiteSpace(jobId)) continue;
-                        var matchedPm = pmReports.FirstOrDefault(p => string.Equals(p.JobId, jobId, StringComparison.OrdinalIgnoreCase));
-                        if (matchedPm != null) { itemSparesCost += matchedPm.ApproxTotalCost ?? 0; TotalPmReportsMatched++; }
-                        var matchedJob = jobs.FirstOrDefault(j => string.Equals(j.Id, jobId, StringComparison.OrdinalIgnoreCase));
-                        if (matchedJob != null) { itemSparesCost += matchedJob.PartsCost ?? 0; }
+                        // 2. Sum parts_cost from ALL matching jobs
+                        var assignmentJobs = jobs
+                            .Where(j => !string.IsNullOrWhiteSpace(j.Id)
+                                        && cleanAssignmentJobIds.Any(cleanId => string.Equals(j.Id.Trim(), cleanId, StringComparison.OrdinalIgnoreCase)))
+                            .ToList();
+
+                        Console.WriteLine($"assignmentJobs: {assignmentJobs}");
+
+                        double totalPartsCost = assignmentJobs.Sum(j => j.PartsCost ?? 0);
+
+                        // 3. Sum approx_total_cost from ALL matching PM reports
+                        var assignmentPmReports = pmReports
+                            .Where(p => !string.IsNullOrWhiteSpace(p.JobId)
+                                        && cleanAssignmentJobIds.Any(cleanId => string.Equals(p.JobId.Trim(), cleanId, StringComparison.OrdinalIgnoreCase)))
+                            .ToList();
+
+                        Console.WriteLine($"assignmentPmReports: {assignmentPmReports}");
+
+                        double totalPmCost = assignmentPmReports.Sum(p => p.ApproxTotalCost ?? 0);
+
+                        // Update the dashboard counter
+                        TotalPmReportsMatched += assignmentPmReports.Count;
+
+                        // 4. Combine both sums
+                        itemSparesCost = totalPartsCost + totalPmCost;
                     }
                 }
+
                 quarterlySpares[quarter] += itemSparesCost;
                 TotalSparesCost += itemSparesCost;
                 gridRowItem.SparesCost = itemSparesCost;
+                // --- SPARES COST CALCULATION END ---
 
+                // ⚠️ CRITICAL: Ensure these two lines were not accidentally deleted!
                 gridRowItem.RowTotalCost = calculatedOtCost + calculatedEmployeeCost + calculatedTravelCost + itemSparesCost;
                 GridRows.Add(gridRowItem);
+
 
                 if (dateToIndexMap.TryGetValue(assignment.CreatedAt.Date, out int dayIndex))
                 {

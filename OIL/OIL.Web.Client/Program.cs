@@ -65,7 +65,8 @@ builder.Services.AddScoped<DailyDieselPriceService>();
 builder.Services.AddMudServices();
 
 
-
+builder.Services.AddSingleton<IAppPlatformService, OIL.Web.Client.Services.WebPlatformService>();
+builder.Services.AddTransient<VersionCheckerService>();
 
 
 

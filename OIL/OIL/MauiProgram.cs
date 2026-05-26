@@ -59,6 +59,10 @@ public static class MauiProgram
         builder.Services.AddScoped<GeminiService>();
         builder.Services.AddScoped<DailyDieselPriceService>();
 
+        // ---- ADD THESE TWO LINES FOR VERSIONING ----
+        builder.Services.AddSingleton<IAppPlatformService, AppPlatformService>();
+        builder.Services.AddTransient<VersionCheckerService>();
+
 
         //// Register Supabase WITHOUT calling BuildServiceProvider()
         //builder.Services.AddSingleton(async sp =>
