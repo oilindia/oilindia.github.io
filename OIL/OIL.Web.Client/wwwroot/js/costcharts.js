@@ -4,12 +4,13 @@
     renderAll: function (payload) {
         // Shared Color Palette to match MudBlazor
         const colors = {
-            overtime: '#3b82f6', // Blue
-            spares: '#10b981',   // Green
-            employee: '#6366f1', // Indigo
-            travel: '#f59e0b',   // Amber
+            overtime: '#3b82f6',   // Blue
+            spares: '#10b981',     // Green
+            employee: '#964B00',   // Brown
+            travel: '#f59e0b',     // Amber
             cumulative: '#ec4899', // Pink
-            staff: '#8b5cf6'     // Purple
+            staff: '#6366f1',      // Grey
+            costPerHead: '#14b8a6' // Teal
         };
 
         this.initChart('chartDonut', 'doughnut', {
@@ -81,6 +82,33 @@
                 pointBackgroundColor: colors.employee
             }]
         }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } });
+
+        // Calculate total cost per day, then divide by personnel count for that day
+        const dailyTotalCost = payload.dailyOvertime.map((ot, i) =>
+            ot + payload.dailySpares[i] + payload.dailyEmployee[i] + payload.dailyTravel[i]
+        );
+        const costPerHead = dailyTotalCost.map((total, i) =>
+            payload.dailyPersonnelCount[i] > 0 ? (total / payload.dailyPersonnelCount[i]).toFixed(2) : 0
+        );
+
+        this.initChart('chartCostPerHead', 'line', {
+            labels: payload.labelsDaily,
+            datasets: [{
+                label: 'Avg Cost per Head (₹)',
+                data: costPerHead,
+                borderColor: colors.costPerHead,
+                backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: colors.costPerHead
+            }]
+        }, {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true } }
+        });
     },
 
     initChart: function (canvasId, type, data, options) {

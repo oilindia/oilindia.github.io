@@ -15,6 +15,29 @@
 @using Supabase.Postgrest.Models
 @inject Client SupabaseClient
 
+<style>
+    .border-left-primary {
+        border-left: 5px solid #594ae2;
+    }
+
+    .border-left-success {
+        border-left: 5px solid #00c853;
+    }
+
+    .border-left-warning {
+        border-left: 5px solid #ffb300;
+    }
+
+    .border-left-info {
+        border-left: 5px solid #33a9ff;
+    }
+
+    .font-weight-bold {
+        font-weight: 700;
+    }
+</style>
+
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-4">Cost Analysis Dashboard</MudText>
 
@@ -75,13 +98,22 @@
         <MudItem xs="12" md="7">
             <MudPaper Class="pa-4" Style="height: 420px;" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-2">Cost Breakdown Over Time (Daily Cumulative)</MudText>
-                <div id="costTimelineChart" style="width: 100%; height: 340px;"></div>
+                <canvas id="chartCumulative" style="width: 100%; height: 340px;"></canvas>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" md="5">
             <MudPaper Class="pa-4" Style="height: 420px;" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-2">Cost Share Composition</MudText>
-                <div id="costCompositionChart" style="width: 100%; height: 340px;"></div>
+                <canvas id="chartDonut" style="width: 100%; height: 340px;"></canvas>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mb-4">
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Style="height: 420px;" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-2">Daily Cost Categories (Stacked)</MudText>
+                <canvas id="chartDailyStacked" style="width: 100%; height: 340px;"></canvas>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -90,13 +122,28 @@
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4" Style="height: 380px;" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-2">Quarterly Cost Projections</MudText>
-                <div id="costQuarterlyChart" style="width: 100%; height: 300px;"></div>
+                <canvas id="chartQuarterly" style="width: 100%; height: 300px;"></canvas>
             </MudPaper>
         </MudItem>
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4" Style="height: 380px;" Elevation="2">
-                <MudText Typo="Typo.h6" Class="mb-2">Daily Overtime Analysis (Hours vs Resource Headcount)</MudText>
-                <div id="overtimeResourceChart" style="width: 100%; height: 300px;"></div>
+                <MudText Typo="Typo.h6" Class="mb-2">Daily Overtime Analysis (Hours vs Headcount)</MudText>
+                <canvas id="chartResourceTrend" style="width: 100%; height: 300px;"></canvas>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Style="height: 380px;" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-2">Cost Vector Profile</MudText>
+                <canvas id="chartRadar" style="width: 100%; height: 300px;"></canvas>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Style="height: 380px;" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-2">Avg Cost per Personnel (Trend)</MudText>
+                <canvas id="chartCostPerHead" style="width: 100%; height: 300px;"></canvas>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -133,33 +180,12 @@
     </MudPaper>
 </MudContainer>
 
-<style>
-    .border-left-primary {
-        border-left: 5px solid #594ae2;
-    }
-
-    .border-left-success {
-        border-left: 5px solid #00c853;
-    }
-
-    .border-left-warning {
-        border-left: 5px solid #ffb300;
-    }
-
-    .border-left-info {
-        border-left: 5px solid #33a9ff;
-    }
-
-    .font-weight-bold {
-        font-weight: 700;
-    }
-</style>
-
 @code {
     private bool _loading = false;
     private DateTime? _startDate = DateTime.Today.AddMonths(-1);
     private DateTime? _endDate = DateTime.Today;
     private const double HourlyOvertimeRate = 750.00;
+    private const double VehicleMileageKmPerLiter = 8.0; // Set your fleet's standard mileage here
 
     public double TotalCalculatedCost { get; set; }
     public double TotalOvertimeHours { get; set; }
@@ -275,30 +301,58 @@
                 gridRowItem.PersonnelCount = personnelCount;
                 gridRowItem.EmployeeCost = calculatedEmployeeCost;
 
-                // FIXED RELATIONAL LOOKUP MATRIX VIA JOBS CODES -> LOCATIONS
+                // --- TRAVEL LOGISTICS LOOKUP START ---
                 double calculatedTravelCost = 0;
+
                 if (assignment.JobIds != null && assignment.JobIds.Any())
                 {
-                    var firstJobId = assignment.JobIds.FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
-                    if (firstJobId != null)
+                    // 1. Get unique location IDs for all jobs in this assignment to handle multi-stop routes
+                    var locationIds = jobs
+                        .Where(j => assignment.JobIds.Any(id => string.Equals(j.Id, id.Trim(), StringComparison.OrdinalIgnoreCase)) && j.LocationId.HasValue)
+                        .Select(j => j.LocationId!.Value)
+                        .Distinct();
+
+                    Console.WriteLine($"locationIds: {locationIds}");
+
+
+                    // 2. Fetch the corresponding locations
+                    var assignmentLocations = locations.Where(l => locationIds.Contains(l.Id));
+
+                    Console.WriteLine($"assignmentLocations: {assignmentLocations}");
+
+                    // 3. Sum the round-trip distance (DistanceFhqKm * 2)
+                    double totalRoundTripDistance = assignmentLocations.Sum(l => (l.DistanceFhqKm ?? 0f) * 2);
+
+                    if (totalRoundTripDistance > 0)
                     {
-                        var referenceJob = jobs.FirstOrDefault(j => string.Equals(j.Id, firstJobId, StringComparison.OrdinalIgnoreCase));
-                        if (referenceJob != null && referenceJob.LocationId.HasValue)
-                        {
-                            var matchedLocation = locations.FirstOrDefault(l => l.Id == referenceJob.LocationId.Value);
-                            if (matchedLocation != null && matchedLocation.DistanceFhqKm.HasValue)
-                            {
-                                var assignmentDate = assignment.CreatedAt.Date;
-                                var targetDieselRecord = dieselPrices.OrderBy(p => Math.Abs(((p.PriceDate ?? DateTime.Today) - assignmentDate).TotalDays)).FirstOrDefault();
-                                double fallbackOrMatchedPrice = targetDieselRecord?.DieselPrice ?? 0.0;
-                                calculatedTravelCost = matchedLocation.DistanceFhqKm.Value * fallbackOrMatchedPrice;
-                            }
-                        }
+                        var assignmentDate = assignment.CreatedAt.Date;
+
+                        // 4. Fetch the nearest available Diesel Price
+                        var nearestDieselRecord = dieselPrices
+                            .Where(p => p.PriceDate.HasValue && p.DieselPrice.HasValue && p.DieselPrice > 0)
+                            .OrderBy(p => Math.Abs((p.PriceDate.Value - assignmentDate).TotalDays))
+                            .FirstOrDefault();
+
+                        // Added 90.00 fallback in case diesel table is completely empty
+                        double dieselPrice = nearestDieselRecord?.DieselPrice ?? 90.00;
+
+                        // 5. Calculate: (Total Round Trip Distance / Mileage) * Diesel Price
+                        calculatedTravelCost = (totalRoundTripDistance / VehicleMileageKmPerLiter) * dieselPrice;
+
+                        Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
+                }
+
+
+
                 quarterlyTravel[quarter] += calculatedTravelCost;
                 TotalTravelCost += calculatedTravelCost;
                 gridRowItem.TravelCost = calculatedTravelCost;
+                // --- TRAVEL LOGISTICS LOOKUP END ---
 
                 double itemSparesCost = 0;
                 if (assignment.JobIds != null && assignment.JobIds.Any())
@@ -372,6 +426,8 @@
         {
             _loading = false;
             StateHasChanged();
+
+            Console.WriteLine($"Dashboard Data Fault: {ex.Message}");
             Snackbar.Add($"Dashboard Data Fault: {ex.Message}", Severity.Error);
         }
     }
@@ -394,7 +450,7 @@
     {
         [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
         [Column("created_at")] public DateTime CreatedAt { get; set; }
-        [Column("job_uids")] public List<string>? JobIds { get; set; }
+        [Column("job_ids")] public List<string>? JobIds { get; set; }
         [Column("personnel_ids")] public List<string>? PersonnelIds { get; set; }
         [Column("job_overtime")] public double? JobOvertime { get; set; }
     }
