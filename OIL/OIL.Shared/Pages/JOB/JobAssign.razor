@@ -18,6 +18,16 @@
 @using Supabase.Postgrest.Models;
 @using System.Runtime.Serialization;
 
+@using System.IO
+@inject Client SupabaseClient
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@using System.Security.Claims
+@using OIL.Shared.Services
+
 
 <style>
 
@@ -684,7 +694,7 @@ else
             </MudPaper>
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="2">
+        @* <MudItem xs="12" sm="6" md="2">
             <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-primary); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
                 <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Vehicle</b></MudText>
                 <MudSelect T="Driver" Label="Select Vehicle" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
@@ -692,6 +702,24 @@ else
                     @foreach (var d in _dbDrivers)
                     {
                         <MudSelectItem T="Driver" Value="@d">@d.VehicleNumber</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        </MudItem> *@
+
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-primary); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>1. Vehicle</b></MudText>
+                <MudSelect T="Driver" Label="Select Vehicle" Variant="Variant.Outlined" @bind-Value="_selectedDriver"
+                           ToStringFunc="@(d => d?.VehicleNumber)" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var d in _dbDrivers)
+                    {
+                        <MudSelectItem T="Driver" Value="@d">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1">@d.VehicleNumber</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@d.DriverName</MudText>
+                            </div>
+                        </MudSelectItem>
                     }
                 </MudSelect>
             </MudPaper>
@@ -704,7 +732,12 @@ else
                            Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var j in _dbJobs)
                     {
-                        <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
+                        <MudSelectItem T="Job" Value="@j">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1">@j.JobName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@j.JobDescription</MudText>
+                            </div>
+                        </MudSelectItem>
                     }
                 </MudSelect>
             </MudPaper>
@@ -717,7 +750,12 @@ else
                            Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var p in _dbEngineers)
                     {
-                        <MudSelectItem T="Engineer" Value="@p">@p.FullName</MudSelectItem>
+                        <MudSelectItem T="Engineer" Value="@p">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1">@p.FullName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@p.Designation</MudText>
+                            </div>
+                        </MudSelectItem>
                     }
                 </MudSelect>
             </MudPaper>
@@ -745,10 +783,23 @@ else
             <MudTd DataLabel="Date">@context.PrintableDate</MudTd>
             <MudTd DataLabel="Doc No"><b>@context.DocNumber</b></MudTd>
             <MudTd DataLabel="Vehicle">@GetDriverName(context.DriverId)</MudTd>
-            <MudTd DataLabel="Jobs">
+            @* <MudTd DataLabel="Jobs">
                 @foreach (var id in context.JobIds)
                 {
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="ma-1">@GetJobName(id)</MudChip>
+                }
+            </MudTd> *@
+            <MudTd DataLabel="Jobs">
+                @foreach (var id in context.JobIds)
+                {
+                    var jobDetails = GetJobName(id); // Fetch the Tuple once
+
+                    <div class="mb-2">
+                        <MudText Typo="Typo.body2" Style="font-weight: 600;">@jobDetails.JobName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display:block; line-height: 1.2;">
+                            @jobDetails.JobDescription
+                        </MudText>
+                    </div>
                 }
             </MudTd>
             <MudTd DataLabel="Personnel"><small>@string.Join(", ", context.PersonnelIds.Select(GetEngineerName))</small></MudTd>
@@ -840,7 +891,7 @@ else
             @* --- ASSIGNMENT SECTION --- *@
             <div class="row-flex border-top">
                 <div class="col-30 pa-1 border-right">Job Assigned by:</div>
-                <div class="col-70 pa-1 font-handwriting">Instrumentation Executive</div>
+                <div class="col-70 pa-1 font-handwriting">@ActiveJobData.JobassignedBy</div>
             </div>
 
             @* --- MAIN JOB TABLE --- *@
@@ -1079,10 +1130,31 @@ else
     private string _bulkStatus = "P";
     private string _bulkReason = "";
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    public string _fullName = "";
+    private string _designation = "";
+
     protected override async Task OnInitializedAsync()
     {
         var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         for (var dt = start; dt <= start.AddMonths(1).AddDays(-1); dt = dt.AddDays(1)) _daysInMonth.Add(dt);
+
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                _email = user.GetEmail();
+                _fullName = user.GetFullName();
+                _designation = user.GetDesignation();
+
+            }
+        }
+
 
         if (!AttendanceData.IsDataReady)
         {
@@ -1091,12 +1163,12 @@ else
 
         LoadData();
 
-        
+
         await JS.InvokeVoidAsync("scrollToToday");
-       
+
 
     }
-    
+
     private bool IsResourceEngaged(string uniqueId, DateTime date)
     {
         var targetDate = date.Date;
@@ -1348,6 +1420,9 @@ else
 
     public JobCardModel ActiveJobData { get; set; } = new();
 
+    // 1. Fetch lookup tables ONCE at the start of your data loading process
+    // 1. Update the dictionary to hold both properties
+    private Dictionary<string, (string Name, string Description)> _jobDictionary = new();
     // protected override async Task OnInitializedAsync()
     // {
 
@@ -1363,7 +1438,7 @@ else
         try
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
+            _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending" ).Get()).Models;
             _dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
             _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
 
@@ -1377,6 +1452,19 @@ else
                 .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
                 .Limit(35)
                 .Get()).Models;
+
+            // Fetch all jobs in one single API call
+            var allJobs = (await SupabaseClient.From<Job>().Get()).Models;
+
+            // Store both Name and Description in the dictionary cache
+            _jobDictionary = allJobs.ToDictionary(
+                x => x.Id.ToString(),
+                x => (x.JobName ?? "", x.JobDescription ?? "") // Use your actual Description property name here
+            );
+        }
+        catch(Exception e)
+        {
+            Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
         finally { _loading = false; StateHasChanged(); }
     }
@@ -1393,6 +1481,8 @@ else
                 DriverId = _selectedDriver.Id,
 
                 ShiftName = _selectedShift,
+
+                job_assignment_table_JobAssignedBy = _fullName,
 
                 JobAction = "assigned",
 
@@ -1412,6 +1502,9 @@ else
             await LoadData();
             _selectedDriver = null; _selectedJobs = new List<Job>(); _selectedEngineers = new List<Engineer>();
             Snackbar.Add("Job Plotted", Severity.Success);
+
+            StateHasChanged();
+
         }
         catch (Exception ex)
         {
@@ -1420,7 +1513,7 @@ else
         }
 
 
-        
+
     }
 
     private async Task DeleteAssignment(Guid id)
@@ -1435,22 +1528,135 @@ else
         Snackbar.Add("Job marked as deleted", Severity.Info);
     }
 
-    private void PrepareJobCard(Assignment item)
+    private async Task PrepareJobCard(Assignment item)
     {
-        ActiveJobData = new JobCardModel
+        if (item == null) return;
+
+        try
         {
-            DocNumber = item.DocNumber,
-            JCLocations = item.JobIds.Select(id => new JobLocations { JobLocation = GetJobLocationName(id) }).ToList(),
-            Date = item.CreatedAt ?? DateTime.Now,
-            Vehicle = GetDriverName(item.DriverId),
-            Personnel = item.PersonnelIds.Select(GetEngineerName).ToList(),
-            Tasks = item.JobIds.Select(id => new JobTask { Description = GetJobName(id) }).ToList(),
-            JCDetailedDesc = item.JobIds.Select(id => new JobDetailedDesc { JobDetailedDescString = GetJobDetailDesc(id) }).ToList(),
+            // 1. Fetch the latest lookup tables from Supabase immediately on demand
+            _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
+            _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
 
+            // 2. Refresh the local dictionary cache for GetJobName
+            _jobDictionary = _dbJobs.ToDictionary(
+                x => x.Id.ToString(),
+                x => (x.JobName ?? "N/A", x.JobDescription ?? "")
+            );
 
-        };
-        _isPreviewOpen = true;
+            // 3. Construct your UI Card Model safely
+            ActiveJobData = new JobCardModel
+            {
+                JobassignedBy = item.job_assignment_table_JobAssignedBy ?? "",
+                DocNumber = item.DocNumber,
+                Date = item.CreatedAt ?? DateTime.Now,
+                Vehicle = item.DriverId == default ? "No Driver" : (GetDriverName(item.DriverId) ?? "Unknown Driver"),
+
+                JCLocations = item.JobIds?.Select(id => new JobLocations
+                {
+                    JobLocation = GetJobLocationName(id)
+                }).ToList() ?? new List<JobLocations>(),
+
+                Personnel = item.PersonnelIds?.Select(id => GetEngineerName(id) ?? "Unknown Personnel").ToList() ?? new List<string>(),
+
+                Tasks = item.JobIds?.Select(id =>
+                {
+                    var details = GetJobName(id);
+                    return new JobTask
+                    {
+                        Description = details.JobName ?? "",
+                        JobDescription = GetJobDetailDesc(id) ?? ""
+                    };
+                }).ToList() ?? new List<JobTask>(),
+
+                JCDetailedDesc = item.JobIds?.Select(id => new JobDetailedDesc
+                {
+                    JobDetailedDescString = GetJobDetailDesc(id) ?? ""
+                }).ToList() ?? new List<JobDetailedDesc>(),
+            };
+
+            StateHasChanged();
+            _isPreviewOpen = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Method Error: {ex.Message}");
+            Snackbar.Add($"Error loading card data: {ex.Message}", Severity.Error);
+        }
     }
+
+    // private async Task PrepareJobCard(Assignment item)
+    // {
+    //     try
+    //     {
+    //         ActiveJobData = new JobCardModel
+    //         {
+    //             // JobassignedBy = item.job_assignment_table_JobAssignedBy,
+    //             // DocNumber = item.DocNumber,
+    //             // JCLocations = item.JobIds.Select(id => new JobLocations { JobLocation = GetJobLocationName(id) }).ToList(),
+    //             // Date = item.CreatedAt ?? DateTime.Now,
+    //             // Vehicle = GetDriverName(item.DriverId),
+    //             // Personnel = item.PersonnelIds.Select(GetEngineerName).ToList(),
+    //             // // Tasks = item.JobIds.Select(id => new JobTask { Description =  GetJobName(id) }).ToList(),
+
+    //             // // Extract the result synchronously right inside the loop
+    //             // // Tasks = item.JobIds.Select(id => new JobTask { Description = GetJobName(id) }).ToList(),
+    //             // // Extract the Tuple and map both Name and Description synchronously
+    //             // Tasks = item.JobIds.Select(id =>
+    //             // {
+    //             //     var details = GetJobName(id);
+    //             //     return new JobTask
+    //             //     {
+    //             //         Description = details.JobName
+    //             //     };
+    //             // }).ToList(),
+
+    //             // JCDetailedDesc = item.JobIds.Select(id => new JobDetailedDesc { JobDetailedDescString = GetJobDetailDesc(id) }).ToList(),
+    //             // Fallback to "N/A" if the assigned string is null
+    //             JobassignedBy = item.job_assignment_table_JobAssignedBy ?? "",
+    //             DocNumber = item.DocNumber,
+    //             Date = item.CreatedAt ?? DateTime.Now,
+
+    //             // Handle potentially null lookup returns or empty Guid inputs
+    //             Vehicle = item.DriverId == default ? "No Driver" : (GetDriverName(item.DriverId) ?? "Unknown Driver"),
+
+    //             // 2. Safe collection mapping: If JobIds is null, it instantiates an empty list instead of crashing
+    //             JCLocations = item.JobIds.Select(id => new JobLocations { JobLocation = GetJobLocationName(id) }).ToList(),
+    //             // JCLocations = item.JobIds?.Select(id => new JobLocations
+    //             // {
+    //             //     JobLocation = GetJobLocationName(id) ?? "Unknown Location"
+    //             // }).ToList() ?? new List<JobLocations>(),
+
+    //             // 3. If PersonnelIds is null, falls back to an empty List<string>
+    //             Personnel = item.PersonnelIds?.Select(id => GetEngineerName(id) ?? "Unknown Personnel").ToList() ?? new List<string>(),
+
+    //             // 4. Safe evaluation inside the tuple extraction block
+    //             Tasks = item.JobIds?.Select(id =>
+    //             {
+    //                 var details = GetJobName(id);
+    //                 return new JobTask
+    //                 {
+    //                     Description = details.JobName ?? ""
+    //                 };
+    //             }).ToList() ?? new List<JobTask>(),
+
+    //             // 5. If JobIds is null, falls back to an empty List<JobDetailedDesc>
+    //             JCDetailedDesc = item.JobIds?.Select(id => new JobDetailedDesc
+    //             {
+    //                 JobDetailedDescString = GetJobDetailDesc(id) ?? "No Description"
+    //             }).ToList() ?? new List<JobDetailedDesc>(),
+            
+    //         };
+    //         StateHasChanged();
+    //         _isPreviewOpen = true;
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Method Error: {ex.Message}");
+    //         Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+    //     }
+    
+    // }
 
     private void OpenEditModal(Assignment item)
     {
@@ -1477,23 +1683,77 @@ else
         await Task.Delay(300);
         await JS.InvokeVoidAsync("window.print");
     }
-    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "N/A";
+    private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "";
 
-    private string GetJobName(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobName ?? "N/A";
+    // private async Task<string> GetJobName(Guid id) 
+    // { 
+    //     _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
 
-    private string GetJobDetailDesc(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobDescription ?? "N/A";
-    // private string GetJobDetailDesc(Guid id)
+    //     string JobName = _dbJobs.FirstOrDefault(x => x.Id.ToString() == id.ToString())?.JobName ?? "N/A";
+
+    //     return JobName;
+    // }
+    // 2. Change GetJobName to be a purely synchronous memory lookup
+    private (string JobName, string JobDescription) GetJobName(Guid id)
+    {
+        if (_jobDictionary.TryGetValue(id.ToString(), out var details))
+        {
+            return details; // Returns the (Name, Description) tuple from your dictionary
+        }
+        return ("", "");
+    }
+
+
+    private string GetJobLocationName(Guid id)
+    {
+        if (_dbJobs == null || _dbLocations == null) return "Loading Data...";
+
+        // Use string matching for Guid safety across layers
+        var job = _dbJobs.FirstOrDefault(x => x.Id.ToString() == id.ToString());
+        if (job == null) return "Job Not Found";
+
+        var location = _dbLocations.FirstOrDefault(x => x.Id == job.JobLocationId);
+        return location?.InstallationName ?? "No Location Assigned";
+    }
+
+    private string GetJobDetailDesc(Guid id)
+    {
+        if (_dbJobs == null) return "";
+        return _dbJobs.FirstOrDefault(x => x.Id.ToString() == id.ToString())?.JobDescription ?? "";
+    }
+
+    // private string GetJobDetailDesc(Guid id) => _dbJobs.FirstOrDefault(x => x.Id == id)?.JobDescription ?? "";
+    // // private string GetJobDetailDesc(Guid id)
+    // // {
+    // //     try
+    // //     {
+
+    // //         long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobDescription;
+    // //         string locName = _dbLocations.FirstOrDefault(x => x.Id == locationID).InstallationName;
+
+    // //         return locName;
+
+    // //     }
+    // //     catch (Exception ex)
+    // //     {
+    // //         Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
+    // //         return null;
+    // //     }
+
+    // // }
+
+
+    // private string GetJobLocationName(Guid id)
     // {
-    //     try
-    //     {
+    //     try{
 
-    //         long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobDescription;
+    //         long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobLocationId;
     //         string locName = _dbLocations.FirstOrDefault(x => x.Id == locationID).InstallationName;
 
     //         return locName;
 
     //     }
-    //     catch (Exception ex)
+    //     catch(Exception ex)
     //     {
     //         Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
     //         return null;
@@ -1501,29 +1761,16 @@ else
 
     // }
 
+    private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "";
 
-    private string GetJobLocationName(Guid id)
+    public class JobCardModel { public string JobassignedBy { get; set; } = ""; public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; public List<JobLocations> JCLocations { get; set; } = new(); public List<JobDetailedDesc> JCDetailedDesc { get; set; } = new(); }
+    // public class JobTask { public string Description { get; set; } = ""; }
+    
+    public class JobTask
     {
-        try{
-
-            long locationID = _dbJobs.FirstOrDefault(x => x.Id == id).JobLocationId;
-            string locName = _dbLocations.FirstOrDefault(x => x.Id == locationID).InstallationName;
-
-            return locName;
-
-        }
-        catch(Exception ex)
-        {
-            Snackbar.Add($"Save Error: {ex.Message}", Severity.Error);
-            return null;
-        }
-
+        public string Description { get; set; } = "";     // Will store Job Name
+        public string JobDescription { get; set; } = "";  // Will store Job Description
     }
-
-    private string GetEngineerName(long id) => _dbEngineers.FirstOrDefault(x => x.Id == id)?.FullName ?? "N/A";
-
-    public class JobCardModel { public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; public List<JobLocations> JCLocations { get; set; } = new(); public List<JobDetailedDesc> JCDetailedDesc{ get; set; } = new(); }
-    public class JobTask { public string Description { get; set; } = ""; }
     public class JobLocations { public string JobLocation { get; set; } = ""; }
     public class JobDetailedDesc { public string JobDetailedDescString { get; set; } = ""; }
 
@@ -1536,14 +1783,15 @@ else
         [Column("installation_type")] public string? InstallationType { get; set; }
     }
 
-    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; }
+    [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; [Column("full_name")] public string DriverName { get; set; } = ""; }
     [Table("jobs")] 
     public class Job : BaseModel { 
         [PrimaryKey("id")] public Guid Id { get; set; } 
         [Column("job_name")] public string JobName { get; set; } = ""; 
         [Column("status")] public string JobStatus { get; set; } = ""; 
         [Column("description")] public string JobDescription { get; set; } = ""; 
-        [Column("location_id")] public int JobLocationId { get; set; } 
+        [Column("location_id")] public long JobLocationId { get; set; }
+
         
 
         // ADD THIS: The related Location object
@@ -1551,7 +1799,7 @@ else
         [Reference(typeof(LocationTable))]
         public LocationTable Location { get; set; }
     }
-    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; [Column("section")] public string Section { get; set; } = ""; }
+    [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; [Column("section")] public string Section { get; set; } = ""; [Column("designation")] public string Designation { get; set; } = ""; }
     
     
     [Table("job_assignments")]
@@ -1570,6 +1818,8 @@ else
         [Column("doc_number")] public string DocNumber { get; set; } = "";
         [Column("status")] public string Status { get; set; } = ""; // Field for soft delete
         [JsonIgnore] public string PrintableDate => CreatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "";
+
+        [Column("job_assigned_by")] public string job_assignment_table_JobAssignedBy { get; set; } = "";
     }
 
 

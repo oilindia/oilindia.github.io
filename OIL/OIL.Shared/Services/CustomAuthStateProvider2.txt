@@ -1,6 +1,7 @@
-﻿using Blazored.LocalStorage;
+using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Claims;
 using System.Text.Json;
@@ -105,13 +106,14 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         try
         {
-            // 1. Return memory cache instantly if it exists
+            // 1. If we already have a runtime cached identity state task, return it instantly.
+            // This eliminates the 1000ms disk IO latency during internal app navigation routing.
             if (_cachedStateTask != null)
             {
                 return await _cachedStateTask;
             }
 
-            // 2. Fallback to cold disk/localstorage read
+            // 2. Fallback to cold disk/localstorage read only on initial cold boot setup
             var userJson = await ReadSessionAsync();
 
             if (string.IsNullOrWhiteSpace(userJson))
@@ -127,7 +129,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
                 return await _cachedStateTask;
             }
 
-            var principal = CreateClaimsPrincipal(user);
+            var principal = CreateClaimsPrincipal(user.Email, user.Role);
             _cachedStateTask = Task.FromResult(new AuthenticationState(principal));
             return await _cachedStateTask;
         }
@@ -138,23 +140,45 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         }
     }
 
-    // Unified Update Method: Replaces both AdminUpdateAuthenticationState and UpdateAuthenticationState
-    public async Task UpdateStateAsync(UserSession session)
+    public async Task AdminUpdateAuthenticationStateAsync(string email, string role)
     {
         try
         {
+            var session = new UserSession { Email = email, Role = role };
             await SaveSessionAsync(session);
-            var principal = CreateClaimsPrincipal(session);
+
+            var principal = CreateClaimsPrincipal(email, role);
 
             // Set memory cache immediately before notifying the UI
             _cachedStateTask = Task.FromResult(new AuthenticationState(principal));
             NotifyAuthenticationStateChanged(_cachedStateTask);
 
-            Console.WriteLine($"[UpdateStateAsync]: In-Memory identity cached for {session.Email}");
+            Console.WriteLine($"[AdminUpdate]: In-Memory identity cached for {email}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[UpdateStateAsync Error]: {ex.Message}");
+            Console.WriteLine($"[AdminUpdate Error]: {ex.Message}");
+        }
+    }
+
+    public async Task UpdateAuthenticationState(string email, string role)
+    {
+        try
+        {
+            var session = new UserSession { Email = email, Role = role };
+            await SaveSessionAsync(session);
+
+            var principal = CreateClaimsPrincipal(email, role);
+
+            // Set memory cache immediately before notifying the UI
+            _cachedStateTask = Task.FromResult(new AuthenticationState(principal));
+            NotifyAuthenticationStateChanged(_cachedStateTask);
+
+            Console.WriteLine($"[UpdateAuthentication]: In-Memory identity cached for {email}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UpdateAuthentication Error]: {ex.Message}");
         }
     }
 
@@ -172,29 +196,21 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         }
     }
 
-    private ClaimsPrincipal CreateClaimsPrincipal(UserSession session)
+    private ClaimsPrincipal CreateClaimsPrincipal(string email, string role)
     {
-        // Translates your Custom Session into standard .NET Security Claims
         var identity = new ClaimsIdentity(
         [
-            // "Email" here acts as the universal Login ID (holds either email or emp_code)
-            new Claim(ClaimTypes.NameIdentifier, session.Email),
-            new Claim(ClaimTypes.Name, !string.IsNullOrWhiteSpace(session.FullName) ? session.FullName : session.Email),
-            new Claim(ClaimTypes.Role, session.Role ?? "User"),
-            new Claim("Designation", session.Designation ?? string.Empty),
-            new Claim("Grade", session.Grade ?? string.Empty)
+            new Claim(ClaimTypes.Name, email),
+            new Claim(ClaimTypes.Role, role)
         ], "CustomAuth");
 
         return new ClaimsPrincipal(identity);
     }
 
-    // Expanded model to hold data from both database tables
+
     public class UserSession
     {
-        public string Email { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public string Designation { get; set; } = string.Empty;
-        public string Grade { get; set; } = string.Empty;
+        public string Email { get; set; }
+        public string Role { get; set; }
     }
 }

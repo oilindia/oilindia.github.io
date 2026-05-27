@@ -10,6 +10,8 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
 @inject IDialogService DialogService
+@using System.Security.Claims
+@using OIL.Shared.Services
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-10">
     <MudGrid>
@@ -319,7 +321,7 @@
     private string _searchQuery = "";
     private long? _filterLocId;
     private DateRange _dateRange = new DateRange(DateTime.Now.AddDays(-7), DateTime.Now);
-    
+
     private string? _selectedFieldArea = "All";
     private string? _selectedInstType = "All";
 
@@ -375,7 +377,7 @@
         [Column("status")] public string Status { get; set; } = "pending";
         [Column("description")] public string Description { get; set; } = "";
         [Column("reported_by_email")] public string ReportedByEmail { get; set; } = "";
-        [Column("reported_by_id")] public Guid? ReportedById { get; set; }
+        [Column("reported_by_id")] public string? ReportedById { get; set; }
         [Column("job_type")] public string JobType { get; set; } = "breakdown";
 
         [Column("loc_tag_number")] public string? Loc_Tag_Number { get; set; } = "";
@@ -406,7 +408,29 @@
         [Column("location_type")] public string? LocationType { get; set; }
     }
 
-    protected override async Task OnInitializedAsync() => await LoadData();
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                _email = user.GetEmail();
+                _fullName = user.GetFullName();
+                _designation = user.GetDesignation();
+
+            }
+        }
+        await LoadData();
+    } 
 
     private string GetLocationName(long? id) => _allLocations.FirstOrDefault(l => l.Id == id)?.InstallationName ?? "Manual Entry / Unknown";
 
@@ -695,7 +719,10 @@
             _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
             
             var sub = user.FindFirst(c => c.Type == "sub")?.Value;
-            if (Guid.TryParse(sub, out var userId)) _newJob.ReportedById = userId;
+
+            _newJob.ReportedById = _email.ToString() ?? "unknown";
+
+            //if (Guid.TryParse(sub, out var userId)) _newJob.ReportedById = userId;
 
             var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
             var confirmed = jobRes.Models.FirstOrDefault();

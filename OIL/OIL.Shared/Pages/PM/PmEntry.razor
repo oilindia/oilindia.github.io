@@ -156,22 +156,36 @@
     /* ========================================================= */
     .calibration-paper table {
         width: 100% !important;
-        border-collapse: collapse !important;
+        /* CHANGED: 'separate' allows border-radius to actually work */
+        border-collapse: separate !important;
+        border-spacing: 0;
         margin: 18px 0 !important;
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
-        overflow: hidden;
+        /* REMOVED overflow: hidden; so MudSelect dropdowns don't clip */
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
     }
 
     /* Force rich, clean grid borders on all sides of the matrix layout cells */
     .calibration-paper th,
     .calibration-paper td {
-        border: 1px solid #cbd5e1 !important;
+        /* CHANGED: Border bottom/right only to prevent double-thick lines with 'separate' */
+        border-bottom: 1px solid #cbd5e1 !important;
+        border-right: 1px solid #cbd5e1 !important;
         padding: 14px 16px !important;
         font-size: 0.875rem !important;
         vertical-align: middle !important;
+    }
+        /* Remove the right border on the last column to keep the outer edge clean */
+        .calibration-paper th:last-child,
+        .calibration-paper td:last-child {
+            border-right: none !important;
+        }
+
+    /* Remove the bottom border on the last row to prevent clashing with the table's outer border */
+    .calibration-paper tr:last-child td {
+        border-bottom: none !important;
     }
 
     /* Premium Slate Header Layout */
@@ -182,8 +196,26 @@
         text-transform: uppercase !important;
         letter-spacing: 0.75px !important;
         font-size: 0.8rem !important;
+        /* Cleaned up header borders */
+        border-bottom: 3px solid #0f172a !important;
+    }
+    /* Premium Slate Header Layout */
+    /* .calibration-paper th {
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.75px !important;
+        font-size: 0.8rem !important;
         border: 1px solid #334155 !important;
         border-bottom: 3px solid #0f172a !important;
+    } */
+    .calibration-paper td .mud-input-control {
+        margin: 0 !important;
+    }
+
+    .calibration-paper td:has(.mud-input-control) {
+        padding: 8px !important;
     }
 
     /* High-contrast Clean Zebra Striping */
@@ -495,18 +527,16 @@
                         </MudTable>
                     </div>
 
-                    <MudText Typo="Typo.h6" Class="mt-6 mb-3" Style="font-weight: 700; color: var(--mud-palette-text-primary);">
-                        Consolidated Global Asset Inventory Spares Ledger & Cost Appraisals
-                    </MudText>
                     
-                    <MudGrid Class="mb-4 align-start" Spacing="3">
+                    
+                    @* <MudGrid Class="mb-4 align-start" Spacing="3">
                         <MudItem xs="12" md="8">
                             <MudTextField T="string" Label="Consumable Physical Asset Spares Consumed Record Ledger" Variant="Variant.Outlined" Lines="4" @bind-Value="_sparesConsumed" Placeholder="Specify full detailed logistical breakdown listing of serial tracked components deployed during maintenance execution lifecycle protocol..." />
                         </MudItem>
                         <MudItem xs="12" md="4">
                             <MudNumericField T="decimal?" Label="Approximate Consolidated Project Execution Cost Total (USD/INR)" Variant="Variant.Outlined" Placeholder="0.00" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_approxTotalCost" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" AdornmentColor="Color.Success" />
                         </MudItem>
-                    </MudGrid>
+                    </MudGrid> *@
 
                     <div class="d-flex flex-column flex-sm-row gap-3 mt-4">
                         <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddGcsRow" Color="Color.Secondary" Variant="Variant.Filled" Class="py-3 px-6 rounded-lg font-weight-bold transition-all" Size="Size.Large">
@@ -517,6 +547,12 @@
             </MudExpansionPanel>
 
            
+
+            <MudText Typo="Typo.h6" Class="mt-6 mb-3" Style="font-weight: 700; color: var(--mud-palette-text-primary);">
+                Consolidated Global Asset Inventory Spares Ledger & Cost Appraisals
+            </MudText>
+
+
             @* --- GCS REMARKS AND MULTI DATE SELECTION SECTION --- *@
             <MudGrid Class="mb-6 align-start" Spacing="3">
 
@@ -560,12 +596,12 @@
             <MudGrid Class="mb-4 align-start" Spacing="3">
                 @* Spares Ledger - Adjusted to md="6" to make room *@
                 <MudItem xs="12" md="6">
-                    <MudTextField T="string" Label="Consumable Physical Asset Spares Consumed Record Ledger" Variant="Variant.Outlined" Lines="4" @bind-Value="_sparesConsumed" Placeholder="Specify full detailed logistical breakdown listing of serial tracked components deployed during maintenance execution lifecycle protocol..." />
+                    <MudTextField T="string" Label="Consumable or Spares Consumed Record" Variant="Variant.Outlined" Lines="4" @bind-Value="_sparesConsumed" Placeholder="Specify full detailed logistical breakdown listing of serial tracked components deployed during maintenance execution lifecycle protocol..." />
                 </MudItem>
 
                 @* Total Cost - Adjusted to md="3" *@
                 <MudItem xs="12" md="3">
-                    <MudNumericField T="decimal?" Label="Approximate Consolidated Project Execution Cost Total (USD/INR)" Variant="Variant.Outlined" Placeholder="0.00" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_approxTotalCost" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" AdornmentColor="Color.Success" />
+                    <MudNumericField T="decimal?" Label="Approximate Total Spare Cost(INR)" Variant="Variant.Outlined" Placeholder="0.00" Min="0" HideSpinButtons="true" Immediate="true" @bind-Value="_approxTotalCost" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.CurrencyRupee" AdornmentColor="Color.Success" />
                 </MudItem>
 
                 @* NEW: Overtime Hours & Minutes - Takes remaining md="3" space *@
@@ -908,7 +944,7 @@
                 </MudItem>
             </MudGrid>
 
-            <div class="pa-4 rounded-lg my-4 variant-filled-surface border-1" style="border-color: var(--mud-palette-lines-light); background-color: var(--mud-palette-background-grey);">
+            <div class="pa-4 rounded-lg my-4 variant-filled-surface border-1" style="border-color: var(--mud-palette-lines-light); background-color: var(--mud-palette-background-grey); overflow-x: auto; width: 100%;">
                 @RenderCalibrationContent()
             </div>
 
@@ -926,6 +962,10 @@
         </MudPaper>
     </div>
 }
+
+
+
+
 
 @code {
 
