@@ -1,7 +1,7 @@
 ﻿@page "/coststatic"
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
-@inject Supabase.Client SupabaseClient
+
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 
@@ -245,6 +245,9 @@
 
     private async Task RefreshDashboardAsync()
     {
+        
+
+
         _loading = true;
         StateHasChanged();
 
@@ -424,7 +427,7 @@
                         .Select(id => id.Trim())
                         .ToList();
 
-                    Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
+                    //Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
 
                     if (cleanAssignmentJobIds.Any())
                     {
@@ -546,6 +549,10 @@
         [Column("job_ids")] public List<string>? JobIds { get; set; }
         [Column("personnel_ids")] public List<string>? PersonnelIds { get; set; }
         [Column("job_overtime")] public double? JobOvertime { get; set; }
+
+
+
+
     }
 
     [Table("locations")]
@@ -574,7 +581,7 @@
     public class JobModel : BaseModel
     {
         [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
-        [Column("parts_cost")] public double? PartsCost { get; set; }
+        [Column("job_spare_cost")] public double? PartsCost { get; set; }
         [Column("location_id")] public long? LocationId { get; set; }
     }
 

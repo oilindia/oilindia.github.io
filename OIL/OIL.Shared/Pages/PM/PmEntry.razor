@@ -1130,7 +1130,7 @@
     {
         try
         {
-            var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending").Where(x => x.JobType == "preventive").Get();
+            var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending" || x.Status == "assigned").Where(x => x.JobType == "preventive").Get();
             _pendingJobs = jobRes.Models;
 
 

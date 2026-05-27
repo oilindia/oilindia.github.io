@@ -777,6 +777,7 @@ else
             <MudTh>Vehicle</MudTh>
             <MudTh>Jobs</MudTh>
             <MudTh>Personnel</MudTh>
+            <MudTh>AssignStatus</MudTh>
             <MudTh Style="text-align:right">Actions</MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -803,6 +804,8 @@ else
                 }
             </MudTd>
             <MudTd DataLabel="Personnel"><small>@string.Join(", ", context.PersonnelIds.Select(GetEngineerName))</small></MudTd>
+            <MudTd DataLabel="Personnel"><small>@context.Status</small></MudTd>
+
             <MudTd DataLabel="Actions" Style="text-align:right">
                 <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Info" OnClick="@(() => PrepareJobCard(context))" Size="Size.Small" />
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => OpenEditModal(context))" Size="Size.Small" />
@@ -1518,11 +1521,13 @@ else
 
     private async Task DeleteAssignment(Guid id)
     {
-        // Soft delete fix: setting status to "dltd" instead of physical deletion
+        // Soft delete fix: setting status to "deleted" instead of physical deletion
         await SupabaseClient.From<Assignment>()
             .Where(x => x.Id == id)
-            .Set(x => x.Status, "dltd")
+            .Set(x => x.Status, "deleted")
             .Update();
+
+        StateHasChanged();
 
         await LoadData();
         Snackbar.Add("Job marked as deleted", Severity.Info);

@@ -65,11 +65,13 @@
                         </MudItem>
 
                         @* --- MAIN INSTALLATION LOCATION --- *@
+                        @* ToStringFunc="@(loc => loc?.Id == -1 ? "Other (Manual Entry)" : loc?.InstallationName)" *@
                         <MudItem xs="12" md="4">
                             <MudSelect T="LocationTable" Label="Installation Location" 
                                        Value="@_selectedLocation" 
                                        ValueChanged="OnLocationChanged"
-                                       ToStringFunc="@(loc => loc?.Id == -1 ? "Other (Manual Entry)" : loc?.InstallationName)"
+                                      
+                                       ToStringFunc="@((Func<LocationTable?, string?>)(loc => loc?.Id == -1 ? "Other (Manual Entry)" : loc?.InstallationName))"
                                        Variant="Variant.Outlined" Required="!_isManualLocation"
                                        HelperText="Select to load instrumentation markers">
                                 @foreach (var loc in _filteredLocations)

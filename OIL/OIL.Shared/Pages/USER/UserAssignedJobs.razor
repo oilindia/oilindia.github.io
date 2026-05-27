@@ -12,7 +12,9 @@
 @using OIL.Shared.Services
 @inject CustomAuthStateProvider AuthStateProvider
 @using System.Security.Claims
-
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+@using OIL.Shared.Services
 
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 responsive-job-page">
@@ -115,6 +117,7 @@
             <div class="d-flex align-center mb-4">
                 <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="CancelExecution" />
                 <MudText Typo="Typo.h6" Class="ml-2">Executing: @_selectedJob?.JobName</MudText>
+                <MudText Typo="Typo.h6" Class="ml-2">Executing: @_selectedJob?.Description</MudText>
             </div>
 
             @if (_selectedJob?.JobType == "preventive")
@@ -136,6 +139,10 @@
             {
                 @* --- BREAKDOWN UI --- *@
                 <MudGrid>
+                   
+
+
+
                     <MudItem xs="12">
                         <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" Lines="3" @bind-Value="_workDone" Required="true" />
                     </MudItem>
@@ -145,7 +152,10 @@
                                 <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PhotoCamera" for="photo-up">Capture Photo</MudButton>
                             </ButtonTemplate>
                         </MudFileUpload>
-                        @foreach (var file in _uploadedFiles) { <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip> }
+                        @foreach (var file in _uploadedFiles)
+                        {
+                            <MudChip T="string" Color="Color.Success" OnClose="@(() => _uploadedFiles.Remove(file))">@file.Name</MudChip>
+                        }
                     </MudItem>
                     <MudItem xs="12" sm="4">
                         <MudSwitch T="bool" Value="@_partReplaced" ValueChanged="@((v) => { _partReplaced = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any part replaced?" />
@@ -153,33 +163,33 @@
                     <MudItem xs="12" sm="4">
                         <MudSwitch T="bool" Value="@_overtime" ValueChanged="@((v) => { _overtime = v; StateHasChanged(); })" Color="Color.Secondary" Label="Was any overtime worked?" />
                     </MudItem>
-                    
+
                     @if (_overtime)
-{
-    <MudGrid>
-        <MudItem xs="12" sm="6">
-            <MudNumericField @bind-Value="_overtimeHours" 
-                             Label="Overtime Hours"
-                             Variant="Variant.Outlined" 
-                             Min="0" 
-                             Step="1"
-                             HideSpinButtons="false"
-                             Adornment="Adornment.End"
-                             AdornmentIcon="@Icons.Material.Filled.AccessTime" />
-        </MudItem>
-        <MudItem xs="12" sm="6">
-            <MudNumericField @bind-Value="_overtimeMinutes" 
-                             Label="Overtime Minutes"
-                             Variant="Variant.Outlined" 
-                             Min="0" 
-                             Max="59" 
-                             Step="1"
-                             HideSpinButtons="false"
-                             Adornment="Adornment.End"
-                             AdornmentIcon="@Icons.Material.Filled.Build" />
-        </MudItem>
-    </MudGrid>
-}
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_overtimeHours"
+                                                 Label="Overtime Hours"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Step="1"
+                                                 HideSpinButtons="false"
+                                                 Adornment="Adornment.End"
+                                                 AdornmentIcon="@Icons.Material.Filled.AccessTime" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="_overtimeMinutes"
+                                                 Label="Overtime Minutes"
+                                                 Variant="Variant.Outlined"
+                                                 Min="0"
+                                                 Max="59"
+                                                 Step="1"
+                                                 HideSpinButtons="false"
+                                                 Adornment="Adornment.End"
+                                                 AdornmentIcon="@Icons.Material.Filled.Build" />
+                            </MudItem>
+                        </MudGrid>
+                    }
 
 
 
@@ -288,7 +298,7 @@
 
                    
 
-</MudGrid>
+                </MudGrid>
             }
 
             <MudDivider Class="my-6" />
@@ -305,7 +315,8 @@
 
     @code {
     [Table("jobs")]
-    public class Job : BaseModel {
+    public class Job : BaseModel
+    {
         [PrimaryKey("id", false)] public Guid Id { get; set; }
         [Column("job_name")] public string JobName { get; set; } = "";
         [Column("job_type")] public string JobType { get; set; } = "";
@@ -319,10 +330,22 @@
         // Note: If you don't have this column in public.jobs, you should add it
         // or rely solely on job_assignments.job_action_remarks.
         [Column("job_action_remarks")] public string? JobActionRemarks { get; set; }
+
+        [Column("job_spare_replaced")] public string? JobSpareReplaced { get; set; }
+        [Column("job_spare_cost")] public long? JobSpareCost { get; set; }
+    }
+
+    [Table("job_photos")]
+    public class JobPhotoModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public Guid Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("storage_path")] public string StoragePath { get; set; } = "";
     }
 
     [Table("job_assignments")]
-    public class JobAssignment : BaseModel {
+    public class JobAssignment : BaseModel
+    {
         [PrimaryKey("id", false)] public Guid Id { get; set; }
         [Column("job_ids")] public List<Guid>? JobIds { get; set; }
         [Column("job_action")] public string? JobAction { get; set; }
@@ -336,14 +359,16 @@
     }
 
     [Table("pm_reports")]
-    public class PmReport : BaseModel {
+    public class PmReport : BaseModel
+    {
         [Column("job_id")] public Guid JobId { get; set; }
         [Column("checklist_data")] public string ChecklistJson { get; set; } = "";
         [Column("observations")] public string Observations { get; set; } = "";
     }
 
     [Table("pm_master_checklist")]
-    public class ChecklistItem : BaseModel {
+    public class ChecklistItem : BaseModel
+    {
         [Column("task_description")] public string TaskDescription { get; set; } = "";
         [Column("installation_type")] public string InstallationType { get; set; } = "";
         [IgnoreDataMember] public bool IsCompleted { get; set; }
@@ -351,7 +376,8 @@
     }
 
     [Table("locations")]
-    public class Location : BaseModel {
+    public class Location : BaseModel
+    {
         [PrimaryKey("id", false)] public long Id { get; set; }
         [Column("installation_type")] public string? InstallationType { get; set; }
     }
@@ -376,40 +402,67 @@
     private float? _currentOvertime;
 
     private string _spareDetails = "";
-    private List<IBrowserFile> _uploadedFiles = new();
+    //private List<IBrowserFile> _uploadedFiles = new();
 
-    protected override async Task OnInitializedAsync() => await LoadInitialData();
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
 
-    private async Task LoadInitialData() {
-        try {
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                _email = user.GetEmail();
+                _fullName = user.GetFullName();
+                _designation = user.GetDesignation();
+
+            }
+        }
+        await LoadInitialData();    
+    } 
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
             _loading = true;
+
+            // var res = await SupabaseClient.From<Job>()
+            //         // 1. Force an inner join so Jobs without valid assignments are excluded
+            //         .Select("*, job_assignments!inner(*)")
+
+            //         // 2. Filter the parent table (Job)
+            //         .Where(x => x.Status == "assigned" || x.Status == "pending")
+
+            //         // 3. Filter the child table (job_assignments) using a string-based filter
+            //         .Filter("job_assignments.status", Supabase.Postgrest.Constants.Operator.NotEqual, "deleted")
+
+            //     .Get();
+
             var res = await SupabaseClient.From<Job>().Where(x => x.Status == "pending" || x.Status == "assigned").Get();
             _pendingJobs = res.Models;
             var master = await SupabaseClient.From<ChecklistItem>().Get();
             _allMasterTasks = master.Models;
-
-
-
-
-
-        } finally { _loading = false; }
-
-
-
-
+            _loading = false;
+        }
+        catch (Exception e)
+        {
+            _loading = false;
+            Console.WriteLine($"Method Error: {e.Message}");
+            Snackbar.Add($"Error : {e.Message}", Severity.Error);
+        }
 
     }
 
-    private async Task StartJobExecution(Job job) {
-        // _selectedJob = job;
-        // _isExecuting = true;
-        // if (job.JobType == "preventive" && job.LocationId.HasValue) {
-        //     var loc = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId.Value).Get();
-        //     _detectedType = loc.Models.FirstOrDefault()?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
-        //     _filteredChecklist = _allMasterTasks.Where(x => x.InstallationType.ToUpper() == _detectedType)
-        //         .Select(x => new ChecklistItem { TaskDescription = x.TaskDescription }).ToList();
-        // }
-
+    private async Task StartJobExecution(Job job)
+    {
         if (job.JobType?.ToLower() == "preventive")
         {
             // Navigate to the specific PM execution page, passing the Job ID
@@ -417,86 +470,385 @@
             return;
         }
 
-
-
         // Default logic for other job types (e.g., Breakdown)
         _selectedJob = job;
-        CurrentLocationId = _selectedJob.LocationId ?? 0; 
+        CurrentLocationId = _selectedJob.LocationId ?? 0;
+
+        // --- FIX START: Fetch the matching Job Assignment ID ---
+        try
+        {
+            var assignmentResponse = await SupabaseClient.From<JobAssignment>()
+                .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { job.Id })
+                .Get();
+
+            var matchingAssignment = assignmentResponse.Models.FirstOrDefault();
+
+            if (matchingAssignment != null)
+            {
+                CurrentJobAssignmentId = matchingAssignment.Id;
+            }
+            else
+            {
+                // Handle edge case where a job exists but isn't assigned properly
+                Snackbar.Add("Warning: No active assignment found for this job.", Severity.Warning);
+                CurrentJobAssignmentId = Guid.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error looking up assignment: {ex.Message}", Severity.Error);
+        }
+        // --- FIX END ---
 
         await LoadInitialDataPID();
         AddNewRow(); // Start with one empty row
 
         // Set the current location for PID data loading
         _isExecuting = true;
-
-
-
     }
 
-    private void HandleFileUpload(IBrowserFile file) { if (file != null) _uploadedFiles.Add(file); }
+
+    // private async Task StartJobExecution(Job job)
+    // {
+    //     // _selectedJob = job;
+    //     // _isExecuting = true;
+    //     // if (job.JobType == "preventive" && job.LocationId.HasValue) {
+    //     //     var loc = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId.Value).Get();
+    //     //     _detectedType = loc.Models.FirstOrDefault()?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+    //     //     _filteredChecklist = _allMasterTasks.Where(x => x.InstallationType.ToUpper() == _detectedType)
+    //     //         .Select(x => new ChecklistItem { TaskDescription = x.TaskDescription }).ToList();
+    //     // }
+
+    //     if (job.JobType?.ToLower() == "preventive")
+    //     {
+    //         // Navigate to the specific PM execution page, passing the Job ID
+    //         Navigation.NavigateTo($"/pmexecution");
+    //         return;
+    //     }
+
+
+
+    //     // Default logic for other job types (e.g., Breakdown)
+    //     _selectedJob = job;
+    //     CurrentLocationId = _selectedJob.LocationId ?? 0;
+
+    //     await LoadInitialDataPID();
+    //     AddNewRow(); // Start with one empty row
+
+    //     // Set the current location for PID data loading
+    //     _isExecuting = true;
+
+
+
+    // }
+    // List to hold files temporarily before submission
+    private List<IBrowserFile> _uploadedFiles = new();
+
+    // Method triggered when a user selects a file or takes a photo
+    private void HandleFileUpload(IBrowserFile file)
+    {
+        if (file != null)
+        {
+            _uploadedFiles.Add(file);
+            StateHasChanged(); // Refresh UI to show the new chip
+        }
+    }
+
+    // Optional: If you want to allow selecting multiple files at once,
+    // change your MudFileUpload to T="IReadOnlyList<IBrowserFile>" and use this:
+    private void HandleMultipleFileUpload(IReadOnlyList<IBrowserFile> files)
+    {
+        if (files != null && files.Any())
+        {
+            _uploadedFiles.AddRange(files);
+            StateHasChanged();
+        }
+    }
+
+    // private void HandleFileUpload(IBrowserFile file) { if (file != null) _uploadedFiles.Add(file); }
     private void CancelExecution() => _isExecuting = false;
 
     private string? userEmail;
     private string? userRole;
 
+    // private async Task ProcessJobSubmission()
+    // {
+    //     try
+    //     {
+
+    //         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+    //         var user = authState.User;
+
+    //         // 2. Check if the user is logged in
+    //         if (user.Identity is { IsAuthenticated: true })
+    //         {
+    //             // 3. Extract the claims you set in CustomAuthStateProvider
+    //             // ClaimTypes.Name was used for Email in your service
+    //             userEmail = user.Identity.Name;
+
+    //             // Extract the Role
+    //             userRole = user.FindFirst(ClaimTypes.Role)?.Value;
+    //         }
+    //         else
+    //         {
+    //             // Handle anonymous state
+    //             userEmail = "Anonymous";
+    //             userRole = "None";
+    //         }
+
+
+    //         float? finalOvertime = null;
+
+    //         if (_overtime && (_overtimeHours.HasValue || _overtimeMinutes.HasValue))
+    //         {
+    //             var currentAssignment = await SupabaseClient.From<JobAssignment>()
+    //                 .Where(x => x.Id == CurrentJobAssignmentId)
+    //                 .Single();
+
+    //             // Safely grab existing hours (now correctly typed as float)
+    //             float existingHours = currentAssignment?.JobOverTime ?? 0f;
+
+    //             // Convert UI hours and minutes into a single float value
+    //             float enteredHours = _overtimeHours ?? 0;
+    //             float enteredMinutesAsHours = (_overtimeMinutes ?? 0) / 60f;
+    //             float newOvertimeTotal = enteredHours + enteredMinutesAsHours;
+
+    //             finalOvertime = existingHours + newOvertimeTotal;
+    //         }
+
+
+    //         // You can get the engineer name from your auth context or a service
+    //         string engineerName = _fullName;
+
+
+    //         string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+    //         // Construct the remark string as requested:
+    //         // engineer name - information - then information added at : datetime
+    //         string newObservation = $"{engineerName} - {_workDone} - added at : {timestamp}";
+
+    //         // Append to existing remarks with a line break for the grid display
+    //         string updatedRemarks = string.IsNullOrEmpty(_selectedJob?.JobActionRemarks)
+    //             ? newObservation
+    //             : $"{_selectedJob.JobActionRemarks}\n{newObservation}";
+
+    //         // 1. Update the Job Assignment table (finding the record containing this job ID)
+    //         await SupabaseClient.From<JobAssignment>()
+    //             .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
+    //             .Set(x => x.JobAction, "pending")
+    //             .Set(x => x.JobActionBy, engineerName)
+    //             .Set(x => x.JobActionTime, DateTime.Now)
+    //             .Set(x => x.JobActionRemarks, updatedRemarks)
+    //             .Set(x => x.SpareReplace, _partReplaced ? _spareDetails : "None")
+    //              .Set(x => x.JobOverTime, finalOvertime)
+    //             .Update();
+
+    //         // 2. Update the main Jobs table
+    //         // We update the status (remains 'pending' if yellow button is clicked)
+    //         // and save the remarks so they show up in the grid immediately.
+
+    //         long? totalSpareCost = _partReplaced
+    // ? _replacements.Sum(x => x.ApproxCost ?? 0)
+    // : null;
+
+    //         await SupabaseClient.From<Job>()
+    //             .Where(x => x.Id == _selectedJob.Id)
+    //             .Set(x => x.Status, "pending")
+    //             .Set(x => x.JobSpareReplaced, _partReplaced ? _spareDetails : "None")
+    //             .Set(x => x.JobSpareCost, totalSpareCost)
+    //             .Set(x => x.JobActionRemarks, updatedRemarks)
+    //             .Update();
+
+
+    //         if (_uploadedFiles.Any() && _selectedJob != null)
+    //         {
+    //             foreach (var file in _uploadedFiles)
+    //             {
+    //                 // 1. Generate a unique storage path for the file
+    //                 var path = $"{_selectedJob.Id}/{Guid.NewGuid()}_{file.Name}";
+
+    //                 // 2. Read the file into memory (Max 10MB limit set here)
+    //                 using var stream = file.OpenReadStream(10 * 1024 * 1024);
+    //                 using var ms = new MemoryStream();
+    //                 await stream.CopyToAsync(ms);
+
+    //                 // 3. Upload raw bytes to Supabase Storage
+    //                 await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+
+    //                 // 4. Create the database record linking the photo to the Job
+    //                 await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel
+    //                 {
+    //                     Id = Guid.NewGuid(),
+    //                     JobId = _selectedJob.Id,
+    //                     StoragePath = path
+    //                 });
+    //             }
+    //         }
+
+    //         //Snackbar.Add("Job executed and photos uploaded successfully!", Severity.Success);
+
+    //         // Clean up UI state
+    //         _uploadedFiles.Clear();
+    //         _workDone = "";
+    //         _partReplaced = false;
+    //         _overtime = false;
+
+    //         // Return to the pending jobs view
+    //         // _isExecuting = false;
+    //         // await LoadInitialData();
+
+
+
+    //         Snackbar.Add("Job updated for further review", Severity.Success);
+    //         _isExecuting = false;
+    //         await LoadInitialData();
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+    //     }
+    // }
+
+
+
+    // private async Task SubmitJob()
+    // {
+    //     try
+    //     {
+    //         if (_selectedJob!.JobType == "preventive")
+    //         {
+    //             // --- SUBMIT PM REPORT ---
+    //             var json = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
+    //             await SupabaseClient.From<PmReport>().Insert(new PmReport
+    //             {
+    //                 JobId = _selectedJob.Id,
+    //                 ChecklistJson = json
+    //             });
+    //         }
+    //         else
+    //         {
+    //             // --- UPDATE JOB ASSIGNMENTS TABLE ---
+    //             // Find the assignment record that contains this specific Job ID in its array
+    //             await SupabaseClient.From<JobAssignment>()
+    //                 .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
+    //                 .Set(x => x.JobAction, "Completed")
+
+    //                 .Set(x => x.JobActionBy, _fullName) // Use the authenticated user's full name
+    //                 .Set(x => x.JobActionTime, DateTime.Now)
+    //                 .Set(x => x.JobActionRemarks, _workDone)
+    //                 .Set(x => x.SpareReplace, _partReplaced ? _spareDetails : "None")
+    //                 .Update();
+    //         }
+
+    //         // Mark job as completed
+    //         await SupabaseClient.From<Job>().Where(x => x.Id == _selectedJob.Id)
+
+
+    //         .Set(x => x.JobActionRemarks, _workDone)
+    //         .Set(x => x.Status, "completed")
+    //         .Update();
+
+    //         Snackbar.Add("Job Submitted Successfully", Severity.Success);
+    //         _isExecuting = false;
+    //         await LoadInitialData();
+    //     }
+    //     catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+    // }
     private async Task ProcessJobSubmission()
     {
         try
         {
-
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
-            // 2. Check if the user is logged in
             if (user.Identity is { IsAuthenticated: true })
             {
-                // 3. Extract the claims you set in CustomAuthStateProvider
-                // ClaimTypes.Name was used for Email in your service
                 userEmail = user.Identity.Name;
-
-                // Extract the Role
                 userRole = user.FindFirst(ClaimTypes.Role)?.Value;
             }
             else
             {
-                // Handle anonymous state
                 userEmail = "Anonymous";
                 userRole = "None";
             }
 
+            float? finalOvertime = null;
+            if (_overtime && (_overtimeHours.HasValue || _overtimeMinutes.HasValue))
+            {
+                var currentAssignment = await SupabaseClient.From<JobAssignment>()
+                    .Where(x => x.Id == CurrentJobAssignmentId)
+                    .Single();
 
-            // You can get the engineer name from your auth context or a service
-            string engineerName = userEmail;
+                float existingHours = currentAssignment?.JobOverTime ?? 0f;
+                float enteredHours = _overtimeHours ?? 0;
+                float enteredMinutesAsHours = (_overtimeMinutes ?? 0) / 60f;
+                float newOvertimeTotal = enteredHours + enteredMinutesAsHours;
 
+                finalOvertime = existingHours + newOvertimeTotal;
+            }
 
+            string engineerName = _fullName;
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-
-            // Construct the remark string as requested:
-            // engineer name - information - then information added at : datetime
             string newObservation = $"{engineerName} - {_workDone} - added at : {timestamp}";
 
-            // Append to existing remarks with a line break for the grid display
             string updatedRemarks = string.IsNullOrEmpty(_selectedJob?.JobActionRemarks)
                 ? newObservation
                 : $"{_selectedJob.JobActionRemarks}\n{newObservation}";
 
-            // 1. Update the Job Assignment table (finding the record containing this job ID)
+            // Robust check for replacements
+            bool itemsWereReplaced = _partReplaced || (_replacements != null && _replacements.Any(x => !string.IsNullOrEmpty(x.DeviceLocation)));
+
+            // Generate JSON data package from grid
+            string replacementJson = itemsWereReplaced
+                ? System.Text.Json.JsonSerializer.Serialize<List<ReplacementEntry>>(_replacements)
+                : "None";
+
+            long? totalSpareCost = itemsWereReplaced ? _replacements.Sum(x => x.ApproxCost ?? 0) : null;
+
+            // 1. Update the Job Assignment table
             await SupabaseClient.From<JobAssignment>()
                 .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
                 .Set(x => x.JobAction, "pending")
                 .Set(x => x.JobActionBy, engineerName)
                 .Set(x => x.JobActionTime, DateTime.Now)
                 .Set(x => x.JobActionRemarks, updatedRemarks)
+                .Set(x => x.SpareReplace, replacementJson) // FIX: Changed from _spareDetails to replacementJson
+                .Set(x => x.JobOverTime, finalOvertime)
                 .Update();
 
             // 2. Update the main Jobs table
-            // We update the status (remains 'pending' if yellow button is clicked)
-            // and save the remarks so they show up in the grid immediately.
             await SupabaseClient.From<Job>()
                 .Where(x => x.Id == _selectedJob.Id)
                 .Set(x => x.Status, "pending")
+                .Set(x => x.JobSpareReplaced, replacementJson) // FIX: Changed from _spareDetails to replacementJson
+                .Set(x => x.JobSpareCost, totalSpareCost)
                 .Set(x => x.JobActionRemarks, updatedRemarks)
                 .Update();
+
+            if (_uploadedFiles.Any() && _selectedJob != null)
+            {
+                foreach (var file in _uploadedFiles)
+                {
+                    var path = $"{_selectedJob.Id}/{Guid.NewGuid()}_{file.Name}";
+                    using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+
+                    await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+
+                    await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel
+                    {
+                        Id = Guid.NewGuid(),
+                        JobId = _selectedJob.Id,
+                        StoragePath = path
+                    });
+                }
+            }
+
+            _uploadedFiles.Clear();
+            _workDone = "";
+            _partReplaced = false;
+            _overtime = false;
 
             Snackbar.Add("Job updated for further review", Severity.Success);
             _isExecuting = false;
@@ -507,39 +859,6 @@
             Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
-
-
-
-    private async Task SubmitJob() {
-        try {
-            if (_selectedJob!.JobType == "preventive") {
-                // --- SUBMIT PM REPORT ---
-                var json = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
-                await SupabaseClient.From<PmReport>().Insert(new PmReport { 
-                    JobId = _selectedJob.Id, ChecklistJson = json 
-                });
-            } else {
-                // --- UPDATE JOB ASSIGNMENTS TABLE ---
-                // Find the assignment record that contains this specific Job ID in its array
-                await SupabaseClient.From<JobAssignment>()
-                    .Filter("job_ids", Supabase.Postgrest.Constants.Operator.Contains, new[] { _selectedJob.Id })
-                    .Set(x => x.JobAction, "Completed")
-                    .Set(x => x.JobActionBy, userEmail) // Use the authenticated user's email
-                    .Set(x => x.JobActionTime, DateTime.Now)
-                    .Set(x => x.JobActionRemarks, _workDone)
-                    .Set(x => x.SpareReplace, _partReplaced ? _spareDetails : "None")
-                    .Update();
-            }
-
-            // Mark job as completed
-            await SupabaseClient.From<Job>().Where(x => x.Id == _selectedJob.Id).Set(x => x.Status, "completed").Update();
-
-            Snackbar.Add("Job Submitted Successfully", Severity.Success);
-            _isExecuting = false;
-            await LoadInitialData();
-        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
-    }
-
 
 
 
@@ -792,6 +1111,7 @@
     //     }
     // }
 
+
     private async Task HandleSubmit()
     {
         if (_selectedJob == null) return;
@@ -799,45 +1119,36 @@
         _isBusy = true;
         try
         {
-            // 1. Prepare common data
-            //var replacementJson = _partReplaced ? JsonSerializer.Serialize(_replacements) : "None";
+            // Robust check: Auto-detect if parts were actually added to the grid
+            bool itemsWereReplaced = _partReplaced || (_replacements != null && _replacements.Any(x => !string.IsNullOrEmpty(x.DeviceLocation)));
 
-            // Use the explicit String-returning overload
-            string replacementJson = _partReplaced
+            // 1. Prepare common data using the detected flag
+            string replacementJson = itemsWereReplaced
                 ? System.Text.Json.JsonSerializer.Serialize<List<ReplacementEntry>>(_replacements)
                 : "None";
-
-            // Do the same for the checklist
-            //string checklistJson = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
 
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var userEmail = authState.User.Identity?.Name ?? "Unknown";
 
-            // 2. Handle Preventive Maintenance (PM) specific data
             if (_selectedJob.JobType == "preventive")
             {
-                // var checklistJson = JsonSerializer.Serialize(_filteredChecklist);
-                // await SupabaseClient.From<PmReport>().Insert(new PmReport
-                // {
-                //     JobId = _selectedJob.Id,
-                //     ChecklistJson = checklistJson
-                // });
+                // PM specific logic if needed
             }
 
-            // 1. FETCH EXISTING OVERTIME (To add current to existing)
-            // 1. FETCH EXISTING OVERTIME & CALCULATE NEW OVERTIME
-            float? finalOvertime = null;
+            if (CurrentJobAssignmentId == Guid.Empty)
+            {
+                Snackbar.Add("Error: Cannot submit. Job Assignment ID is missing.", Severity.Error);
+                return;
+            }
 
+            float? finalOvertime = null;
             if (_overtime && (_overtimeHours.HasValue || _overtimeMinutes.HasValue))
             {
                 var currentAssignment = await SupabaseClient.From<JobAssignment>()
                     .Where(x => x.Id == CurrentJobAssignmentId)
                     .Single();
 
-                // Safely grab existing hours (now correctly typed as float)
                 float existingHours = currentAssignment?.JobOverTime ?? 0f;
-
-                // Convert UI hours and minutes into a single float value
                 float enteredHours = _overtimeHours ?? 0;
                 float enteredMinutesAsHours = (_overtimeMinutes ?? 0) / 60f;
                 float newOvertimeTotal = enteredHours + enteredMinutesAsHours;
@@ -845,31 +1156,25 @@
                 finalOvertime = existingHours + newOvertimeTotal;
             }
 
-
-
-
-            // 3. Update Job Assignment (Audit & Spare details)
-            // We use the Assignment ID directly (as in your 2nd method) for precision
-            var updateRequest =  SupabaseClient.From<JobAssignment>()
+            // 3. Update Job Assignment
+            var updateRequest = SupabaseClient.From<JobAssignment>()
                 .Where(x => x.Id == CurrentJobAssignmentId)
+                .Set(x => x.JobAction, "Completed")
                 .Set(x => x.status, "Completed")
                 .Set(x => x.JobActionBy, userEmail)
                 .Set(x => x.JobActionTime, DateTime.Now)
                 .Set(x => x.JobActionRemarks, _workDone)
                 .Set(x => x.SpareReplace, replacementJson);
-            //.Update();
 
-            // Only include Overtime in the update if the switch is ON
             if (_overtime)
             {
-                // This will now pass a clean float? matching your column schema perfectly
                 updateRequest = updateRequest.Set(x => x.JobOverTime, finalOvertime);
             }
 
             await updateRequest.Update();
 
-            // 4. Sync PID Markers (Updating the Asset Database)
-            if (_partReplaced)
+            // 4. Sync PID Markers
+            if (itemsWereReplaced)
             {
                 foreach (var item in _replacements)
                 {
@@ -877,7 +1182,7 @@
                     {
                         LocationId = CurrentLocationId,
                         Device_location = item.DeviceLocation,
-                        TagNumber = item.TagNumber, // Added Tag Number from cascading logic
+                        TagNumber = item.TagNumber,
                         InstrumentType = item.InstrumentType,
                         MakeModelType = item.NewMakeModel,
                         Range = item.NewRange,
@@ -885,8 +1190,7 @@
                         Replacement_cost = item.ApproxCost
                     };
 
-                    // Logic: Insert new if manual/not found, otherwise update existing record
-                    if (item.IsManualDeviceLocation  || item.IsManualInstrumentType || item.LocationId == null)
+                    if (item.IsManualDeviceLocation || item.IsManualInstrumentType || item.LocationId == null)
                     {
                         await SupabaseClient.From<PIDMarker>().Insert(markerData);
                     }
@@ -898,24 +1202,234 @@
                 }
             }
 
+            // Calculate total cost using the validated flag
+            long? totalSpareCost = itemsWereReplaced ? _replacements.Sum(x => x.ApproxCost ?? 0) : null;
+
             // 5. Finalize Job Status
             await SupabaseClient.From<Job>()
                 .Where(x => x.Id == _selectedJob.Id)
+                .Set(x => x.JobSpareCost, totalSpareCost)
+                .Set(x => x.JobSpareReplaced, replacementJson) // FIX: Changed from _spareDetails to replacementJson
+                .Set(x => x.JobActionRemarks, _workDone)
                 .Set(x => x.Status, "completed")
                 .Update();
 
-            Snackbar.Add("Job Completed and Asset Database Synced!", Severity.Success);
-            await LoadInitialData(); // Refresh UI
+            if (_uploadedFiles.Any() && _selectedJob != null)
+            {
+                foreach (var file in _uploadedFiles)
+                {
+                    var path = $"{_selectedJob.Id}/{Guid.NewGuid()}_{file.Name}";
+                    using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+
+                    await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+
+                    await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel
+                    {
+                        Id = Guid.NewGuid(),
+                        JobId = _selectedJob.Id,
+                        StoragePath = path
+                    });
+                }
+            }
+
+            _uploadedFiles.Clear();
+            _workDone = "";
+            _partReplaced = false;
+            _overtime = false;
+
+            Snackbar.Add("Job Submitted Successfully", Severity.Success);
+            _isExecuting = false;
+            await LoadInitialData();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Submission failed: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
         finally
         {
             _isBusy = false;
         }
     }
+
+    // private async Task HandleSubmit()
+    // {
+    //     if (_selectedJob == null) return;
+
+    //     _isBusy = true;
+    //     try
+    //     {
+    //         // 1. Prepare common data
+    //         //var replacementJson = _partReplaced ? JsonSerializer.Serialize(_replacements) : "None";
+
+    //         // Use the explicit String-returning overload
+    //         string replacementJson = _partReplaced
+    //             ? System.Text.Json.JsonSerializer.Serialize<List<ReplacementEntry>>(_replacements)
+    //             : "None";
+
+    //         // Do the same for the checklist
+    //         //string checklistJson = System.Text.Json.JsonSerializer.Serialize(_filteredChecklist);
+
+    //         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+    //         var userEmail = authState.User.Identity?.Name ?? "Unknown";
+
+    //         // 2. Handle Preventive Maintenance (PM) specific data
+    //         if (_selectedJob.JobType == "preventive")
+    //         {
+    //             // var checklistJson = JsonSerializer.Serialize(_filteredChecklist);
+    //             // await SupabaseClient.From<PmReport>().Insert(new PmReport
+    //             // {
+    //             //     JobId = _selectedJob.Id,
+    //             //     ChecklistJson = checklistJson
+    //             // });
+    //         }
+
+
+    //         // ADD THIS GUARD CLAUSE
+    //         if (CurrentJobAssignmentId == Guid.Empty)
+    //         {
+    //             Snackbar.Add("Error: Cannot submit. Job Assignment ID is missing.", Severity.Error);
+    //             return;
+    //         }
+
+    //         // 1. FETCH EXISTING OVERTIME (To add current to existing)
+    //         // 1. FETCH EXISTING OVERTIME & CALCULATE NEW OVERTIME
+    //         float? finalOvertime = null;
+
+    //         if (_overtime && (_overtimeHours.HasValue || _overtimeMinutes.HasValue))
+    //         {
+    //             var currentAssignment = await SupabaseClient.From<JobAssignment>()
+    //                 .Where(x => x.Id == CurrentJobAssignmentId)
+    //                 .Single();
+
+    //             // Safely grab existing hours (now correctly typed as float)
+    //             float existingHours = currentAssignment?.JobOverTime ?? 0f;
+
+    //             // Convert UI hours and minutes into a single float value
+    //             float enteredHours = _overtimeHours ?? 0;
+    //             float enteredMinutesAsHours = (_overtimeMinutes ?? 0) / 60f;
+    //             float newOvertimeTotal = enteredHours + enteredMinutesAsHours;
+
+    //             finalOvertime = existingHours + newOvertimeTotal;
+    //         }
+
+
+
+
+    //         // 3. Update Job Assignment (Audit & Spare details)
+    //         // We use the Assignment ID directly (as in your 2nd method) for precision
+    //         var updateRequest = SupabaseClient.From<JobAssignment>()
+    //             .Where(x => x.Id == CurrentJobAssignmentId)
+    //              .Set(x => x.JobAction, "Completed")
+    //             .Set(x => x.status, "Completed")
+    //             .Set(x => x.JobActionBy, userEmail)
+    //             .Set(x => x.JobActionTime, DateTime.Now)
+    //             .Set(x => x.JobActionRemarks, _workDone)
+    //             .Set(x => x.SpareReplace, replacementJson);
+    //         //.Update();
+
+    //         // Only include Overtime in the update if the switch is ON
+    //         if (_overtime)
+    //         {
+    //             // This will now pass a clean float? matching your column schema perfectly
+    //             updateRequest = updateRequest.Set(x => x.JobOverTime, finalOvertime);
+    //         }
+
+    //         await updateRequest.Update();
+
+    //         // 4. Sync PID Markers (Updating the Asset Database)
+    //         if (_partReplaced)
+    //         {
+    //             foreach (var item in _replacements)
+    //             {
+    //                 var markerData = new PIDMarker
+    //                 {
+    //                     LocationId = CurrentLocationId,
+    //                     Device_location = item.DeviceLocation,
+    //                     TagNumber = item.TagNumber, // Added Tag Number from cascading logic
+    //                     InstrumentType = item.InstrumentType,
+    //                     MakeModelType = item.NewMakeModel,
+    //                     Range = item.NewRange,
+    //                     Serial_number = item.NewSerialNumber,
+    //                     Replacement_cost = item.ApproxCost
+    //                 };
+
+    //                 // Logic: Insert new if manual/not found, otherwise update existing record
+    //                 if (item.IsManualDeviceLocation || item.IsManualInstrumentType || item.LocationId == null)
+    //                 {
+    //                     await SupabaseClient.From<PIDMarker>().Insert(markerData);
+    //                 }
+    //                 else
+    //                 {
+    //                     markerData.Id = item.LocationId.Value;
+    //                     await SupabaseClient.From<PIDMarker>().Update(markerData);
+    //                 }
+    //             }
+    //         }
+
+    //         long? totalSpareCost = _partReplaced
+    // ? _replacements.Sum(x => x.ApproxCost ?? 0)
+    // : null;
+
+    //         // 5. Finalize Job Status
+    //         await SupabaseClient.From<Job>()
+    //             .Where(x => x.Id == _selectedJob.Id)
+    //             .Set(x => x.JobSpareCost, totalSpareCost)
+    //             .Set(x => x.JobSpareReplaced, _partReplaced ? _spareDetails : "None")
+    //             .Set(x => x.JobActionRemarks, _workDone)
+    //             .Set(x => x.Status, "completed")
+    //             .Update();
+
+            
+
+    //         if (_uploadedFiles.Any() && _selectedJob != null)
+    //         {
+    //             foreach (var file in _uploadedFiles)
+    //             {
+    //                 // 1. Generate a unique storage path for the file
+    //                 var path = $"{_selectedJob.Id}/{Guid.NewGuid()}_{file.Name}";
+
+    //                 // 2. Read the file into memory (Max 10MB limit set here)
+    //                 using var stream = file.OpenReadStream(10 * 1024 * 1024);
+    //                 using var ms = new MemoryStream();
+    //                 await stream.CopyToAsync(ms);
+
+    //                 // 3. Upload raw bytes to Supabase Storage
+    //                 await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+
+    //                 // 4. Create the database record linking the photo to the Job
+    //                 await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel
+    //                 {
+    //                     Id = Guid.NewGuid(),
+    //                     JobId = _selectedJob.Id,
+    //                     StoragePath = path
+    //                 });
+    //             }
+    //         }
+
+    //         //Snackbar.Add("Job executed and photos uploaded successfully!", Severity.Success);
+
+    //         // Clean up UI state
+    //         _uploadedFiles.Clear();
+    //         _workDone = "";
+    //         _partReplaced = false;
+    //         _overtime = false;
+
+
+
+    //         Snackbar.Add("Job Completed and Asset Database Synced!", Severity.Success);
+    //         await LoadInitialData(); // Refresh UI
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add($"Submission failed: {ex.Message}", Severity.Error);
+    //     }
+    //     finally
+    //     {
+    //         _isBusy = false;
+    //     }
+    // }
 
 
 
