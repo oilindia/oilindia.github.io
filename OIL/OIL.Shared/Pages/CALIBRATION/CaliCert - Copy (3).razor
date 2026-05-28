@@ -1,4 +1,4 @@
-﻿@page "/CalibrationCert"
+﻿@page "/CalibrationCert4"
 
 @using OIL.Shared.Models
 @using Supabase
@@ -151,8 +151,10 @@
 </style>
 
 
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 no-print">
 
+    <!-- Filter Panel Header -->
     <MudPaper Elevation="3" Class="pa-4 mb-6">
         <MudGrid AlignItems="AlignItems.Center">
             <MudItem xs="12" sm="4">
@@ -184,6 +186,7 @@
         </MudGrid>
     </MudPaper>
 
+    <!-- Data Grid View -->
     <MudPaper Elevation="3" Class="pa-4">
         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Info" />
@@ -201,11 +204,11 @@
                     </CellTemplate>
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.DateFormatted" Title="Date" />
-                <PropertyColumn Property="x => x.DisplayCertNo" Title="Certificate No" />
-                <PropertyColumn Property="x => x.LocationName" Title="Location Name" />
-                <PropertyColumn Property="x => x.DisplayUnitId" Title="Unit / Loop Location" />
-                <PropertyColumn Property="x => x.DisplayInstrumentType" Title="Instrument Category" />
-                <PropertyColumn Property="x => x.DisplayModel" Title="Model Variant" />
+                <PropertyColumn Property="x => x.Detail.CertNo" Title="Certificate No" />
+                <PropertyColumn Property="x => x.LocationId" Title="Location ID" />
+                <PropertyColumn Property="x => x.Detail.UnitId" Title="Unit / Loop Location" />
+                <PropertyColumn Property="x => x.Detail.InstrumentType" Title="Instrument Category" />
+                <PropertyColumn Property="x => x.Detail.Model" Title="Model Variant" />
             </Columns>
             <NoRecordsContent>
                 <MudText Class="pa-4" Align="Align.Center">No records matching designated date parameters found.</MudText>
@@ -214,10 +217,12 @@
     </MudPaper>
 </MudContainer>
 
+<!-- Dynamic Report Modal Interface -->
 @if (_isModalOpen && _selectedReport != null)
 {
     <div class="custom-modal-overlay">
         <div class="modal-content-container">
+            <!-- Action Navigation Bar -->
             <div class="d-flex justify-space-between align-center mb-4 no-print" style="position: sticky; top: -25px; background: #f0f0f0; z-index: 10; padding: 10px; border-radius: 4px;">
                 <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Print">
                     Print Document
@@ -234,25 +239,26 @@
 
                 <div style="border: 1px solid black; text-align: center; background-color: #f8f9fa; padding: 4px;">
                     <MudText Typo="Typo.body1" Class="font-bold" Style="color: black; font-weight: bold;">
-                        Calibration Report for @_selectedReport.DisplayInstrumentType
+                        Calibration Report for @_selectedReport.Detail.InstrumentType
                     </MudText>
                 </div>
 
+                <!-- Structured Meta Table -->
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px;">
                     <tr>
-                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Installation: @_selectedReport.DisplayInstallation</td>
-                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Certificate No: @_selectedReport.DisplayCertNo</td>
+                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Installation: @_selectedReport.Detail.Installation</td>
+                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Certificate No: @_selectedReport.Detail.CertNo</td>
                     </tr>
                     <tr>
                         <td style="padding: 6px; border: 1px solid black;">Date: @_selectedReport.DateFormatted</td>
-                        <td style="padding: 6px; border: 1px solid black;">Location Name: @_selectedReport.LocationName</td>
+                        <td style="padding: 6px; border: 1px solid black;">Location Reference ID: @_selectedReport.LocationId</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">Unit / Tag Location: @_selectedReport.DisplayUnitId</td>
-                        <td style="padding: 6px; border: 1px solid black;">Model variant: @_selectedReport.DisplayModel</td>
+                        <td style="padding: 6px; border: 1px solid black;">Unit / Tag Location: @_selectedReport.Detail.UnitId</td>
+                        <td style="padding: 6px; border: 1px solid black;">Model variant: @_selectedReport.Detail.Model</td>
                     </tr>
                     <tr>
-                        <td colspan="2" style="padding: 6px; border: 1px solid black;">Range capability: @_selectedReport.DisplayRange</td>
+                        <td colspan="2" style="padding: 6px; border: 1px solid black;">Range capability: @_selectedReport.Detail.InstrumentRange</td>
                     </tr>
                     <tr>
                         <td colspan="2" style="padding: 6px; border: 1px solid black;">
@@ -261,6 +267,7 @@
                     </tr>
                 </table>
 
+                <!-- Main Matrix Table -->
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px; margin-top: 15px;">
                     <thead>
                         <tr style="background-color: #f8f9fa;">
@@ -290,7 +297,8 @@
                     </tbody>
                 </table>
 
-                @if (_selectedReport.IsController)
+                <!-- Conditional Sub-block for Controller Loop Configurations -->
+                @if (_selectedReport.Detail.InstrumentType?.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) == true)
                 {
                     <div style="border: 1px solid black; border-top: none; padding: 8px; font-size: 13px;">
                         <p style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Dynamic Loop Configuration Parameters:</p>
@@ -300,6 +308,7 @@
                         </ul>
                     </div>
 
+                    <!-- Simulation Signal Analysis Section -->
                     <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px;">
                         <thead>
                             <tr style="background-color: #f1f1f1;">
@@ -321,6 +330,7 @@
                     </table>
                 }
 
+                <!-- Signatures Grid Footer -->
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-top: 15px; font-size: 13px;">
                     <tr><td colspan="2" style="padding: 6px; border: 1px solid black;">Observations: OK.</td></tr>
                     <tr style="background-color: #f1f1f1; font-weight: bold;">
@@ -342,6 +352,7 @@
 }
 
 
+
 @code {
     private DateTime? _fromDate = DateTime.Today.AddMonths(-1);
     private DateTime? _toDate = DateTime.Today;
@@ -356,21 +367,6 @@
         await LoadCalibrationData();
     }
 
-    // Static text helper to systematically scrub out 'NOT FOUND' and format inner text cleanly
-    private static string CleanText(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return "";
-        if (input.Trim().Equals("NOT FOUND", StringComparison.OrdinalIgnoreCase)) return "";
-
-        string cleaned = input;
-        // Strip out internal slash configurations (e.g. "INST/NOT FOUND/3" -> "INST/3")
-        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND/", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        return cleaned.Trim();
-    }
-
     private async Task LoadCalibrationData()
     {
         try
@@ -378,33 +374,36 @@
             _loading = true;
             StateHasChanged();
 
-            var detailsResponse = await SupabaseClient.From<SupabasePmCalibrationDetail>().Get();
+            // TEST 1: Fetch completely UNFILTERED details to test RLS and Mapping
+            var detailsResponse = await SupabaseClient
+                .From<SupabasePmCalibrationDetail>()
+                .Get();
+
             var fetchedDetails = detailsResponse.Models;
 
-            var reportsResponse = await SupabaseClient.From<SupabasePmReport>().Get();
+            // Check the internal console or debug window output
+            System.Diagnostics.Debug.WriteLine($"[DIAGNOSTIC] Fetched {fetchedDetails.Count} calibration rows total without filters.");
+
+            if (fetchedDetails.Count == 0)
+            {
+                Snackbar.Add("Diagnostic: Database returned 0 total records. This is likely an RLS or Table Name issue.", Severity.Warning);
+            }
+
+            var reportsResponse = await SupabaseClient
+                .From<SupabasePmReport>()
+                .Get();
+
             var fetchedReports = reportsResponse.Models;
+            System.Diagnostics.Debug.WriteLine($"[DIAGNOSTIC] Fetched {fetchedReports.Count} parent report rows total.");
 
             var jsonOptions = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true };
 
             _gridItems = fetchedDetails.Select(detail =>
             {
-                var parentReport = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId);
-
                 var view = new CalibrationUiView
                 {
                     Detail = detail,
-                    LocationId = parentReport?.LocationId,
-                    LocationName = CleanText(parentReport?.LocationName),
-                    // Set backup date from parent report if explicit calibration record date is missing
-                    FallbackDate = parentReport?.CompletionDate?.DateTime,
-
-                    // Base Clean assignments
-                    DisplayInstrumentType = CleanText(detail.InstrumentType),
-                    DisplayUnitId = CleanText(detail.UnitId),
-                    DisplayModel = CleanText(detail.Model),
-                    DisplayRange = CleanText(detail.InstrumentRange),
-                    DisplayInstallation = CleanText(detail.Installation),
-                    DisplayCertNo = CleanText(detail.CertNo)
+                    LocationId = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId)?.LocationId
                 };
 
                 if (!string.IsNullOrWhiteSpace(detail.CalibrationData))
@@ -415,88 +414,17 @@
                         if (cleanJson.StartsWith("\"") && cleanJson.EndsWith("\""))
                         {
                             cleanJson = JsonSerializer.Deserialize<string>(cleanJson, jsonOptions) ?? "{}";
-                            cleanJson = cleanJson.Trim();
                         }
-
-                        if (cleanJson.StartsWith("["))
-                        {
-                            using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
-                            var rootElement = document.RootElement;
-
-                            if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
-                            {
-                                var firstNode = rootElement[0];
-
-                                // Extraction helper cascading between standard properties and manual overrides
-                                string SafelyExtract(JsonElement node, string mainProp, string manualProp, string fallback)
-                                {
-                                    string mainVal = node.TryGetProperty(mainProp, out var m) ? m.GetString() ?? "" : "";
-                                    string manualVal = node.TryGetProperty(manualProp, out var man) ? man.GetString() ?? "" : "";
-
-                                    string cleanedMain = CleanText(mainVal);
-                                    string cleanedManual = CleanText(manualVal);
-
-                                    if (!string.IsNullOrWhiteSpace(cleanedManual)) return cleanedManual;
-                                    if (!string.IsNullOrWhiteSpace(cleanedMain)) return cleanedMain;
-
-                                    return CleanText(fallback);
-                                }
-
-                                // Apply cascading extractions
-                                view.DisplayInstrumentType = SafelyExtract(firstNode, "Instrument", "ManualInstrument", detail.InstrumentType);
-                                view.DisplayUnitId = SafelyExtract(firstNode, "Unit", "ManualUnit", detail.UnitId);
-                                view.DisplayModel = SafelyExtract(firstNode, "MakeModel", "ManualMakeModel", detail.Model);
-                                view.DisplayRange = SafelyExtract(firstNode, "Range", "ManualRange", detail.InstrumentRange);
-                                view.DisplayInstallation = SafelyExtract(firstNode, "Installation", "", detail.Installation);
-                                view.DisplayCertNo = SafelyExtract(firstNode, "CertNo", "", detail.CertNo);
-
-                                // Check inner deep CalibrationData payload object overrides
-                                if (firstNode.TryGetProperty("CalibrationData", out var calDataNode))
-                                {
-                                    if (calDataNode.TryGetProperty("REInstallation", out var reInst) && !string.IsNullOrWhiteSpace(CleanText(reInst.GetString())))
-                                        view.DisplayInstallation = CleanText(reInst.GetString());
-
-                                    if (calDataNode.TryGetProperty("RECertificateNo", out var reCert) && !string.IsNullOrWhiteSpace(CleanText(reCert.GetString())))
-                                        view.DisplayCertNo = CleanText(reCert.GetString());
-
-                                    if (calDataNode.TryGetProperty("REInstrumentType", out var reInstType) && !string.IsNullOrWhiteSpace(CleanText(reInstType.GetString())))
-                                        view.DisplayInstrumentType = CleanText(reInstType.GetString());
-
-                                    if (calDataNode.TryGetProperty("REUnit", out var reUnit) && !string.IsNullOrWhiteSpace(CleanText(reUnit.GetString())))
-                                        view.DisplayUnitId = CleanText(reUnit.GetString());
-
-                                    if (calDataNode.TryGetProperty("REModel", out var reModel) && !string.IsNullOrWhiteSpace(CleanText(reModel.GetString())))
-                                        view.DisplayModel = CleanText(reModel.GetString());
-
-                                    if (calDataNode.TryGetProperty("RERange", out var reRange) && !string.IsNullOrWhiteSpace(CleanText(reRange.GetString())))
-                                        view.DisplayRange = CleanText(reRange.GetString());
-
-                                    if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
-                                    {
-                                        view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(cleanJson, jsonOptions) ?? new ParsedPayload();
-                        }
+                        view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(cleanJson, jsonOptions) ?? new ParsedPayload();
                     }
                     catch
                     {
                         view.CalibrationPayload = new ParsedPayload();
                     }
                 }
-
-                // Definitive evaluation check for controllers
-                view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
-                                    view.CalibrationPayload.SimulationTable.Any() ||
-                                    !string.IsNullOrWhiteSpace(view.CalibrationPayload.SetPoint);
-
                 return view;
             })
-            .OrderByDescending(v => v.Detail.ReportDate ?? v.FallbackDate)
+            .OrderByDescending(v => v.Detail.ReportDate)
             .ToList();
         }
         catch (Exception ex)
@@ -517,13 +445,22 @@
 
     private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
 
+
+
+
+
+
+
+
+
+
+
     [Table("pm_reports")]
     public class SupabasePmReport : BaseModel
     {
         [PrimaryKey("id", false)] public int Id { get; set; }
         [Column("job_id")] public Guid JobId { get; set; }
         [Column("location_id")] public long? LocationId { get; set; }
-        [Column("location_name")] public string? LocationName { get; set; } // Mapped location string
         [Column("technician_email")] public string? TechnicianEmail { get; set; }
         [Column("completion_date")] public DateTimeOffset? CompletionDate { get; set; }
         [Column("assigned_to")] public string? AssignedTo { get; set; }
@@ -542,7 +479,10 @@
         [Column("model")] public string? Model { get; set; }
         [Column("instrument_range")] public string? InstrumentRange { get; set; }
         [Column("master_calibrator")] public string? MasterCalibrator { get; set; }
+
+        // Handled as raw string text from Supabase to process nested quotes safely
         [Column("calibration_data")] public string? CalibrationData { get; set; }
+
         [Column("observations")] public string? Observations { get; set; }
         [Column("performed_by_name")] public string? PerformedByName { get; set; }
         [Column("performed_by_desig")] public string? PerformedByDesig { get; set; }
@@ -551,28 +491,16 @@
         [Column("report_date")] public DateTime? ReportDate { get; set; }
     }
 
+    // View Model for UI Grid binding
     public class CalibrationUiView
     {
         public SupabasePmCalibrationDetail Detail { get; set; } = new();
         public long? LocationId { get; set; }
-        public string? LocationName { get; set; }
-        public DateTime? FallbackDate { get; set; }
-
-        // Formatted Date string checks detail date first, then falls back to parent report entry
-        public string DateFormatted => Detail.ReportDate?.ToString("dd/MM/yyyy") ?? FallbackDate?.ToString("dd/MM/yyyy") ?? "";
-
+        public string DateFormatted => Detail.ReportDate?.ToString("dd/MM/yyyy") ?? "";
         public ParsedPayload CalibrationPayload { get; set; } = new();
-
-        // Computed fallback properties populated cleanly during compilation mapping
-        public string DisplayInstrumentType { get; set; } = "";
-        public string DisplayUnitId { get; set; } = "";
-        public string DisplayModel { get; set; } = "";
-        public string DisplayRange { get; set; } = "";
-        public string DisplayInstallation { get; set; } = "";
-        public string DisplayCertNo { get; set; } = "";
-        public bool IsController { get; set; }
     }
 
+    // Nested JSON Data Objects
     public class ParsedPayload
     {
         [JsonPropertyName("MasterCalibrator")] public string MasterCalibrator { get; set; } = "";
@@ -598,4 +526,9 @@
         [JsonPropertyName("OutputPressure")] public string OutputPressure { get; set; } = "";
         [JsonPropertyName("PSRemarks")] public string PSRemarks { get; set; } = "";
     }
+
+
+
+
+
 }

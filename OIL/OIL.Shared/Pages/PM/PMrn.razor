@@ -635,6 +635,9 @@
 
                     </tr>
 
+
+
+
                 </table>
 
                 <table class="report-body-table">
@@ -650,28 +653,23 @@
                         </td>
 
                         <td>
-                            <strong>PM Date:</strong> @_selectedReport.CompletionDateLocal
+                            <strong>PM Date:</strong> @_selectedReport.MultiSelectionPmDates
                         </td>
 
                     </tr>
 
                     <tr>
-
-                        <td colspan="4">
-                            <strong>Notification Number:</strong> @_selectedReport.WorkPermit
-                        </td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td colspan="4"
-                            class="text-right"
+                        <td colspan="5"
+                            class="text-left"
                             style="padding-right: 10%;">
 
                             <strong>Installation Name -</strong>
                             @_selectedReport.InstallationName
 
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> @_selectedReport.WorkPermit
                         </td>
 
                     </tr>
@@ -780,9 +778,9 @@
 
                     <div class="carried-out-section mb-4">
                         <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
-                        @if (_selectedReport.CarriedByEmpCodes != null && _selectedReport.CarriedByEmpCodes.Any())
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
                         {
-                            @foreach (var empCode in _selectedReport.CarriedByEmpCodes)
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
                             {
                                 var emp = GetEmployee(empCode);
                                 if (emp != null)
@@ -846,7 +844,7 @@
 
             </div>
 
-            @if (_jobCertificates != null && _jobCertificates.Any())
+           @*  @if (_jobCertificates != null && _jobCertificates.Any())
             {
                 @foreach (var cert in _jobCertificates)
                 {
@@ -861,6 +859,7 @@
                         }
                         catch
                         {
+
                         }
                     }
 
@@ -1215,7 +1214,9 @@
                     </div>
                 }
             }
-
+ *@
+        
+        
         </div>
 
     </div>
@@ -1297,7 +1298,7 @@
 
                         </td>
 
-                        <td width="20%">
+                        @* <td width="20%">
 
                             <div>
                                 <strong>Ref No:</strong>
@@ -1309,14 +1310,48 @@
                                 @_selectedReport.CompletionDateLocal
                             </div>
 
-                        </td>
+                        </td> *@
 
                     </tr>
 
                 </table>
+                @*Header for dates and stuff*@
+                <table class="report-table">
+                    <tr>
 
-                
+                        <td colspan="3">
+                            <strong>Ref no:</strong> @_selectedReport.WorkPermit
+                        </td>
 
+                        <td colspan="3" class="text-left">
+                            <strong>Dated:</strong> @_selectedReport.CompletionDateLocal
+                        </td>
+
+                        <td colspan="3">
+                            <strong>PM Date:</strong> @_selectedReport.MultiSelectionPmDates
+                        </td>
+
+                    </tr>
+
+                    <tr>
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+
+                            <strong>Installation Name -</strong>
+                            @_selectedReport.LocationName
+
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> @_selectedReport.WorkPermit
+                        </td>
+
+                    </tr>
+                </table>
+
+
+                @*Table for data *@
                 <table class="report-table">
 
                     <thead>
@@ -1349,6 +1384,9 @@
 
                     <tbody>
 
+
+
+
                         @foreach (var item in _currentJobItems)
                         {
                             <tr>
@@ -1377,19 +1415,54 @@
 
                 </table>
 
+
+                @* Table for Note and master calibrator *@
+                <table class="report-table">
+                    <tr>
+                        <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
+                            @* 
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">NOTE:</div>
+                            <ol style="margin: 0 0 20px 0; padding-left: 20px; line-height: 1.5;">
+                                <li>All the servo regulators should be drained regularly for better operation.</li>
+                                <li>The above PM job is carried out on 23/01/2026; 27/01/2026 &amp; 29/01/2026</li>
+                            </ol>
+                            *@
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Spares consumed :</div>
+                            <p style="margin: 0; padding-left: 5px; font-weight: normal;">@_selectedReport.SectionDSpares</p>
+                        </td>
+
+                        <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Details of Master Calibrator used :</div>
+                            <ol style="margin: 0; padding-left: 20px; line-height: 1.5;">
+                                @foreach (var calibrator in _masterCalibrators)
+                                {
+                                    <li style="margin-bottom: 10px;">
+                                        @calibrator.Name @calibrator.Model
+                                        <br />
+                                        <span style="color: #555;">
+                                            Calibration validity upto - (@calibrator.ValidityDate.ToString("dd-MM-yyyy"))
+                                        </span>
+                                    </li>
+                                }
+                            </ol>
+                        </td>
+                    </tr>
+                </table>
+
+
                 <div class="report-footer">
 
                     <div class="remarks-section mb-4">
-                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">REMARKS:</div>
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">NOTE:</div>
                         <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. @_selectedReport.Remarks</div>
                         <div class="remark-item">2. The above PM job is carried out on : @_selectedReport.MultiSelectionPmDates</div>
                     </div>
 
                     <div class="carried-out-section mb-4">
                         <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
-                        @if (_selectedReport.CarriedByEmpCodes != null && _selectedReport.CarriedByEmpCodes.Any())
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
                         {
-                            @foreach (var empCode in _selectedReport.CarriedByEmpCodes)
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
                             {
                                 var emp = GetEmployee(empCode);
                                 if (emp != null)
@@ -1453,6 +1526,380 @@
 
             </div>
 
+
+           @*  @if (_jobCertificates != null && _jobCertificates.Any())
+            {
+                @foreach (var cert in _jobCertificates)
+                {
+                    ParsedCalibrationData? dataObj = null;
+
+                    if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
+                    {
+                        try
+                        {
+                            dataObj = JsonSerializer.Deserialize<ParsedCalibrationData>(
+                                cert.CalibrationDataJson);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+
+                    bool isController =
+                        dataObj?.SimulationTable != null &&
+                        dataObj.SimulationTable.Any();
+
+                    <div style="page-break-before: always;"></div>
+
+                    <div class="portrait-report">
+
+                        <div class="header-logo-section">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="height: 60px;" />
+
+                            <br />
+
+                            <h3>OIL INDIA LIMITED</h3>
+
+                        </div>
+
+                        <div style="
+                            border: 1px solid black;
+                            border-top: none;
+                            text-align: center;
+                            background-color: #f8f9fa;">
+
+                            <div style="font-weight:bold; padding:4px;">
+
+                                Calibration report for -
+                                @cert.InstrumentType
+
+                            </div>
+
+                        </div>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <tr>
+
+                                <td style="width: 60%;">
+                                    Installation: @cert.Installation
+                                </td>
+
+                                <td style="width: 40%;">
+                                    Document No - @cert.CertNo
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Instrument Type : @cert.InstrumentType
+                                </td>
+
+                                <td>
+                                    Unit : @cert.UnitId
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Model : @cert.Model
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Range: @cert.InstrumentRange
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+
+                                    Calibrator Make/Model :
+                                    @(dataObj?.MasterCalibrator ?? "")
+
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <thead>
+
+                                <tr class="text-center">
+
+                                    <th>Input Process Value</th>
+                                    <th>Measured Value</th>
+                                    <th>Error</th>
+                                    <th>Remarks</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                @if (dataObj?.CalibrationTable != null &&
+                                     dataObj.CalibrationTable.Any())
+                                {
+                                    @for (int i = 0;
+                                        i < dataObj.CalibrationTable.Count;
+                                        i++)
+                                    {
+                                        var row =
+                                            dataObj.CalibrationTable[i];
+
+                                        <tr>
+
+                                            <td>@row.InputValue</td>
+
+                                            <td>@row.ActualOutput</td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(row.Error)
+                                                    ? "0"
+                                                    : row.Error)
+                                            </td>
+
+                                            @if (i == 0)
+                                            {
+                                                <td rowspan="@dataObj.CalibrationTable.Count"
+                                                    class="text-center">
+
+                                                    @(string.IsNullOrWhiteSpace(row.CalRemarks)
+                                                        ? "Error Adjustments carried out"
+                                                        : row.CalRemarks)
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+
+                                        <td>0</td>
+                                        <td>0</td>
+                                        <td>0</td>
+
+                                        <td class="text-center">
+                                            No Data Present
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                        @if (isController)
+                        {
+                            <div style="
+                                border: 1px solid black;
+                                border-top: none;
+                                padding: 5px;">
+
+                                <p class="font-bold"
+                                   style="
+                                    text-decoration: underline;
+                                    margin-bottom: 2px;">
+
+                                    Process Requirement -
+
+                                </p>
+
+                                <p style="font-size: 13px;">
+
+                                    As per process requirement the set point is
+                                    @(dataObj?.SetPoint ?? "3.5kg/cm2")
+
+                                </p>
+
+                                <p class="font-bold" style="margin-top: 5px;">
+
+                                    Controller Parameters:
+
+                                </p>
+
+                                <ul style="
+                                    list-style: none;
+                                    padding-left: 0;
+                                    font-size: 13px;
+                                    margin: 0;">
+
+                                    <li>
+
+                                        Actuator Operation -
+                                        @(dataObj?.ActuatorAction ?? "Reverse action")
+
+                                    </li>
+
+                                    <li>
+
+                                        Proportional Band -
+                                        @(dataObj?.ProportionalBand ?? "5")
+
+                                        |
+
+                                        Reset Time -
+                                        @(dataObj?.ResetTime ?? "1")
+
+                                    </li>
+
+                                </ul>
+
+                            </div>
+
+                            <table class="report-table"
+                                   style="border-top: none;">
+
+                                <thead>
+
+                                    <tr class="text-center">
+
+                                        <th>Simulation Input</th>
+                                        <th>Output Pressure</th>
+                                        <th>Remarks</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @if (dataObj?.SimulationTable != null)
+                                    {
+                                        @for (int j = 0;
+                                            j < dataObj.SimulationTable.Count;
+                                            j++)
+                                        {
+                                            var simRow =
+                                                dataObj.SimulationTable[j];
+
+                                            <tr>
+
+                                                <td class="text-center">
+                                                    @simRow.ProcessInput
+                                                </td>
+
+                                                <td class="text-center">
+                                                    @simRow.OutputPressure
+                                                </td>
+
+                                                @if (j == 0)
+                                                {
+                                                    <td rowspan="@dataObj.SimulationTable.Count"
+                                                        style="font-size: 11px;">
+
+                                                        @simRow.PSRemarks
+
+                                                    </td>
+                                                }
+
+                                            </tr>
+                                        }
+                                    }
+
+                                </tbody>
+
+                            </table>
+                        }
+
+                        <table class="report-table"
+                               style="border-top: none;">
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Observations: OK.
+                                </td>
+
+                            </tr>
+
+                            <tr style="background-color: #f1f1f1;">
+
+                                <td style="width: 50%;">
+                                    Calibration by:
+                                </td>
+
+                                <td style="width: 50%;">
+                                    Engineer:
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Name: @cert.PerformedByName
+                                </td>
+
+                                <td>
+                                    Name: @cert.WitnessedByName
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Designation: Technical Officer
+                                </td>
+
+                                <td>
+                                    Designation: Maintenance Engineer
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                    </div>
+                }
+            }
+ *@
+        
+
         </div>
 
     </div>
@@ -1475,6 +1922,8 @@
     private List<Location> _locations = new();
 
     private List<CalibrationDetail> _jobCertificates = new();
+
+    private List<MasterCalibrator> _masterCalibrators = new();
 
     private ReportView _selectedReport = new();
 
@@ -1516,6 +1965,9 @@
 
                 _currentJobItems.AddRange(
                     ParseJsonSection(reportRes.SectionB));
+
+                _currentJobItems.AddRange(
+                    ParseJsonSection(reportRes.SectionDSpares));
             }
 
             var certRes = await SupabaseClient
@@ -1626,6 +2078,17 @@
             //                 .Get();
 
 
+            // Queries 'public.master_calibrators' and orders them by validity_date ascending
+            // .Order(c => c.ValidityDate, Supabase.Postgrest.Constants.Ordering.Ascending)
+
+            var masterCalibrators = await SupabaseClient
+                .From<MasterCalibrator>()
+                .Get();
+
+            _masterCalibrators = masterCalibrators.Models
+                            .OrderBy(c => c.ValidityDate)
+                            .ToList();
+
             _reports = res.Models.Select(r => new ReportView
             {
                 Id = r.Id,
@@ -1633,6 +2096,15 @@
                 LocationId = r.LocationId,
                 WorkPermit = r.WorkPermit,
                 CompletionDate = r.CompletionDate,
+
+                JobCarriedByEmpCodes = r.JobCarriedByEmpCodes,
+                ReportPreparedBy = r.ReportPreparedBy,
+                ReportSupervisedBy = r.ReportSupervisedBy,
+                ReportVerifiedBy = r.ReportVerifiedBy,
+
+                SectionDSpares = r.SectionDSpares,
+
+                MultiSelectionPmDates = r.MultiSelectionPmDates,
 
                 LocationName =
                     _locations.FirstOrDefault(
@@ -1855,13 +2327,18 @@
         [Column("section_b_transmitters")]
         public object? SectionB { get; set; }
 
+        [Column("section_d_spares")]
+        public object? SectionDSpares { get; set; }
+
+        
+
         [Supabase.Postgrest.Attributes.Column("remarks")] public string Remarks { get; set; } = "";
 
         [Supabase.Postgrest.Attributes.Column("pm_dates")]
         public string? MultiSelectionPmDates { get; set; }
 
         [Supabase.Postgrest.Attributes.Column("Job_Carried_By")]
-        public List<string>? CarriedByEmpCodes { get; set; }
+        public List<string>? JobCarriedByEmpCodes { get; set; }
 
         [Column("Report_Prepared_By")]
         public string? ReportPreparedBy { get; set; }
@@ -1873,6 +2350,31 @@
         [Column("Report_Verified_By")]
         public string? ReportVerifiedBy { get; set; }
 
+    }
+
+    [Table("master_calibrators")]
+    public class MasterCalibrator : BaseModel
+    {
+        [PrimaryKey("id", shouldInsert: false)]
+        public long Id { get; set; }
+
+        [Column("name")]
+        public string Name { get; set; }
+
+        [Column("model")]
+        public string Model { get; set; }
+
+        [Column("serial_number")]
+        public string SerialNumber { get; set; }
+
+        [Column("validity_date")]
+        public DateTime ValidityDate { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
     }
 
     [Table("pm_calibration_details")]

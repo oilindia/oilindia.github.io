@@ -2457,6 +2457,16 @@
 
     private RenderFragment RenderControllerTable(ControllerInstrumentData data) => __builder =>
     {
+        // @foreach (var row in data.CalibrationTable)
+        // @if (i == 0)
+        // {
+        //     <td rowspan="@data.CalibrationTable.Count" class="merged-remarks">
+        //         <textarea @bind="data.SharedRemarks" placeholder="Enter remarks..."></textarea>
+        //     </td>
+        // }
+        // <td><input @bind="row.CalRemarks" /></td>
+
+
         <table class="report-entry-table">
             <thead>
                 <tr>
@@ -2467,13 +2477,22 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in data.CalibrationTable)
+               
+                @for (int i = 0; i < data.CalibrationTable.Count; i++)
                 {
+                    var row = data.CalibrationTable[i];
                     <tr>
                         <td><input @bind="row.InputValue" /></td>
                         <td><input @bind="row.ActualOutput" /></td>
                         <td><input @bind="row.Error" /></td>
-                        <td><input @bind="row.CalRemarks" /></td>
+
+                        @if (i == 0)
+                        {
+                            <td rowspan="@data.CalibrationTable.Count" class="merged-remarks">
+                                <textarea @bind="row.CalRemarks" placeholder="Enter remarks..."></textarea>
+                            </td>
+                        }
+                        
                     </tr>
                 }
             </tbody>
@@ -2723,8 +2742,7 @@
     [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]
     public class CalibrationDetail : Supabase.Postgrest.Models.BaseModel
     {
-        [PrimaryKey("id", shouldInsert: false)] // 'false' because Supabase generates the UUID
-        //[Supabase.Postgrest.Attributes.PrimaryKey("id")]
+        [PrimaryKey("id", shouldInsert: false)] 
         public int? Id { get; set; }
 
         [Supabase.Postgrest.Attributes.Column("pm_report_id")]
@@ -2742,11 +2760,21 @@
         [Supabase.Postgrest.Attributes.Column("instrument_type")]
         public string InstrumentType { get; set; }
 
+        // Changed to nullable; removed the = "" default
         [Supabase.Postgrest.Attributes.Column("model")]
-        public string Model { get; set; } = "";
+        public string? Model { get; set; }
 
+        // NEW: Captures the technician's manual model override
+        [Supabase.Postgrest.Attributes.Column("manual_model")]
+        public string? ManualModel { get; set; }
+
+        // Changed to nullable; removed the = "" default
         [Supabase.Postgrest.Attributes.Column("unit_id")]
-        public string UnitId { get; set; } = "";
+        public string? UnitId { get; set; }
+
+        // NEW: Captures the technician's manual unit override
+        [Supabase.Postgrest.Attributes.Column("manual_unit")]
+        public string? ManualUnit { get; set; }
 
         [Supabase.Postgrest.Attributes.Column("instrument_range")]
         public string Range { get; set; } = "";
@@ -2763,6 +2791,50 @@
         [Supabase.Postgrest.Attributes.Column("witnessed_by_name")]
         public string WitnessedBy { get; set; } = "";
     }
+
+    // [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]
+    // public class CalibrationDetail : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [PrimaryKey("id", shouldInsert: false)] // 'false' because Supabase generates the UUID
+    //     //[Supabase.Postgrest.Attributes.PrimaryKey("id")]
+    //     public int? Id { get; set; }
+
+    //     [Supabase.Postgrest.Attributes.Column("pm_report_id")]
+    //     public int? PmReportId { get; set; }
+
+    //     [Supabase.Postgrest.Attributes.Column("job_id")]
+    //     public Guid JobId { get; set; }
+
+    //     [Supabase.Postgrest.Attributes.Column("cert_no")]
+    //     public string CertNo { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("installation")]
+    //     public string Installation { get; set; }
+
+    //     [Supabase.Postgrest.Attributes.Column("instrument_type")]
+    //     public string InstrumentType { get; set; }
+
+    //     [Supabase.Postgrest.Attributes.Column("model")]
+    //     public string Model { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("unit_id")]
+    //     public string UnitId { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("instrument_range")]
+    //     public string Range { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("master_calibrator")]
+    //     public string MasterCalibrator { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("calibration_data")]
+    //     public string CalibrationDataJson { get; set; } = "[]";
+
+    //     [Supabase.Postgrest.Attributes.Column("performed_by_name")]
+    //     public string PerformedBy { get; set; } = "";
+
+    //     [Supabase.Postgrest.Attributes.Column("witnessed_by_name")]
+    //     public string WitnessedBy { get; set; } = "";
+    // }
 
 }
 
