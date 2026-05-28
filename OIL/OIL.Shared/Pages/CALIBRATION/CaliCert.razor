@@ -202,7 +202,7 @@
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.DateFormatted" Title="Date" />
                 <PropertyColumn Property="x => x.DisplayCertNo" Title="Certificate No" />
-                <PropertyColumn Property="x => x.LocationName" Title="Location Name" />
+                <PropertyColumn Property="x => x.DisplayLocationName" Title="Location Name" />
                 <PropertyColumn Property="x => x.DisplayUnitId" Title="Unit / Loop Location" />
                 <PropertyColumn Property="x => x.DisplayInstrumentType" Title="Instrument Category" />
                 <PropertyColumn Property="x => x.DisplayModel" Title="Model Variant" />
@@ -245,7 +245,7 @@
                     </tr>
                     <tr>
                         <td style="padding: 6px; border: 1px solid black;">Date: @_selectedReport.DateFormatted</td>
-                        <td style="padding: 6px; border: 1px solid black;">Location Name: @_selectedReport.LocationName</td>
+                        <td style="padding: 6px; border: 1px solid black;">Location Name: @_selectedReport.DisplayLocationName</td>
                     </tr>
                     <tr>
                         <td style="padding: 6px; border: 1px solid black;">Unit / Tag Location: @_selectedReport.DisplayUnitId</td>
@@ -341,7 +341,6 @@
     </div>
 }
 
-
 @code {
     private DateTime? _fromDate = DateTime.Today.AddMonths(-1);
     private DateTime? _toDate = DateTime.Today;
@@ -356,19 +355,62 @@
         await LoadCalibrationData();
     }
 
-    // Static text helper to systematically scrub out 'NOT FOUND' and format inner text cleanly
+    // Static text helper to systematically scrub out 'NOT FOUND'
     private static string CleanText(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return "";
         if (input.Trim().Equals("NOT FOUND", StringComparison.OrdinalIgnoreCase)) return "";
 
         string cleaned = input;
-        // Strip out internal slash configurations (e.g. "INST/NOT FOUND/3" -> "INST/3")
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND/", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+        if (cleaned == "/") return "";
+
         return cleaned.Trim();
+    }
+
+    // NEW: Deep Recursive JSON Search to forcefully find missing manual inputs anywhere in the JSON payload
+    private static string FindJsonValue(JsonElement node, string[] keys)
+    {
+        if (node.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in node.EnumerateArray())
+            {
+                var result = FindJsonValue(item, keys);
+                if (!string.IsNullOrWhiteSpace(result)) return result;
+            }
+        }
+        else if (node.ValueKind == JsonValueKind.Object)
+        {
+            // Level 1 check: Prioritize current object properties first
+            foreach (var prop in node.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.Null) continue;
+
+                foreach (var key in keys)
+                {
+                    if (prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        string val = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() ?? "" : prop.Value.ToString();
+                        val = CleanText(val);
+                        if (!string.IsNullOrWhiteSpace(val)) return val;
+                    }
+                }
+            }
+
+            // Level 2 check: If not found, dive deeper into nested arrays/objects
+            foreach (var prop in node.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.Object || prop.Value.ValueKind == JsonValueKind.Array)
+                {
+                    var childResult = FindJsonValue(prop.Value, keys);
+                    if (!string.IsNullOrWhiteSpace(childResult)) return childResult;
+                }
+            }
+        }
+        return "";
     }
 
     private async Task LoadCalibrationData()
@@ -393,12 +435,10 @@
                 var view = new CalibrationUiView
                 {
                     Detail = detail,
-                    LocationId = parentReport?.LocationId,
-                    LocationName = CleanText(parentReport?.LocationName),
-                    // Set backup date from parent report if explicit calibration record date is missing
                     FallbackDate = parentReport?.CompletionDate?.DateTime,
 
-                    // Base Clean assignments
+                    // Assign strict database base fallbacks initially
+                    DisplayLocationName = CleanText(parentReport?.LocationName),
                     DisplayInstrumentType = CleanText(detail.InstrumentType),
                     DisplayUnitId = CleanText(detail.UnitId),
                     DisplayModel = CleanText(detail.Model),
@@ -418,69 +458,52 @@
                             cleanJson = cleanJson.Trim();
                         }
 
-                        if (cleanJson.StartsWith("["))
+                        using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
+                        var rootElement = document.RootElement;
+
+                        // Helper inline function to utilize the deep search
+                        string TryExtract(string[] keys, string fallback)
                         {
-                            using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
-                            var rootElement = document.RootElement;
+                            var val = FindJsonValue(rootElement, keys);
+                            if (!string.IsNullOrWhiteSpace(val)) return val;
+                            return CleanText(fallback);
+                        }
 
-                            if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
+                        // Aggressively hunt for manual entry data across all possible naming structures
+                        view.DisplayInstrumentType = TryExtract(new[] { "ManualInstrument", "Instrument", "REInstrumentType", "InstrumentType", "Type" }, detail.InstrumentType);
+                        view.DisplayUnitId = TryExtract(new[] { "ManualUnit", "Unit", "REUnit", "UnitId", "TagNo", "Tag" }, detail.UnitId);
+                        view.DisplayModel = TryExtract(new[] { "ManualMakeModel", "ManualModel", "MakeModel", "Model", "REModel", "Make" }, detail.Model);
+                        view.DisplayRange = TryExtract(new[] { "ManualRange", "Range", "RERange", "InstrumentRange" }, detail.InstrumentRange);
+                        view.DisplayInstallation = TryExtract(new[] { "ManualInstallation", "Installation", "REInstallation" }, detail.Installation);
+                        view.DisplayCertNo = TryExtract(new[] { "ManualCertNo", "CertNo", "RECertificateNo", "CertificateNo" }, detail.CertNo);
+
+                        var extractedLoc = TryExtract(new[] { "ManualLocation", "LocationName", "Location", "RELocation" }, "");
+                        if (!string.IsNullOrWhiteSpace(extractedLoc))
+                        {
+                            view.DisplayLocationName = extractedLoc;
+                        }
+
+                        // Extract main table and simulation payloads cleanly
+                        JsonElement payloadElement = rootElement;
+                        if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
+                        {
+                            payloadElement = rootElement[0];
+                        }
+
+                        if (payloadElement.ValueKind == JsonValueKind.Object && payloadElement.TryGetProperty("CalibrationData", out var calDataNode))
+                        {
+                            if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
                             {
-                                var firstNode = rootElement[0];
-
-                                // Extraction helper cascading between standard properties and manual overrides
-                                string SafelyExtract(JsonElement node, string mainProp, string manualProp, string fallback)
-                                {
-                                    string mainVal = node.TryGetProperty(mainProp, out var m) ? m.GetString() ?? "" : "";
-                                    string manualVal = node.TryGetProperty(manualProp, out var man) ? man.GetString() ?? "" : "";
-
-                                    string cleanedMain = CleanText(mainVal);
-                                    string cleanedManual = CleanText(manualVal);
-
-                                    if (!string.IsNullOrWhiteSpace(cleanedManual)) return cleanedManual;
-                                    if (!string.IsNullOrWhiteSpace(cleanedMain)) return cleanedMain;
-
-                                    return CleanText(fallback);
-                                }
-
-                                // Apply cascading extractions
-                                view.DisplayInstrumentType = SafelyExtract(firstNode, "Instrument", "ManualInstrument", detail.InstrumentType);
-                                view.DisplayUnitId = SafelyExtract(firstNode, "Unit", "ManualUnit", detail.UnitId);
-                                view.DisplayModel = SafelyExtract(firstNode, "MakeModel", "ManualMakeModel", detail.Model);
-                                view.DisplayRange = SafelyExtract(firstNode, "Range", "ManualRange", detail.InstrumentRange);
-                                view.DisplayInstallation = SafelyExtract(firstNode, "Installation", "", detail.Installation);
-                                view.DisplayCertNo = SafelyExtract(firstNode, "CertNo", "", detail.CertNo);
-
-                                // Check inner deep CalibrationData payload object overrides
-                                if (firstNode.TryGetProperty("CalibrationData", out var calDataNode))
-                                {
-                                    if (calDataNode.TryGetProperty("REInstallation", out var reInst) && !string.IsNullOrWhiteSpace(CleanText(reInst.GetString())))
-                                        view.DisplayInstallation = CleanText(reInst.GetString());
-
-                                    if (calDataNode.TryGetProperty("RECertificateNo", out var reCert) && !string.IsNullOrWhiteSpace(CleanText(reCert.GetString())))
-                                        view.DisplayCertNo = CleanText(reCert.GetString());
-
-                                    if (calDataNode.TryGetProperty("REInstrumentType", out var reInstType) && !string.IsNullOrWhiteSpace(CleanText(reInstType.GetString())))
-                                        view.DisplayInstrumentType = CleanText(reInstType.GetString());
-
-                                    if (calDataNode.TryGetProperty("REUnit", out var reUnit) && !string.IsNullOrWhiteSpace(CleanText(reUnit.GetString())))
-                                        view.DisplayUnitId = CleanText(reUnit.GetString());
-
-                                    if (calDataNode.TryGetProperty("REModel", out var reModel) && !string.IsNullOrWhiteSpace(CleanText(reModel.GetString())))
-                                        view.DisplayModel = CleanText(reModel.GetString());
-
-                                    if (calDataNode.TryGetProperty("RERange", out var reRange) && !string.IsNullOrWhiteSpace(CleanText(reRange.GetString())))
-                                        view.DisplayRange = CleanText(reRange.GetString());
-
-                                    if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
-                                    {
-                                        view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                                    }
-                                }
+                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
+                            }
+                            else
+                            {
+                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(calDataNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
                             }
                         }
                         else
                         {
-                            view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(cleanJson, jsonOptions) ?? new ParsedPayload();
+                            view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(payloadElement.GetRawText(), jsonOptions) ?? new ParsedPayload();
                         }
                     }
                     catch
@@ -489,7 +512,6 @@
                     }
                 }
 
-                // Definitive evaluation check for controllers
                 view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
                                     view.CalibrationPayload.SimulationTable.Any() ||
                                     !string.IsNullOrWhiteSpace(view.CalibrationPayload.SetPoint);
@@ -523,7 +545,7 @@
         [PrimaryKey("id", false)] public int Id { get; set; }
         [Column("job_id")] public Guid JobId { get; set; }
         [Column("location_id")] public long? LocationId { get; set; }
-        [Column("location_name")] public string? LocationName { get; set; } // Mapped location string
+        [Column("location_name")] public string? LocationName { get; set; }
         [Column("technician_email")] public string? TechnicianEmail { get; set; }
         [Column("completion_date")] public DateTimeOffset? CompletionDate { get; set; }
         [Column("assigned_to")] public string? AssignedTo { get; set; }
@@ -554,16 +576,13 @@
     public class CalibrationUiView
     {
         public SupabasePmCalibrationDetail Detail { get; set; } = new();
-        public long? LocationId { get; set; }
-        public string? LocationName { get; set; }
         public DateTime? FallbackDate { get; set; }
 
-        // Formatted Date string checks detail date first, then falls back to parent report entry
         public string DateFormatted => Detail.ReportDate?.ToString("dd/MM/yyyy") ?? FallbackDate?.ToString("dd/MM/yyyy") ?? "";
 
         public ParsedPayload CalibrationPayload { get; set; } = new();
 
-        // Computed fallback properties populated cleanly during compilation mapping
+        public string DisplayLocationName { get; set; } = "";
         public string DisplayInstrumentType { get; set; } = "";
         public string DisplayUnitId { get; set; } = "";
         public string DisplayModel { get; set; } = "";
