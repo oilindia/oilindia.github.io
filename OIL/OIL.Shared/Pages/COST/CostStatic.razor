@@ -272,25 +272,40 @@
                 .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd")).Get();
             assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
 
+
+            Console.WriteLine($"assignmentResponse: {assignmentResponse.Models.Count()}");
+
             var pmReportResponse = await SupabaseClient.From<PmReportModel>().Select("*").Get();
             pmReports = pmReportResponse.Models ?? new List<PmReportModel>();
+
+            Console.WriteLine($"pmReportResponse: {pmReportResponse.Models.Count()}");
 
             var jobsResponse = await SupabaseClient.From<JobModel>().Select("*").Get();
             jobs = jobsResponse.Models ?? new List<JobModel>();
 
+            Console.WriteLine($"jobsResponse: {jobsResponse.Models.Count()}");
+
             var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
             employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
+
+            Console.WriteLine($"employeeResponse: {employeeResponse.Models.Count()}");
 
             var locationResponse = await SupabaseClient.From<Location>().Select("*").Get();
             locations = locationResponse.Models ?? new List<Location>();
 
+            Console.WriteLine($"locationResponse: {locationResponse.Models.Count()}");
+
             var dieselResponse = await SupabaseClient.From<DieselPriceModel>().Select("*").Get();
             dieselPrices = dieselResponse.Models ?? new List<DieselPriceModel>();
+
+            Console.WriteLine($"dieselResponse: {dieselResponse.Models.Count()}");
 
             if (_startDate.HasValue) assignments = assignments.Where(a => a.CreatedAt >= _startDate.Value).ToList();
             if (_endDate.HasValue) assignments = assignments.Where(a => a.CreatedAt <= _endDate.Value).ToList();
 
             TotalAssignmentsProcessed = assignments.Count;
+
+            Console.WriteLine($"dieselResponse: {TotalAssignmentsProcessed}");
 
             var uniqueDates = assignments.Select(a => a.CreatedAt.Date).Distinct().OrderBy(d => d).ToList();
             string[] labelsDaily = uniqueDates.Select(d => d.ToString("dd MMM")).ToArray();
@@ -312,6 +327,8 @@
 
             foreach (var assignment in assignments)
             {
+                Console.WriteLine($"foreach assignment: {assignment}");
+
                 if (assignment.CreatedAt == DateTime.MinValue) continue;
                 int quarter = (assignment.CreatedAt.Month - 1) / 3;
                 if (quarter < 0 || quarter > 3) quarter = 0;
@@ -332,6 +349,8 @@
                 {
                     foreach (var pIdStr in assignment.PersonnelIds)
                     {
+                        Console.WriteLine($"foreach pIdStr: {pIdStr}");
+
                         if (long.TryParse(pIdStr, out long empId))
                         {
                             var emp = employees.FirstOrDefault(e => e.Id == empId);
@@ -355,13 +374,13 @@
                         .Select(j => j.LocationId!.Value)
                         .Distinct();
 
-                    //Console.WriteLine($"locationIds: {locationIds}");
+                    Console.WriteLine($"locationIds: {locationIds}");
 
 
                     // 2. Fetch the corresponding locations
                     var assignmentLocations = locations.Where(l => locationIds.Contains(l.Id));
 
-                    //Console.WriteLine($"assignmentLocations: {assignmentLocations}");
+                    Console.WriteLine($"assignmentLocations: {assignmentLocations}");
 
                     // 3. Sum the round-trip distance (DistanceFhqKm * 2)
                     double totalRoundTripDistance = assignmentLocations.Sum(l => (l.DistanceFhqKm ?? 0f) * 2);
@@ -382,12 +401,12 @@
                         // 5. Calculate: (Total Round Trip Distance / Mileage) * Diesel Price
                         calculatedTravelCost = (totalRoundTripDistance / VehicleMileageKmPerLiter) * dieselPrice;
 
-                        //Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
+                        Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
                     }
                 }
                 else
                 {
-                    //Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
+                    Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
                 }
 
 
@@ -419,15 +438,30 @@
                 // --- SPARES COST CALCULATION START ---
                 double itemSparesCost = 0;
 
+                
+
+
+
                 if (assignment.JobIds != null && assignment.JobIds.Any())
                 {
                     // 1. Clean the incoming IDs to prevent whitespace mismatches
-                    var cleanAssignmentJobIds = assignment.JobIds
-                        .Where(id => !string.IsNullOrWhiteSpace(id))
-                        .Select(id => id.Trim())
-                        .ToList();
+                    // var cleanAssignmentJobIds = assignment.JobIds
+                    //     .Where(id => !string.IsNullOrWhiteSpace(id))
+                    //     .Select(id => id.Trim())
+                    //     .ToList();
 
-                    //Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
+                    var cleanAssignmentJobIds = new List<string>();
+                    if (assignment.JobIds != null)
+                    {
+                        foreach (var rawId in assignment.JobIds)
+                        {
+                            if (string.IsNullOrWhiteSpace(rawId)) continue;
+                            var splitIds = rawId.Split(new[] { '[', ']', '"', '\'', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            cleanAssignmentJobIds.AddRange(splitIds);
+                        }
+                    }
+
+                    Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
 
                     if (cleanAssignmentJobIds.Any())
                     {
@@ -523,7 +557,15 @@
             _loading = false;
             StateHasChanged();
 
-            Console.WriteLine($"Dashboard Data Fault: {ex.Message}");
+            Console.WriteLine("===== FULL ERROR =====");
+            Console.WriteLine(ex.ToString());
+
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine("===== INNER ERROR =====");
+                Console.WriteLine(ex.InnerException.ToString());
+            }
+
             Snackbar.Add($"Dashboard Data Fault: {ex.Message}", Severity.Error);
         }
     }
