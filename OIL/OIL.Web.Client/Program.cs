@@ -1,3 +1,4 @@
+using OIL.Web.Client;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -60,7 +61,10 @@ builder.Services.AddScoped<AuthenticationStateProvider>(s => s.GetRequiredServic
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<GeminiService>();
-builder.Services.AddScoped<DailyDieselPriceService>();
+
+
+//builder.Services.AddScoped<DailyDieselPriceService>();
+
 // 4. MudBlazor Services
 builder.Services.AddMudServices();
 

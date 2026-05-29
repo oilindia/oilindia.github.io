@@ -146,6 +146,41 @@
                     <MudItem xs="12">
                         <MudTextField T="string" Label="Details of Work Done" Variant="Variant.Outlined" Lines="3" @bind-Value="_workDone" Required="true" />
                     </MudItem>
+
+
+                    @* --- EXISTING PHOTOS SECTION --- *@
+                    @if (_existingPhotos.Any())
+                    {
+                        <MudPaper Class="pa-4 mb-4" Elevation="2">
+                            <MudText Typo="Typo.h6" Class="mb-3">Existing Job Photos</MudText>
+                            <div class="d-flex flex-wrap gap-4">
+                                @foreach (var photoUrl in _existingPhotos)
+                                {
+                                    <MudImage Src="@photoUrl"
+                                              Width="120" Height="120"
+                                              ObjectFit="ObjectFit.Cover"
+                                              Class="cursor-pointer rounded hover-overlay"
+                                              Elevation="4"
+                                              @onclick="@(() => OpenImage(photoUrl))" />
+                                }
+                            </div>
+                        </MudPaper>
+                    }
+
+                    @* --- FULLSCREEN IMAGE OVERLAY --- *@
+                    <MudOverlay Visible="@_isImageOpen" DarkBackground="true" AutoClose="true" OnClick="@CloseImage" ZIndex="9999">
+                        <div class="d-flex flex-column align-center justify-center" style="height: 100vh; width: 100vw; position: relative;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                           Color="Color.Error"
+                                           Size="Size.Large"
+                                           Style="position: absolute; top: 20px; right: 20px;"
+                                           OnClick="@CloseImage" />
+                            <MudImage Src="@_selectedImage" ObjectFit="ObjectFit.Contain" Style="max-height: 85vh; max-width: 90vw;" />
+                        </div>
+                    </MudOverlay>
+
+
+
                     <MudItem xs="12" sm="3">
                         <MudFileUpload T="IBrowserFile" FilesChanged="HandleFileUpload" Accept="image/*" capture="camera" id="photo-up">
                             <ButtonTemplate>
@@ -410,6 +445,11 @@
     private string _fullName = "";
     private string _designation = "";
 
+
+    private List<string> _existingPhotos = new();
+    private bool _isImageOpen = false;
+    private string _selectedImage = "";
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthStateTask != null)
@@ -461,6 +501,51 @@
 
     }
 
+
+    private void OpenImage(string url)
+    {
+        _selectedImage = url;
+        _isImageOpen = true;
+        StateHasChanged();
+    }
+
+    private void CloseImage()
+    {
+        _isImageOpen = false;
+        _selectedImage = "";
+        StateHasChanged();
+    }
+
+    private async Task LoadExistingPhotos(Guid jobId)
+    {
+        _existingPhotos.Clear();
+        try
+        {
+            // Query the job_photos table for this specific job
+            var photoRecords = await SupabaseClient.From<JobPhotoModel>()
+                .Where(x => x.JobId == jobId)
+                .Get();
+
+            foreach (var record in photoRecords.Models)
+            {
+                if (!string.IsNullOrWhiteSpace(record.StoragePath))
+                {
+                    // Generate the public URL from the bucket
+                    // Note: If your bucket is private, you will need to use CreateSignedUrl instead
+                    var url = SupabaseClient.Storage.From("job-photos").GetPublicUrl(record.StoragePath);
+                    _existingPhotos.Add(url);
+                }
+            }
+
+            // Force Blazor to re-render the DOM with the populated list
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading existing photos: {ex.Message}", Severity.Error);
+        }
+    }
+
     private async Task StartJobExecution(Job job)
     {
         if (job.JobType?.ToLower() == "preventive")
@@ -473,6 +558,10 @@
         // Default logic for other job types (e.g., Breakdown)
         _selectedJob = job;
         CurrentLocationId = _selectedJob.LocationId ?? 0;
+
+        // --- ADD THIS LINE TO LOAD PHOTOS ---
+        await LoadExistingPhotos(job.Id);
+
 
         // --- FIX START: Fetch the matching Job Assignment ID ---
         try

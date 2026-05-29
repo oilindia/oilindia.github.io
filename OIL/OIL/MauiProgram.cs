@@ -57,7 +57,8 @@ public static class MauiProgram
 
         builder.Services.AddScoped<AttendanceService>();
         builder.Services.AddScoped<GeminiService>();
-        builder.Services.AddScoped<DailyDieselPriceService>();
+
+        //builder.Services.AddScoped<DailyDieselPriceService>();
 
         // ---- ADD THESE TWO LINES FOR VERSIONING ----
         builder.Services.AddSingleton<IAppPlatformService, AppPlatformService>();
