@@ -32,7 +32,9 @@
                   Elevation="4"
                   Class="rounded-lg responsive-job-table"
                   Loading="@_loading"
-                  Breakpoint="Breakpoint.Sm">
+                  Breakpoint="Breakpoint.Sm"
+                  FixedHeader="true"
+                  Virtualize="false">
 
             <HeaderContent>
                 <MudTh Class="job-col-name">Job Name</MudTh>
@@ -1802,6 +1804,43 @@
 
         .mud-chip {
             max-width: 100%;
+        }
+    }
+
+    /* Ensure the table doesn't get pushed out of bounds */
+    .responsive-job-table {
+        width: 100%;
+    }
+
+    /* Force the Action column to hold its space */
+    .job-action-cell {
+        min-width: 100px !important;
+        width: 100px !important;
+    }
+
+    /* Fix the description cell to prevent it from pushing the Action button away */
+    .job-description-cell {
+        min-width: 200px;
+        max-width: 600px; /* Adjust as needed */
+    }
+
+    /* Specifically target the mobile breakpoint for MudTable cards */
+    @@media (max-width: 600px) {
+        /* When MudTable switches to card view, ensure the action button is visible */
+        .mud-table-cell {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        .job-action-cell {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: center;
+            padding: 16px !important;
+        }
+        /* Remove fixed layouts that conflict with mobile cards */
+        .responsive-job-table table {
+            table-layout: auto !important;
         }
     }
 

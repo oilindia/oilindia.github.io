@@ -218,6 +218,24 @@
             </NoRecordsContent>
         </MudTable>
     </MudPaper>
+
+
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">Engineer Overtime (Last 4 Months)</MudText>
+        <MudTable Items="@EmployeeOtRows" Hover="true" Striped="true" FixedHeader="true" Height="300px">
+            <HeaderContent>
+                <MudTh>Engineer Name</MudTh>
+                <MudTh>Employee Code</MudTh>
+                <MudTh Style="text-align: right;">Total OT Hours</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.FullName</MudTd>
+                <MudTd DataLabel="Code">@context.EmpCode</MudTd>
+                <MudTd DataLabel="OT Hours" Style="text-align: right;">@context.TotalOtHours.ToString("N1")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
 </MudContainer>
 
 @code {
@@ -238,10 +256,80 @@
 
     public List<AssignmentGridRow> GridRows { get; set; } = new();
 
+    public List<EngineerOtRow> EmployeeOtRows { get; set; } = new();
+
+    public class EngineerOtRow
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string EmpCode { get; set; } = string.Empty;
+        public double TotalOtHours { get; set; }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await RefreshDashboardAsync();
+
+        await GetOTGridData();
     }
+
+    private async Task GetOTGridData()
+    {
+        try
+        {
+            var start = (_startDate ?? DateTime.Today.AddMonths(-4)).Date;
+            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+            var assignmentResponse = await SupabaseClient.From<JobAssignmentModel>()
+                    .Select("*").Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                    .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd")).Get();
+            var assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
+
+
+            var fourMonthsAgo = DateTime.Today.AddMonths(-4);
+            var filteredAssignments = assignments.Where(a => a.CreatedAt >= fourMonthsAgo).ToList();
+
+            var otLookup = new Dictionary<long, double>();
+
+            foreach (var assignment in filteredAssignments)
+            {
+                double ot = assignment.JobOvertime ?? 0;
+                if (ot > 0 && assignment.PersonnelIds != null)
+                {
+                    foreach (var pIdStr in assignment.PersonnelIds)
+                    {
+                        if (long.TryParse(pIdStr, out long empId))
+                        {
+                            if (!otLookup.ContainsKey(empId)) otLookup[empId] = 0;
+                            otLookup[empId] += ot;
+                        }
+                    }
+                }
+            }
+
+            var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
+            var employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
+
+            EmployeeOtRows = employees
+                .Where(e => otLookup.ContainsKey(e.Id))
+                .Select(e => new EngineerOtRow
+                {
+                    FullName = e.FullName ?? "N/A",
+                    EmpCode = e.EmpCode,
+                    TotalOtHours = otLookup[e.Id]
+                })
+                .OrderByDescending(x => x.TotalOtHours)
+                .ToList();
+
+            StateHasChanged(); // Refresh UI
+
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"Method Error: {ex.Message}");
+            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+        }
+    }
+
 
     private async Task RefreshDashboardAsync()
     {
