@@ -593,6 +593,7 @@
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
                         <MudTh Class="sticky-col">E.Code</MudTh>
+                        <MudTh Class="sticky-col">Team Group</MudTh>
                         @foreach (var day in _daysInMonth)
                         {
                             <MudTh Class="@($"header-cell {GetHeaderClass(day)}")">@day.Day <br /><small>@day.ToString("ddd")</small></MudTh>
@@ -601,6 +602,7 @@
                     <RowTemplate>
                         <MudTd Class="sticky-col">@context.FullName</MudTd>
                         <MudTd Class="sticky-col">@context.UniqueId</MudTd>
+                        <MudTd Class="sticky-col">@context.TeamGroup</MudTd>
                         @foreach (var day in _daysInMonth)
                         {
                             var d = day; var m = context;
@@ -1203,7 +1205,7 @@ else
         LoadData();
 
 
-        await JS.InvokeVoidAsync("scrollToToday");
+       
 
 
     }
@@ -1397,7 +1399,7 @@ else
         [Column("full_name")] public string FullName { get; set; }
         [Column("emp_code")] public string EmpCode { get; set; }
         [Column("section")] public string Section { get; set; }
-        [Column("team_group")] public int TeamGroup { get; set; }
+        [Column("team_group")] public int? TeamGroup { get; set; }
     }
 
     [Table("drivers")]
@@ -1412,9 +1414,14 @@ else
     {
         public string FullName { get; set; }
         public string UniqueId { get; set; }
+
+        public int? TeamGroup { get; set; }
+
         public long? DbId { get; set; }
         public string Role { get; set; }
         public string VehicleNumber { get; set; }
+
+
 
         public override bool Equals(object? obj)
         {
@@ -1507,7 +1514,9 @@ else
         {
             Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
-        finally { _loading = false; StateHasChanged(); }
+        finally { _loading = false; StateHasChanged();
+             await JS.InvokeVoidAsync("scrollToToday");
+        }
     }
 
     private async Task SaveAssignment()

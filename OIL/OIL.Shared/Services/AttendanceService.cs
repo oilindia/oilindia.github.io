@@ -26,11 +26,20 @@ namespace OIL.Shared.Services
             if (IsDataReady) return;
             try
             {
-                var engTask = client.From<EmployeeEngineerModel>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
+                var engTask = client.From<EmployeeEngineerModel>()
+                    .Where(x => x.Section == "FIELD MAINTENANCE")
+                    .Get();
+
+                //Console.WriteLine($"engTask : {engTask}");
+
                 var drvTask = client.From<DriverModel>().Get();
+
+                //Console.WriteLine($"drvTask : {drvTask}");
+
+
                 await Task.WhenAll(engTask, drvTask);
 
-                Engineers = engTask.Result.Models.Select(e => new Member { FullName = e.FullName, UniqueId = e.EmpCode, Role = "Engineer" }).ToList();
+                Engineers = engTask.Result.Models.Select(e => new Member { FullName = e.FullName, UniqueId = e.EmpCode, Role = "Engineer", TeamGroup = e.TeamGroup }).ToList();
                 Drivers = drvTask.Result.Models.Select(d => new Member { FullName = d.FullName, UniqueId = d.Id.ToString(), Role = "Driver", DbId = d.Id, VehicleNumber = d.VehicleNumber }).ToList();
 
                 var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToString("yyyy-MM-dd");
@@ -56,6 +65,8 @@ namespace OIL.Shared.Services
             catch (Exception ex)
             {
                 ErrorMessage = ex.Message;
+                Console.WriteLine($"Method Error: {ex.Message}");
+
             }
         }
     }
