@@ -1,4 +1,4 @@
-﻿@page "/managelocations"
+@page "/managelocations"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -23,6 +23,7 @@
                 <PropertyColumn Property="x => x.Id" Title="Id" />
                 <PropertyColumn Property="x => x.InstallationName" Title="Installation" />
                 <PropertyColumn Property="x => x.FieldType" Title="Field Type" />
+                
                 <PropertyColumn Property="x => x.InstallationType" Title="Type" />
                 <TemplateColumn Title="Status">
                     <CellTemplate>
@@ -50,7 +51,7 @@
     <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px;">
         <MudPaper Style="width: 700px; max-width: 95%; padding: 24px;" Elevation="25">
             <MudText Typo="Typo.h6" Class="mb-4">@(_editingLoc.Id == 0 ? "New Location Entry" : "Edit Location Details")</MudText>
-
+            
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_editingLoc.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Required="true" />
@@ -87,9 +88,7 @@
     [Table("locations")]
     public class Location : BaseModel
     {
-        // Removed the 'false' parameter so the manually assigned ID is sent during Insert
-        [PrimaryKey("id")] public long Id { get; set; }
-
+        [PrimaryKey("id", false)] public long Id { get; set; }
         [Column("sub_area")] public string? SubArea { get; set; }
         [Column("area_name")] public string? AreaName { get; set; }
         [Column("installation_name")] public string? InstallationName { get; set; }
@@ -97,7 +96,6 @@
         [Column("image_url")] public string? ImageUrl { get; set; }
         [Column("installation_type")] public string? InstallationType { get; set; }
         [Column("is_active")] public bool? IsActive { get; set; } = true;
-        [Column("distance_fhq_km")] public float? DistanceFhqKm { get; set; }
     }
 
     private List<Location> _locations = new();
@@ -113,30 +111,19 @@
         {
             _loading = true;
             var result = await SupabaseClient.From<Location>()
-                .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Ascending)
-                .Get();
+            .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Ascending)
+            .Get();
             _locations = result.Models;
             StateHasChanged();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Load Error: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _loading = false;
-        }
+        catch (Exception ex) { Snackbar.Add($"Load Error: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
     }
 
-    private void OpenAddModal()
-    {
-        _editingLoc = new Location { IsActive = true };
-        _isModalOpen = true;
-    }
+    private void OpenAddModal() { _editingLoc = new Location { IsActive = true }; _isModalOpen = true; }
 
     private void OpenEditModal(Location l)
     {
-        // Clone object to avoid live-updating the grid before saving
         _editingLoc = new Location
         {
             Id = l.Id,
@@ -146,129 +133,31 @@
             FieldType = l.FieldType,
             ImageUrl = l.ImageUrl,
             InstallationType = l.InstallationType,
-            IsActive = l.IsActive,
-            DistanceFhqKm = l.DistanceFhqKm
+            IsActive = l.IsActive
         };
         _isModalOpen = true;
     }
 
     private async Task SaveLoc()
     {
-        if (string.IsNullOrWhiteSpace(_editingLoc.InstallationName))
-        {
-            Snackbar.Add("Installation Name is required.", Severity.Warning);
-            return;
-        }
-
         try
         {
-            if (_editingLoc.Id == 0)
-            {
-                // Fetch the row with the maximum ID
-                // Removed .Select("id") to ensure the JSON deserializes perfectly into the Location model
-                var maxIdResult = await SupabaseClient.From<Location>()
-                    .Order("id", Supabase.Postgrest.Constants.Ordering.Descending)
-                    .Limit(1)
-                    .Get();
-
-                long nextId = 1;
-                if (maxIdResult.Models != null && maxIdResult.Models.Any())
-                {
-                    nextId = maxIdResult.Models.First().Id + 1;
-                }
-
-                // Assign the correctly calculated next ID
-                _editingLoc.Id = nextId;
-
-                // Insert operation
-                await SupabaseClient.From<Location>().Insert(_editingLoc);
-                Snackbar.Add($"Location added successfully with ID: {nextId}", Severity.Success);
-            }
-            else
-            {
-                // UPDATE operation for existing locations
-                await SupabaseClient.From<Location>().Update(_editingLoc);
-                Snackbar.Add("Location data updated", Severity.Info);
-            }
-
+            await SupabaseClient.From<Location>().Upsert(_editingLoc);
             _isModalOpen = false;
             await LoadData();
+            Snackbar.Add("Location data updated", Severity.Info);
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Save Failed: {ex.Message}", Severity.Error);
-        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
     }
-
-    // private async Task SaveLoc()
-    // {
-    //     if (string.IsNullOrWhiteSpace(_editingLoc.InstallationName))
-    //     {
-    //         Snackbar.Add("Installation Name is required.", Severity.Warning);
-    //         return;
-    //     }
-
-    //     try
-    //     {
-    //         if (_editingLoc.Id == 0)
-    //         {
-    //             // 1. Fetch the maximum ID currently in the table
-    //             var maxIdResult = await SupabaseClient.From<Location>()
-    //                 .Select("id")
-    //                 .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Descending)
-    //                 .Limit(1)
-    //                 .Get();
-
-    //             long nextId = 1; // Default if table is completely empty
-    //             if (maxIdResult.Models.Any())
-    //             {
-    //                 nextId = maxIdResult.Models.First().Id + 1;
-    //             }
-
-    //             // 2. Assign the new manually calculated ID
-    //             _editingLoc.Id = nextId;
-
-    //             // 3. Insert operation
-    //             await SupabaseClient.From<Location>().Insert(_editingLoc);
-    //             Snackbar.Add($"Location added successfully with ID: {nextId}", Severity.Success);
-    //         }
-    //         else
-    //         {
-    //             // UPDATE operation for existing locations
-    //             await SupabaseClient.From<Location>().Update(_editingLoc);
-    //             Snackbar.Add("Location data updated", Severity.Info);
-    //         }
-
-    //         _isModalOpen = false;
-    //         await LoadData();
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Snackbar.Add($"Save Failed: {ex.Message}", Severity.Error);
-    //     }
-    // }
 
     private async Task ConfirmDelete(Location l)
     {
-        var result = await DialogService.ShowMessageBoxAsync(
-            "Confirm Removal",
-            $"Delete location: {l.InstallationName}?",
-            yesText: "Delete",
-            cancelText: "Cancel"
-        );
-
+        var result = await DialogService.ShowMessageBoxAsync("Confirm Removal", $"Delete location: {l.InstallationName}?", yesText: "Delete", cancelText: "Cancel");
         if (result == true)
         {
-            try
-            {
-                await SupabaseClient.From<Location>().Where(x => x.Id == l.Id).Delete();
-                await LoadData();
-                Snackbar.Add("Location removed", Severity.Warning);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Delete Failed: {ex.Message}", Severity.Error);
-            }
+            await SupabaseClient.From<Location>().Where(x => x.Id == l.Id).Delete();
+            await LoadData();
+            Snackbar.Add("Location removed", Severity.Warning);
         }
     }
 }

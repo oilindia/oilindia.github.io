@@ -3,9 +3,10 @@
 @using Supabase
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
+@using System.ComponentModel.DataAnnotations
 @inject ISnackbar Snackbar
 @inject Supabase.Client SupabaseClient
-@inject IDialogService DialogService 
+@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
     <MudPaper Elevation="3" Class="pa-4">
@@ -13,7 +14,6 @@
             <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Size="Size.Large" Color="Color.Primary" />
             <MudText Typo="Typo.h5">Driver Fleet Management</MudText>
             <MudSpacer />
-            @* FIX: Direct bool toggle *@
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal">
                 Add Driver
             </MudButton>
@@ -23,6 +23,7 @@
             <Columns>
                 <PropertyColumn Property="x => x.FullName" Title="Name" />
                 <PropertyColumn Property="x => x.Vehicle_number" Title="License" />
+                <PropertyColumn Property="x => x.Status" Title="Status" />
                 <TemplateColumn Title="Actions">
                     <CellTemplate>
                         <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
@@ -34,83 +35,142 @@
     </MudPaper>
 </MudContainer>
 
-@* --- THE MODAL OVERLAY --- *@
-@if (_isModalOpen)
-{
-    <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
-        <MudPaper Style="width: 500px; max-width: 90%; padding: 24px;" Elevation="25">
-            <MudText Typo="Typo.h6" Class="mb-4">@(_editingDriver.Id == 0 ? "Add New Driver" : "Edit Driver")</MudText>
-            
+<MudOverlay Visible="@_isModalOpen" DarkBackground="true" AutoClose="false" ZIndex="9999">
+    <MudPaper Style="width: 500px; max-width: 90vw; padding: 24px;" Elevation="25">
+        <MudText Typo="Typo.h6" Class="mb-4">@(_editingDriver.Id == 0 ? "Add New Driver" : "Edit Driver")</MudText>
+
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
             <MudStack Spacing="3">
-                <MudTextField @bind-Value="_editingDriver.FullName" Label="Full Name" Variant="Variant.Outlined" />
-                <MudTextField @bind-Value="_editingDriver.Vehicle_number" Label="Vehicle Number" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_editingDriver.FullName" Label="Full Name" Required="true" RequiredError="Name is required!" Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="_editingDriver.Vehicle_number" Label="Vehicle Number" Required="true" RequiredError="Vehicle number is required!" Variant="Variant.Outlined" />
                 <MudTextField @bind-Value="_editingDriver.Mobile" Label="Mobile" Variant="Variant.Outlined" />
-                
+                <MudSelect @bind-Value="_editingDriver.Status" Label="Status" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("active")">Active</MudSelectItem>
+                    <MudSelectItem Value="@("inactive")">Inactive</MudSelectItem>
+                </MudSelect>
+
                 <div class="d-flex justify-end gap-2 mt-4">
-                    <MudButton OnClick="() => _isModalOpen = false" Variant="Variant.Text">Cancel</MudButton>
+                    <MudButton OnClick="CloseModal" Variant="Variant.Text">Cancel</MudButton>
                     <MudButton OnClick="SaveDriver" Variant="Variant.Filled" Color="Color.Primary">Save Driver</MudButton>
                 </div>
             </MudStack>
-        </MudPaper>
-    </div>
-}
+        </MudForm>
+    </MudPaper>
+</MudOverlay>
 
 @code {
     [Table("drivers")]
-    public class Driver : BaseModel {
+    public class Driver : BaseModel
+    {
+        // false here tells Postgrest NOT to include this column during generic inserts
         [PrimaryKey("id", false)] public long Id { get; set; }
         [Column("full_name")] public string FullName { get; set; } = "";
         [Column("mobile")] public string? Mobile { get; set; }
         [Column("vehicle_number")] public string? Vehicle_number { get; set; }
+        [Column("vehicle_type")] public string? VehicleType { get; set; }
         [Column("status")] public string Status { get; set; } = "active";
     }
 
     private List<Driver> _drivers = new();
     private Driver _editingDriver = new();
+    private MudForm _form;
+
     private bool _loading = true;
     private bool _isModalOpen = false;
+    private bool _isValid = false;
 
     protected override async Task OnInitializedAsync() => await LoadDrivers();
 
-    private async Task LoadDrivers() {
-        try {
+    private async Task LoadDrivers()
+    {
+        try
+        {
             _loading = true;
             var result = await SupabaseClient.From<Driver>().Get();
             _drivers = result.Models;
+        }
+        finally
+        {
+            _loading = false;
             StateHasChanged();
-        } finally { _loading = false; }
+        }
     }
 
-    private void OpenAddModal() {
+    private void OpenAddModal()
+    {
         _editingDriver = new Driver();
         _isModalOpen = true;
-        StateHasChanged();
     }
 
-    private void OpenEditModal(Driver driver) {
-        _editingDriver = new Driver {
-            Id = driver.Id, FullName = driver.FullName, Mobile = driver.Mobile,
+    private void OpenEditModal(Driver driver)
+    {
+        // Deep copy to prevent UI updates before hitting 'Save'
+        _editingDriver = new Driver
+        {
+            Id = driver.Id,
+            FullName = driver.FullName,
+            Mobile = driver.Mobile,
             Vehicle_number = driver.Vehicle_number,
+            VehicleType = driver.VehicleType,
             Status = driver.Status
         };
         _isModalOpen = true;
-        StateHasChanged();
     }
 
-    private async Task SaveDriver() {
-        try {
-            await SupabaseClient.From<Driver>().Upsert(_editingDriver);
-            _isModalOpen = false;
+    private async Task CloseModal()
+    {
+        // Reset validation BEFORE closing the modal so the DOM elements still exist
+        if (_form != null)
+        {
+            await _form.ResetValidationAsync();
+        }
+        _isModalOpen = false;
+    }
+
+    private async Task SaveDriver()
+    {
+         await _form.Validate();
+
+        // Check the form's property directly
+        if (!_form.IsValid) return;
+
+        try
+        {
+            if (_editingDriver.Id == 0)
+            {
+                await SupabaseClient.From<Driver>().Insert(_editingDriver);
+            }
+            else
+            {
+                await SupabaseClient.From<Driver>().Update(_editingDriver);
+            }
+
+            // Await the close modal to prevent background thread exceptions
+            await CloseModal();
             await LoadDrivers();
             Snackbar.Add("Driver Saved", Severity.Success);
-        } catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving driver: {ex.Message}", Severity.Error);
+        }
     }
 
-    private async Task ConfirmDelete(Driver driver) {
-        var result = await DialogService.ShowMessageBoxAsync("Delete", "Are you sure?", "Delete", "Cancel");
-        if (result == true) {
-            await SupabaseClient.From<Driver>().Where(x => x.Id == driver.Id).Delete();
-            await LoadDrivers();
+    private async Task ConfirmDelete(Driver driver)
+    {
+        var result = await DialogService.ShowMessageBoxAsync("Delete", $"Are you sure you want to delete {driver.FullName}?", "Delete", "Cancel");
+        if (result == true)
+        {
+            try
+            {
+                await SupabaseClient.From<Driver>().Where(x => x.Id == driver.Id).Delete();
+                await LoadDrivers();
+                Snackbar.Add("Driver Deleted", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting driver: {ex.Message}", Severity.Error);
+            }
         }
     }
 }

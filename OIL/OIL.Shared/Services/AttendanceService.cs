@@ -26,7 +26,7 @@ namespace OIL.Shared.Services
             if (IsDataReady) return;
             try
             {
-                var engTask = client.From<EmployeeEngineerModel>().Get();
+                var engTask = client.From<EmployeeEngineerModel>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
                 var drvTask = client.From<DriverModel>().Get();
                 await Task.WhenAll(engTask, drvTask);
 

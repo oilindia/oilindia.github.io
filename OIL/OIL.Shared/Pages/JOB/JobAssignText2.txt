@@ -1,4 +1,4 @@
-﻿@page "/jobassign"
+@page "/jobassign"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Models
@@ -236,23 +236,23 @@
         background-color: #e6f4ff !important;
         border: 1px solid #1890ff !important;
     }
+    /* Add to your existing <style> block */
 
     .engaged-cell {
-        background-color: #DAA520 !important; /* Dark Yellow / Goldenrod */
-        transition: background-color 0.3s ease;
+    background-color: #DAA520 !important; /* Dark Yellow / Goldenrod */
+    transition: background-color 0.3s ease;
     }
 
-        .engaged-cell .native-select,
-        .engaged-cell .remark-input {
-            background-color: #DAA520 !important;
-            color: #000000 !important;
-            font-weight: 600;
-        }
+    .engaged-cell .native-select,
+    .engaged-cell .remark-input {
+    background-color: #DAA520 !important;
+    color: #000000 !important;
+    font-weight: 600;
+    }
 
-            .engaged-cell .remark-input::placeholder {
-                color: rgba(0, 0, 0, 0.6) !important;
-            }
-
+    .engaged-cell .remark-input::placeholder {
+    color: rgba(0, 0, 0, 0.6) !important;
+    }
 
     /* =========================================================
                SAVE BAR
@@ -807,7 +807,7 @@ else
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="ma-1">@GetJobName(id)</MudChip>
                 }
             </MudTd> *@
-            @* <MudTd DataLabel="Jobs">
+            <MudTd DataLabel="Jobs">
                 @foreach (var id in context.JobIds)
                 {
                     var jobDetails = GetJobName(id); // Fetch the Tuple once
@@ -815,22 +815,6 @@ else
                     <div class="mb-2">
                         <MudText Typo="Typo.body2" Style="font-weight: 600;">@jobDetails.JobName</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display:block; line-height: 1.2;">
-                            @jobDetails.JobDescription
-                        </MudText>
-                    </div>
-                }
-            </MudTd> *@
-
-            <MudTd DataLabel="Jobs" Style="white-space: normal !important; max-width: 250px; min-width: 200px; vertical-align: top;">
-                @foreach (var id in context.JobIds)
-                {
-                    var jobDetails = GetJobName(id);
-
-                    <div class="mb-2" style="word-break: break-word;">
-                        <MudText Typo="Typo.body2" Style="font-weight: 600; white-space: normal;">
-                            @jobDetails.JobName
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display:block; line-height: 1.2; white-space: normal;">
                             @jobDetails.JobDescription
                         </MudText>
                     </div>
@@ -846,9 +830,6 @@ else
             </MudTd>
         </RowTemplate>
     </MudTable>
-
-
-
 </MudContainer>
 
 @* --- SECTION 3: EDIT MODAL --- *@
@@ -1396,8 +1377,6 @@ else
     {
         [Column("full_name")] public string FullName { get; set; }
         [Column("emp_code")] public string EmpCode { get; set; }
-        [Column("section")] public string Section { get; set; }
-        [Column("team_group")] public int TeamGroup { get; set; }
     }
 
     [Table("drivers")]
@@ -1556,10 +1535,9 @@ else
 
         try
         {
-            // 1. Format the Job Names to display in the remarks input
             string plottedJobNames = _selectedJobs != null && _selectedJobs.Any()
-                ? string.Join(", ", _selectedJobs.Select(j => j.JobName))
-                : "Job Assigned";
+        ? string.Join(", ", _selectedJobs.Select(j => j.JobName))
+        : "Job Assigned";
 
             DateTime targetDate = DateTime.Today;
 

@@ -6,7 +6,7 @@
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 @using System.IO
-@inject Client SupabaseClient
+
 @inject ISnackbar Snackbar
 @using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthProvider
@@ -17,7 +17,7 @@
 @using System.Text.Json.Serialization;
 
 @using System.Text.Json
-@using Supabase.Postgrest
+
 @inject Supabase.Client SupabaseClient
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
@@ -25,7 +25,7 @@
 @using MudBlazor
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
-@using System.Text.Json.Serialization;
+
 
 <style>
     /* 1. SCREEN STYLING (The UI looks) */
