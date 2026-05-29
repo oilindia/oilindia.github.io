@@ -480,7 +480,7 @@ namespace OIL.Shared.Services
         public bool IsLocalAdmin { get; set; }
     }
 
-    [Supabase.Postgrest.Attributes.Table("employees_engineers")]
+    [Supabase.Postgrest.Attributes.Table("employees_fm")]
     public class EmployeeEngineer : BaseModel
     {
         [Supabase.Postgrest.Attributes.PrimaryKey("id", false)]

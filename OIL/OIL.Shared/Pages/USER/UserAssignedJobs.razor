@@ -485,9 +485,12 @@
             //         .Filter("job_assignments.status", Supabase.Postgrest.Constants.Operator.NotEqual, "deleted")
 
             //     .Get();
-
-            var res = await SupabaseClient.From<Job>().Where(x => x.Status == "pending" || x.Status == "assigned").Get();
+            var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned").Get();
+            //var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned" || x.Status == "assigned").Get();
             _pendingJobs = res.Models;
+
+            Console.WriteLine($"_pendingJobs: {res.Models.Count()}");
+
             var master = await SupabaseClient.From<ChecklistItem>().Get();
             _allMasterTasks = master.Models;
             _loading = false;
