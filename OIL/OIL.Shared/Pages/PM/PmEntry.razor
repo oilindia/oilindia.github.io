@@ -11,6 +11,12 @@
 @using static Supabase.Postgrest.QueryOptions
 @inject IDialogService DialogService
 
+@inject CustomAuthStateProvider AuthStateProvider
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+@using OIL.Shared.Services
+
 <style>
     /* Modern Dashboard Aesthetics & Clean Reset */
     .pm-execution-container {
@@ -993,6 +999,8 @@
     private string? _preparedBy;
     private string? _supervisedBy;
     private string? _verifiedBy;
+    private string? _performedByDesignation;
+    private string? _witnessedByDesignation;
     private string _sparesConsumed;
     private decimal? _approxTotalCost;
 
@@ -1125,11 +1133,31 @@
 
     private List<string> _masterCalibratorList = new List<string> { "Fluke1", "Fluke2", "Fluke3" };
 
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
+
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            if (AuthStateTask != null)
+            {
+                var authState = await AuthStateTask;
+                var user = authState.User;
+
+                if (user.Identity?.IsAuthenticated == true)
+                {
+                    _email = user.GetEmail();
+                    _fullName = user.GetFullName();
+                    _designation = user.GetDesignation();
+
+                }
+            }
+
             var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending" || x.Status == "assigned").Where(x => x.JobType == "preventive").Get();
             _pendingJobs = jobRes.Models;
 
@@ -1141,8 +1169,11 @@
             var executiveResponse = await SupabaseClient.From<EmployeeExecutive>().Where(x => x.Department == "FIELD MAINTENANCE").Get();
             _executives = executiveResponse.Models;
 
-            var auth = await AuthStateProvider.GetAuthenticationStateAsync();
-            _assignedTo = auth.User.Identity?.Name ?? "";
+            // var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+            // _assignedTo = auth.User.Identity?.Name ?? "";
+
+            _assignedTo = _fullName;
+
         }
         catch (Exception ex)
         {
@@ -1701,7 +1732,7 @@
             {
                 JobId = _selectedJob!.Id,
                 LocationId = currentPMlocationID,
-                TechnicianEmail = _assignedTo,
+                TechnicianEmail = _email,
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_gcsRows),
@@ -1778,7 +1809,9 @@
 
                     CalibrationDataJson = jsonToSave,
 
-                    PerformedBy = _assignedTo
+                    PerformedBy = _assignedTo,
+
+                    WitnessedBy = _preparedBy
                 };
 
                 // Configuration to skip duplicates
@@ -1864,7 +1897,7 @@
             {
                 JobId = _selectedJob!.Id,
                 LocationId = currentPMlocationID,
-                TechnicianEmail = _assignedTo,
+                TechnicianEmail = _email,
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_gcsRows),
@@ -1942,6 +1975,8 @@
                     CalibrationDataJson = jsonToSave,
 
                     PerformedBy = _assignedTo
+
+
                 };
 
                 // Configuration to skip duplicates
@@ -2025,7 +2060,7 @@
             {
                 JobId = _selectedJob!.Id,
                 LocationId = currentPMlocationID,
-                TechnicianEmail = _assignedTo,
+                TechnicianEmail = _email,
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_gcsRows),
@@ -2196,7 +2231,7 @@
             {
                 JobId = _selectedJob!.Id,
                 LocationId = currentPMlocationID,
-                TechnicianEmail = _assignedTo,
+                TechnicianEmail = _email,
                 SparesConsumed = _sparesConsumed,
                 ApproxTotalCost = _approxTotalCost,
                 SectionAJson = JsonSerializer.Serialize(_ocsRows),
@@ -2790,6 +2825,12 @@
 
         [Supabase.Postgrest.Attributes.Column("witnessed_by_name")]
         public string WitnessedBy { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("performed_by_desig")]
+        public string PerformedByDesignation { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("witnessed_by_desig")]
+        public string WitnessedByDesignation { get; set; } = "";
     }
 
     // [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]

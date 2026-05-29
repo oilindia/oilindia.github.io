@@ -1,4 +1,4 @@
-﻿@page "/PMrn"
+﻿@page "/PMrn9"
 
 @using MudBlazor
 @using Supabase
@@ -12,19 +12,9 @@
 @using static Supabase.Postgrest.Constants
 @using System.Text.Json.Serialization
 
-@using System.Text.Json
-@using System.Text.Json.Serialization
-@* @using System.ComponentModel.DataAnnotations.Schema *@
-@using Supabase.Postgrest.Attributes
-@using Supabase.Postgrest.Models
-@using Supabase.Postgrest
-
 @inject ISnackbar Snackbar
 @inject Supabase.Client SupabaseClient
 @inject IJSRuntime JSRuntime
-
-
-
 
 <style>
 
@@ -671,22 +661,12 @@
                     </tr>
 
                     <tr>
-
                         <td colspan="5"
                             class="text-left"
                             style="padding-right: 10%;">
 
-
                             <strong>Installation Name -</strong>
-                            @{
-                                var localInstallName = GetInstallationName(_selectedReport.LocationId);
-                                if (localInstallName != null)
-                                {
-                                    <span>@localInstallName.InstallationName</span><br>
-                                }
-                            }
-                            
-                              
+                            @_selectedReport.InstallationName
 
                         </td>
 
@@ -700,15 +680,13 @@
 
                         <td colspan="5" class="text-left">
                             <strong>A] Comp.Sl.No :</strong>
-                            @* @_selectedReport.CompSlNo *@
-                             @_JsonToTableRowClassList[0].CompSlNo.ToString()
+                            @_selectedReport.CompSlNo
                         </td>
 
                         <td colspan="4" class="text-left">
 
                             <strong>Make -</strong>
-                            @* @_selectedReport.MakeModel *@
-                             @_JsonToTableRowClassList[0].CompMakeModel.ToString()
+                            @( _selectedReport.JobItems.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.CompMakeModel))?.CompMakeModel ?? "N/A" )
 
                         </td>
 
@@ -777,12 +755,12 @@
                                     </td>
                                 }
 
-                                <td>@item.Unit  @_JsonToTableRowClassList[0].ManualUnit.ToString()</td>
-                                <td>@item.Instrument @_JsonToTableRowClassList[0].ManualInstrument.ToString()</td>
-                                <td>@item.MakeModel @_JsonToTableRowClassList[0].ManualMakeModel.ToString()</td>
-                                <td>@item.Range @_JsonToTableRowClassList[0].ManualRange.ToString()</td>
-                                <td>@item.TestingType </td>
-                                <td>@item.CertNo </td>
+                                <td>@item.Unit</td>
+                                <td>@item.Instrument</td>
+                                <td>@item.MakeModel</td>
+                                <td>@item.Range</td>
+                                <td>@item.TestingType</td>
+                                <td>@item.CertNo</td>
                                 <td>@item.Remarks</td>
 
                             </tr>
@@ -1950,26 +1928,9 @@
 
 
 
-
-
-
 @code {
 
-    // =========================================================
-    // JSON OPTIONS
-    // =========================================================
 
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        AllowTrailingCommas = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
-    };
-
-    // =========================================================
-    // VARIABLES
-    // =========================================================
 
     private DateTime? _startDate = DateTime.Today.AddMonths(-1);
 
@@ -1985,8 +1946,6 @@
 
     private List<MasterCalibrator> _masterCalibrators = new();
 
-    private List<MyArray> _JsonToTableRowClassList = new();
-
     private ReportView _selectedReport = new();
 
     private bool _loading = true;
@@ -1995,176 +1954,72 @@
 
     private bool _isOcsModalOpen = false;
 
-    private List<EmployeeEngineer> _employees = new();
-
-    private List<EmployeeExecutive> _executives = new();
-
-    // =========================================================
-    // INITIALIZE
-    // =========================================================
-
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var empResponse =
-                await SupabaseClient
-                    .From<EmployeeEngineer>()
-                    .Get();
+        var empResponse = await SupabaseClient.From<EmployeeEngineer>().Get();
+        _employees = empResponse.Models;
 
-            _employees = empResponse.Models;
-
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Initialization Error: {ex}");
-        }
+        await LoadData();
     }
-
-    // =========================================================
-    // HANDLE VIEW CLICK
-    // =========================================================
 
     private async Task HandleViewClick(ReportView report)
     {
+        _selectedReport = report;
+
+        string jobIdStr = report.JobId.ToString();
+
+        // CHANGE: Clear the model's list instead of the component's list
+        _selectedReport.JobItems.Clear();
+
         try
         {
-            _selectedReport = report;
+            var reportRes = await SupabaseClient
+                .From<PmReport>()
+                .Filter("id",
+                    Supabase.Postgrest.Constants.Operator.Equals,
+                    report.Id)
+                .Single();
 
-            _currentJobItems.Clear();
-
-            _jobCertificates.Clear();
-
-            _JsonToTableRowClassList.Clear();
-
-            _isGcsModalOpen = false;
-            _isOcsModalOpen = false;
-
-            Console.WriteLine($"Loading report ID: {report.Id}");
-
-            var reportRes =
-                await SupabaseClient
-                    .From<PmReport>()
-                    .Filter(
-                        "id",
-                        Operator.Equals,
-                        report.Id)
-                    .Single();
-
-            if (reportRes == null)
+            if (reportRes != null)
             {
-                Snackbar.Add(
-                    "Report not found.",
-                    Severity.Error);
+                // CHANGE: Add the parsed sections directly to _selectedReport
+                _selectedReport.JobItems.AddRange(
+                    ParseJsonSection(reportRes.SectionA));
 
-                return;
+                _selectedReport.JobItems.AddRange(
+                    ParseJsonSection(reportRes.SectionB));
+
+                _selectedReport.JobItems.AddRange(
+                    ParseJsonSection(reportRes.SectionDSpares));
             }
 
-            // =====================================================
-            // PARSE SECTION ITEMS
-            // =====================================================
-
-            var sectionA =
-                ParseJsonSection(reportRes.SectionA);
-
-            var sectionB =
-                ParseJsonSection(reportRes.SectionB);
-
-            var sectionD =
-                ParseJsonSection(reportRes.SectionDSpares);
-
-            _currentJobItems.AddRange(sectionA);
-            _currentJobItems.AddRange(sectionB);
-            _currentJobItems.AddRange(sectionD);
-
-            Console.WriteLine(
-                $"TOTAL ITEMS: {_currentJobItems.Count}");
-
-            // =====================================================
-            // PARSE TABLE DATA
-            // =====================================================
-
-            try
-            {
-                string jsonPayload =
-                    reportRes.SectionA?.ToString()?.Trim()
-                    ?? "[]";
-
-                if (jsonPayload.StartsWith("\"") &&
-                    jsonPayload.EndsWith("\""))
-                {
-                    jsonPayload =
-                        JsonSerializer.Deserialize<string>(
-                            jsonPayload)
-                        ?? "[]";
-                }
-
-                _JsonToTableRowClassList =
-                    JsonSerializer.Deserialize<List<MyArray>>(
-                        jsonPayload,
-                        _jsonOptions)
-                    ?? new List<MyArray>();
-
-                Console.WriteLine(
-                    $"TABLE ROWS: {_JsonToTableRowClassList.Count}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Table Parse Error: {ex}");
-            }
-
-            // =====================================================
-            // FETCH CERTIFICATES
-            // =====================================================
-
-            var certRes =
-                await SupabaseClient
-                    .From<CalibrationDetail>()
-                    .Filter(
-                        "job_id",
-                        Operator.Equals,
-                        report.JobId.ToString())
-                    .Get();
+            var certRes = await SupabaseClient
+                .From<CalibrationDetail>()
+                .Filter("job_id",
+                    Supabase.Postgrest.Constants.Operator.Equals,
+                    jobIdStr)
+                .Get();
 
             _jobCertificates = certRes.Models;
 
             foreach (var cert in _jobCertificates)
             {
-                try
+                if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
                 {
-                    if (!string.IsNullOrWhiteSpace(
-                        cert.CalibrationDataJson))
+                    try
                     {
                         cert.ParsedData =
-                            JsonSerializer.Deserialize<
-                                ParsedCalibrationData>(
-                                cert.CalibrationDataJson,
-                                _jsonOptions)
-                            ?? new ParsedCalibrationData();
+                            JsonSerializer.Deserialize<ParsedCalibrationData>(
+                                cert.CalibrationDataJson);
                     }
-                    else
+                    catch
                     {
-                        cert.ParsedData =
-                            new ParsedCalibrationData();
+                        cert.ParsedData = new ParsedCalibrationData();
                     }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(
-                        $"Certificate Parse Error ({cert.CertNo}): {ex}");
-
-                    cert.ParsedData =
-                        new ParsedCalibrationData();
                 }
             }
 
-            // =====================================================
-            // OPEN MODAL
-            // =====================================================
-
-            if (report.LocationName.Contains(
-                "GCS",
+            if (report.LocationName.Contains("GCS",
                 StringComparison.OrdinalIgnoreCase))
             {
                 _isGcsModalOpen = true;
@@ -2173,243 +2028,216 @@
             {
                 _isOcsModalOpen = true;
             }
-
-            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"HandleViewClick Error: {ex}");
-
             Snackbar.Add(
-                $"Data Load Error: {ex.Message}",
+                "Data Load Error: " + ex.Message,
                 Severity.Error);
         }
     }
 
-    // =========================================================
-    // JSON PARSER
-    // =========================================================
+    // private async Task HandleViewClick(ReportView report)
+    // {
+    //     _selectedReport = report;
+
+    //     string jobIdStr = report.JobId.ToString();
+
+    //     _currentJobItems.Clear();
+
+    //     try
+    //     {
+    //         var reportRes = await SupabaseClient
+    //             .From<PmReport>()
+    //             .Filter("id",
+    //                 Supabase.Postgrest.Constants.Operator.Equals,
+    //                 report.Id)
+    //             .Single();
+
+    //         if (reportRes != null)
+    //         {
+    //             _currentJobItems.AddRange(
+    //                 ParseJsonSection(reportRes.SectionA));
+
+    //             _currentJobItems.AddRange(
+    //                 ParseJsonSection(reportRes.SectionB));
+
+    //             _currentJobItems.AddRange(
+    //                 ParseJsonSection(reportRes.SectionDSpares));
+    //         }
+
+    //         var certRes = await SupabaseClient
+    //             .From<CalibrationDetail>()
+    //             .Filter("job_id",
+    //                 Supabase.Postgrest.Constants.Operator.Equals,
+    //                 jobIdStr)
+    //             .Get();
+
+    //         _jobCertificates = certRes.Models;
+
+    //         foreach (var cert in _jobCertificates)
+    //         {
+    //             if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
+    //             {
+    //                 try
+    //                 {
+    //                     cert.ParsedData =
+    //                         JsonSerializer.Deserialize<ParsedCalibrationData>(
+    //                             cert.CalibrationDataJson);
+    //                 }
+    //                 catch
+    //                 {
+    //                     cert.ParsedData = new ParsedCalibrationData();
+    //                 }
+    //             }
+    //         }
+
+    //         if (report.LocationName.Contains("GCS",
+    //             StringComparison.OrdinalIgnoreCase))
+    //         {
+    //             _isGcsModalOpen = true;
+    //         }
+    //         else
+    //         {
+    //             _isOcsModalOpen = true;
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add(
+    //             "Data Load Error: " + ex.Message,
+    //             Severity.Error);
+    //     }
+    // }
 
     private List<SectionItem> ParseJsonSection(object? jsonField)
     {
-        var result = new List<SectionItem>();
+        if (jsonField == null)
+            return new();
 
         try
         {
-            if (jsonField == null)
-            {
-                return result;
-            }
+            string rawJson = jsonField.ToString() ?? "[]";
 
-            string rawJson =
-                jsonField.ToString()?.Trim()
-                ?? "[]";
-
-            if (string.IsNullOrWhiteSpace(rawJson) ||
-                rawJson == "null")
-            {
-                return result;
-            }
-
-            // Escaped JSON Fix
             if (rawJson.StartsWith("\"") &&
                 rawJson.EndsWith("\""))
             {
-                try
-                {
-                    rawJson =
-                        JsonSerializer.Deserialize<string>(
-                            rawJson)
-                        ?? "[]";
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(
-                        $"JSON Unescape Error: {ex}");
-                }
+                rawJson =
+                    JsonSerializer.Deserialize<string>(rawJson)
+                    ?? "[]";
             }
 
-            Console.WriteLine(rawJson);
-
-            using var document =
-                JsonDocument.Parse(rawJson);
-
-            if (document.RootElement.ValueKind !=
-                JsonValueKind.Array)
-            {
-                return result;
-            }
-
-            foreach (var item in document
-                         .RootElement
-                         .EnumerateArray())
-            {
-                try
-                {
-                    var parsedItem =
-                        JsonSerializer.Deserialize<SectionItem>(
-                            item.GetRawText(),
-                            _jsonOptions);
-
-                    if (parsedItem != null)
-                    {
-                        result.Add(parsedItem);
-                    }
-                }
-                catch (Exception itemEx)
-                {
-                    Console.WriteLine(
-                        $"ITEM PARSE FAILED: {itemEx}");
-
-                    Console.WriteLine(
-                        item.GetRawText());
-                }
-            }
-
-            return result;
+            return JsonSerializer.Deserialize<List<SectionItem>>(rawJson)
+                   ?? new();
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine(
-                $"ParseJsonSection Error: {ex}");
-
-            return result;
+            return new();
         }
     }
-
-    // =========================================================
-    // LOAD DATA
-    // =========================================================
 
     private async Task LoadData()
     {
         try
         {
-            _loading = true;
+            var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
 
-            var start =
-                (_startDate ?? DateTime.Today.AddMonths(-1))
-                .Date;
 
-            var end =
-                (_endDate ?? DateTime.Today)
-                .Date
-                .AddDays(1);
-
-            var response =
-                await SupabaseClient
-                    .From<EmployeeEngineer>()
-                    .Where(x =>
-                        x.Section == "FIELD MAINTENANCE")
-                    .Get();
-
+            var response = await SupabaseClient.From<EmployeeEngineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
             _employees = response.Models;
 
-            var executiveResponse =
-                await SupabaseClient
-                    .From<EmployeeExecutive>()
-                    .Where(x =>
-                        x.Department == "FIELD MAINTENANCE")
-                    .Get();
-
+            var executiveResponse = await SupabaseClient.From<EmployeeExecutive>().Where(x => x.Department == "FIELD MAINTENANCE").Get();
             _executives = executiveResponse.Models;
 
-            var locRes =
-                await SupabaseClient
-                    .From<Location>()
-                    .Get();
+
+            _loading = true;
+
+            var locRes = await SupabaseClient
+                .From<Location>()
+                .Get();
 
             _locations = locRes.Models;
 
-            var res =
-                await SupabaseClient
-                    .From<PmReport>()
-                    .Select("*")
-                    .Filter(
-                        "completion_date",
-                        Operator.GreaterThanOrEqual,
-                        start.ToString("yyyy-MM-dd"))
-                    .Filter(
-                        "completion_date",
-                        Operator.LessThanOrEqual,
-                        end.ToString("yyyy-MM-dd"))
-                    .Get();
+            var res = await SupabaseClient
+                .From<PmReport>()
+                 .Select("*")
+                            .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                            .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                .Get();
 
-            var masterCalibrators =
-                await SupabaseClient
-                    .From<MasterCalibrator>()
-                    .Get();
+            // var reportsTask = await SupabaseClient
+            //                 .From<PmReport>()
+            //                 .Select("*")
+            //                 .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+            //                 .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+            //                 .Get();
 
-            _masterCalibrators =
-                masterCalibrators.Models
-                    .OrderBy(c => c.ValidityDate)
-                    .ToList();
 
-            _reports =
-                res.Models.Select(r => new ReportView
+            // Queries 'public.master_calibrators' and orders them by validity_date ascending
+            // .Order(c => c.ValidityDate, Supabase.Postgrest.Constants.Ordering.Ascending)
+
+            var masterCalibrators = await SupabaseClient
+                .From<MasterCalibrator>()
+                .Get();
+
+            _masterCalibrators = masterCalibrators.Models
+                            .OrderBy(c => c.ValidityDate)
+                            .ToList();
+
+            _reports = res.Models.Select(r => new ReportView
+            {
+                Id = r.Id,
+                JobId = r.JobId,
+                LocationId = r.LocationId,
+                WorkPermit = r.WorkPermit,
+                CompletionDate = r.CompletionDate,
+
+                JobCarriedByEmpCodes = r.JobCarriedByEmpCodes,
+                ReportPreparedBy = r.ReportPreparedBy,
+                ReportSupervisedBy = r.ReportSupervisedBy,
+                ReportVerifiedBy = r.ReportVerifiedBy,
+
+                SectionDSpares = r.SectionDSpares,
+
+                MultiSelectionPmDates = r.MultiSelectionPmDates,
+
+                LocationName =
+                    _locations.FirstOrDefault(
+                        l => l.Id == r.LocationId)
+                    ?.InstallationName ?? "N/A",
+
+                VisualPoints = new List<VisualPoint>
                 {
-                    Id = r.Id,
-                    JobId = r.JobId,
-                    LocationId = r.LocationId,
-                    WorkPermit = r.WorkPermit,
-                    CompletionDate = r.CompletionDate,
+                    new()
+                    {
+                        Id = "1",
+                        Description =
+                        "Checked all tripping parameters and their settings."
+                    },
 
-                    JobCarriedByEmpCodes =
-                        r.JobCarriedByEmpCodes,
+                    new()
+                    {
+                        Id = "2",
+                        Description =
+                        "Panel inside wiring checked and found ok."
+                    },
 
-                    ReportPreparedBy =
-                        r.ReportPreparedBy,
+                    new()
+                    {
+                        Id = "3",
+                        Description =
+                        "Air Filter Regulators draining and servicing done."
+                    }
+                }
 
-                    ReportSupervisedBy =
-                        r.ReportSupervisedBy,
-
-                    ReportVerifiedBy =
-                        r.ReportVerifiedBy,
-
-                    SectionDSpares =
-                        r.SectionDSpares,
-
-                    MultiSelectionPmDates =
-                        r.MultiSelectionPmDates,
-
-                    LocationName =
-                        _locations.FirstOrDefault(
-                            l => l.Id == r.LocationId)
-                        ?.InstallationName ?? "",
-
-                    VisualPoints =
-                        new List<VisualPoint>
-                        {
-                            new()
-                            {
-                                Id = "1",
-                                Description =
-                                    "Checked all tripping parameters and their settings."
-                            },
-                            new()
-                            {
-                                Id = "2",
-                                Description =
-                                    "Panel inside wiring checked and found ok."
-                            },
-                            new()
-                            {
-                                Id = "3",
-                                Description =
-                                    "Air Filter Regulators draining and servicing done."
-                            }
-                        }
-
-                }).ToList();
+            }).ToList();
         }
         catch (Exception ex)
         {
             Snackbar.Add(
-                $"Fetch Error: {ex.Message}",
+                "Fetch Error: " + ex.Message,
                 Severity.Error);
-
-            Console.WriteLine(
-                $"LoadData Error: {ex}");
         }
         finally
         {
@@ -2417,9 +2245,22 @@
         }
     }
 
-    // =========================================================
-    // PRINT
-    // =========================================================
+    private EmployeeEngineer GetEmployee(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode) || _employees == null)
+            return null;
+
+        return _employees.FirstOrDefault(e => e.EmpCode.ToString() == empCode.ToString());
+    }
+
+    private EmployeeExecutive GetExecutive(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode) || _executives == null)
+            return null;
+
+        return _executives.FirstOrDefault(e => e.Id.ToString() == empCode.ToString());
+    }
+
 
     private async Task PrintReport()
     {
@@ -2430,145 +2271,123 @@
         await JSRuntime.InvokeVoidAsync("blazorPrint");
     }
 
-    // =========================================================
-    // HELPERS
-    // =========================================================
-
-    private Location GetInstallationName(long locID)
-    {
-        if (locID <= 0)
-            return null;
-
-        return _locations.FirstOrDefault(
-            l => l.Id == locID);
-    }
-
-
-    private EmployeeEngineer GetEmployee(string empCode)
-    {
-        if (string.IsNullOrWhiteSpace(empCode))
-            return null;
-
-        return _employees.FirstOrDefault(
-            e => e.EmpCode == empCode);
-    }
-
-    private EmployeeExecutive GetExecutive(string empCode)
-    {
-        if (string.IsNullOrWhiteSpace(empCode))
-            return null;
-
-        return _executives.FirstOrDefault(
-            e => e.Id.ToString() == empCode);
-    }
-
-    // =========================================================
-    // MODELS
-    // =========================================================
-
     public class SectionItem
     {
         [JsonPropertyName("SlNo")]
-        public string? SlNo { get; set; }
+        public string SlNo { get; set; } = "";
 
         [JsonPropertyName("CompSlNo")]
-        public string? CompSlNo { get; set; }
+        public string CompSlNo { get; set; } = "";
 
         [JsonPropertyName("CompMakeModel")]
-        public string? CompMakeModel { get; set; }
+        public string CompMakeModel{ get; set; } = "";
 
-        // FIXED
         [JsonPropertyName("CheckTripping")]
-        public bool? CheckTripping { get; set; }
+        public string CheckTripping{ get; set; } = "";
 
         [JsonPropertyName("CheckTubing")]
-        public bool? CheckTubing { get; set; }
-
+        public string CheckTubing { get; set; } = "";
+  
         [JsonPropertyName("CheckAFR")]
-        public bool? CheckAFR { get; set; }
+        public string CheckAFR { get; set; } = "";
 
         [JsonPropertyName("SafetyInterlocks")]
-        public string? SafetyInterlocks { get; set; }
+        public string SafetyInterlocks { get; set; } = "";
 
         [JsonPropertyName("Hooter")]
-        public string? Hooter { get; set; }
+        public string Hooter { get; set; } = "";
 
         [JsonPropertyName("SparesConsumed")]
-        public string? SparesConsumed { get; set; }
-
-        [JsonPropertyName("Installation")]
-        public string? Installation { get; set; }
+        public string SparesConsumed { get; set; } = "";
 
         [JsonPropertyName("Unit")]
-        public string? Unit { get; set; }
+        public string Unit { get; set; } = "";
 
         [JsonPropertyName("ManualUnit")]
-        public string? ManualUnit { get; set; }
+        public string ManualUnit { get; set; } = "";
 
         [JsonPropertyName("Instrument")]
-        public string? Instrument { get; set; }
+        public string Instrument { get; set; } = "";
 
         [JsonPropertyName("ManualInstrument")]
-        public string? ManualInstrument { get; set; }
+        public string ManualInstrument { get; set; } = "";
 
         [JsonPropertyName("TagNumber")]
-        public string? TagNumber { get; set; }
+        public string TagNumber { get; set; } = "";
 
         [JsonPropertyName("ManualTag")]
-        public string? ManualTag { get; set; }
+        public string ManualTag { get; set; } = "";
 
         [JsonPropertyName("MakeModel")]
-        public string? MakeModel { get; set; }
+        public string MakeModel { get; set; } = "";
 
         [JsonPropertyName("ManualMakeModel")]
-        public string? ManualMakeModel { get; set; }
+        public string ManualMakeModel { get; set; } = "";
 
         [JsonPropertyName("Range")]
-        public string? Range { get; set; }
+        public string Range { get; set; } = "";
 
         [JsonPropertyName("ManualRange")]
-        public string? ManualRange { get; set; }
+        public string ManualRange { get; set; } = "";
 
-        // FIXED
         [JsonPropertyName("Quantity")]
-        public int? Quantity { get; set; }
+        public int Quantity { get; set; }
 
         [JsonPropertyName("TestingType")]
-        public string? TestingType { get; set; }
+        public string TestingType { get; set; } = "";
 
         [JsonPropertyName("CertNo")]
-        public string? CertNo { get; set; }
+        public string CertNo { get; set; } = "";
 
         [JsonPropertyName("Remarks")]
-        public string? Remarks { get; set; }
+        public string Remarks { get; set; } = "";
 
-        [JsonPropertyName("ManualRemarks")]
-        public string? ManualRemarks { get; set; }
+       
 
-        [JsonPropertyName("CalibrationData")]
-        public CalibrationData? CalibrationData { get; set; }
     }
 
+    // 3. Model mapping to your PostgreSQL table
     [Table("employees_engineers")]
     public class EmployeeEngineer : BaseModel
     {
         [PrimaryKey("id")]
         public long Id { get; set; }
 
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
+
+        [Column("email")]
+        public string Email { get; set; }
+
         [Column("emp_code")]
         public string EmpCode { get; set; }
 
-        [Column("full_name")]
-        public string FullName { get; set; }
-
-        [Column("section")]
-        public string Section { get; set; }
         [Column("designation")]
         public string Designation { get; set; }
 
         [Column("grade")]
         public string Grade { get; set; }
 
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("gender")]
+        public string Gender { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("department")]
+        public string Department { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
     }
 
     [Table("employees_executives")]
@@ -2577,15 +2396,51 @@
         [PrimaryKey("id")]
         public long Id { get; set; }
 
-        [Column("full_name")]
-        public string FullName { get; set; }
+        [Column("reports_to_id")]
+        public long? ReportsToId { get; set; }
 
-        [Column("Department")]
-        public string Department { get; set; }
+        [Column("email")]
+        public string Email { get; set; }
+
         [Column("designation")]
         public string Designation { get; set; }
 
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("mobile")]
+        public long? Mobile { get; set; }
+
+        [Column("Department")]
+        public string Department { get; set; }
+
+        [Column("annual_cost")]
+        public long? AnnualCost { get; set; }
+
+        [Column("isLocalAdmin")]
+        public bool? IsLocalAdmin { get; set; }
+
+        [Column("team_group")]
+        public int? TeamGroup { get; set; }
     }
+
+    // 1. Hold the list of employees for this page
+    private List<EmployeeEngineer> _employees = new();
+    private List<EmployeeExecutive> _executives = new();
+    // 2. Fetch the employees when the report page loads
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     // Load the employees so we can resolve names on the report
+        
+
+    //     // ... your existing code to load _selectedReport goes here ...
+    // }
+
+    // 3. Helper method used by the HTML to find the employee details
+    
 
     [Table("pm_reports")]
     public class PmReport : BaseModel
@@ -2597,7 +2452,7 @@
         public Guid JobId { get; set; }
 
         [Column("location_id")]
-        public long LocationId { get; set; }
+        public long? LocationId { get; set; }
 
         [Column("work_permit")]
         public string? WorkPermit { get; set; }
@@ -2614,13 +2469,14 @@
         [Column("section_d_spares")]
         public object? SectionDSpares { get; set; }
 
-        [Column("remarks")]
-        public string Remarks { get; set; } = "";
+        
 
-        [Column("pm_dates")]
+        [Supabase.Postgrest.Attributes.Column("remarks")] public string Remarks { get; set; } = "";
+
+        [Supabase.Postgrest.Attributes.Column("pm_dates")]
         public string? MultiSelectionPmDates { get; set; }
 
-        [Column("Job_Carried_By")]
+        [Supabase.Postgrest.Attributes.Column("Job_Carried_By")]
         public List<string>? JobCarriedByEmpCodes { get; set; }
 
         [Column("Report_Prepared_By")]
@@ -2629,14 +2485,16 @@
         [Column("Report_Supervised_By")]
         public string? ReportSupervisedBy { get; set; }
 
+        
         [Column("Report_Verified_By")]
         public string? ReportVerifiedBy { get; set; }
+
     }
 
     [Table("master_calibrators")]
     public class MasterCalibrator : BaseModel
     {
-        [PrimaryKey("id")]
+        [PrimaryKey("id", shouldInsert: false)]
         public long Id { get; set; }
 
         [Column("name")]
@@ -2650,6 +2508,12 @@
 
         [Column("validity_date")]
         public DateTime ValidityDate { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
     }
 
     [Table("pm_calibration_details")]
@@ -2664,6 +2528,30 @@
         [Column("cert_no")]
         public string CertNo { get; set; } = "";
 
+        [Column("installation")]
+        public string? Installation { get; set; }
+
+        [Column("unit_id")]
+        public string? UnitId { get; set; }
+
+        [Column("instrument_type")]
+        public string? InstrumentType { get; set; }
+
+        [Column("instrument_range")]
+        public string? InstrumentRange { get; set; }
+
+        [Column("model")]
+        public string? Model { get; set; }
+
+        [Column("report_date")]
+        public DateTime? ReportDate { get; set; }
+
+        [Column("performed_by_name")]
+        public string? PerformedByName { get; set; }
+
+        [Column("witnessed_by_name")]
+        public string? WitnessedByName { get; set; }
+
         [Column("calibration_data")]
         public string CalibrationDataJson { get; set; } = "[]";
 
@@ -2677,31 +2565,39 @@
 
         public List<CalRow> CalibrationTable { get; set; } = new();
 
+        public string? SetPoint { get; set; }
+
+        public string? ActuatorAction { get; set; }
+
+        public string? ProportionalBand { get; set; }
+
+        public string? ResetTime { get; set; }
+
         public List<SimRow>? SimulationTable { get; set; }
     }
 
     public class CalRow
     {
-        public string? InputValue { get; set; }
+        public string InputValue { get; set; } = "";
 
-        public string? InputPercentage { get; set; }
+        public string InputPercentage { get; set; } = "";
 
-        public string? ExpectedOutput { get; set; }
+        public string ExpectedOutput { get; set; } = "";
 
-        public string? ActualOutput { get; set; }
+        public string ActualOutput { get; set; } = "";
 
-        public string? Error { get; set; }
+        public string Error { get; set; } = "";
 
-        public string? CalRemarks { get; set; }
+        public string CalRemarks { get; set; } = "";
     }
 
     public class SimRow
     {
-        public string? ProcessInput { get; set; }
+        public string ProcessInput { get; set; } = "";
 
-        public string? OutputPressure { get; set; }
+        public string OutputPressure { get; set; } = "";
 
-        public string? PSRemarks { get; set; }
+        public string PSRemarks { get; set; } = "";
     }
 
     [Table("locations")]
@@ -2725,6 +2621,27 @@
 
         public string LocationName { get; set; } = "";
 
+        public string InstallationName { get; set; } = "";
+
+        //public string CompSlNo { get; set; } = "";
+
+        public string MakeModel { get; set; } = "";
+
+        public string PMDates { get; set; } = "";
+
+        public List<SectionItem> JobItems { get; set; } = new();
+
+        // Computed property: Grabs the first available CompMakeModel from the items list
+        public string CompMakeModel => JobItems
+            .FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.CompMakeModel))?.CompMakeModel ?? "";
+
+        // You can do the exact same thing for CompSlNo so it pulls directly from the items
+        public string CompSlNo => JobItems
+            .FirstOrDefault(i => !string.IsNullOrWhiteSpace(i.CompSlNo))?.CompSlNo ?? "";
+
+
+
+
         public List<VisualPoint> VisualPoints { get; set; } = new();
     }
 
@@ -2734,95 +2651,4 @@
 
         public string Description { get; set; } = "";
     }
-
-    public class CalibrationData
-    {
-        public string? REInstallation { get; set; }
-
-        public object? REUnit { get; set; }
-
-        public string? RERange { get; set; }
-
-        public string? REModel { get; set; }
-
-        public string? REInstrumentType { get; set; }
-
-        public object? RETestType { get; set; }
-
-        public string? RECertificateNo { get; set; }
-
-        public string? RERemarks { get; set; }
-
-        public string? REMasterCalibrator { get; set; }
-
-        public RECalibration? RECalibration { get; set; }
-    }
-
-    public class RECalibration
-    {
-        public string? MasterCalibrator { get; set; }
-
-        public List<CalibrationTable> CalibrationTable { get; set; } = new();
-    }
-
-    public class CalibrationTable
-    {
-        public string? InputValue { get; set; }
-
-        public string? InputPercentage { get; set; }
-
-        public string? ExpectedOutput { get; set; }
-
-        public string? ActualOutput { get; set; }
-
-        public string? Error { get; set; }
-
-        public string? CalRemarks { get; set; }
-    }
-
-    public class MyArray
-    {
-        public string? SlNo { get; set; }
-
-        public string? Installation { get; set; }
-
-        public string? CompSlNo { get; set; }
-
-        public string? CompMakeModel { get; set; }
-
-        public string? Unit { get; set; }
-
-        public string? ManualUnit { get; set; }
-
-        public string? Instrument { get; set; }
-
-        public string? ManualInstrument { get; set; }
-
-        public string? TagNumber { get; set; }
-
-        public string? ManualTag { get; set; }
-
-        public string? MakeModel { get; set; }
-
-        public string? ManualMakeModel { get; set; }
-
-        public string? Range { get; set; }
-
-        public string? ManualRange { get; set; }
-
-        public int? Quantity { get; set; }
-
-        public string? TestingType { get; set; }
-
-        public string? CertNo { get; set; }
-
-        public string? Remarks { get; set; }
-
-        public string? ManualRemarks { get; set; }
-
-        public CalibrationData? CalibrationData { get; set; }
-    }
 }
-
-
-

@@ -2,6 +2,7 @@
 
 @using OIL.Shared.Models
 @using Supabase
+@using Supabase.Postgrest
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 @using System.IO
@@ -327,13 +328,47 @@
                         <td style="width: 50%; padding: 6px; border: 1px solid black;">Calibration By:</td>
                         <td style="width: 50%; padding: 6px; border: 1px solid black;">Witnessed By / Engineer:</td>
                     </tr>
+
+                     @*  @_selectedReport.Detail.WitnessedByName *@
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">Name: @_selectedReport.Detail.PerformedByName</td>
-                        <td style="padding: 6px; border: 1px solid black;">Name: @_selectedReport.Detail.WitnessedByName</td>
+                        <td style="padding: 6px; border: 1px solid black;">Name: 
+                            @_selectedReport.Detail.PerformedByName</td>
+                        <td style="padding: 6px; border: 1px solid black;">Name: 
+
+                            @{
+                                var emp = GetEmployee(@_selectedReport.Detail.PmReportId, "witnessed_by");
+                                if (emp != null)
+                                {
+                                    @emp.FullName
+                                }
+                            }
+
+                          
+                            </td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">Designation: @_selectedReport.Detail.PerformedByDesig</td>
-                        <td style="padding: 6px; border: 1px solid black;">Designation: @_selectedReport.Detail.WitnessedByDesig</td>
+                        <td style="padding: 6px; border: 1px solid black;">Designation: 
+                            @{                            
+                                var empO = GetEmployee(@_selectedReport.Detail.PmReportId, "performed_by");
+                                if (empO != null)
+                                {
+                                    @empO.Designation
+                                }
+                            }
+
+                            @* @_selectedReport.Detail.PerformedByDesig *@
+                            </td>
+                        <td style="padding: 6px; border: 1px solid black;">Designation: 
+                             @{                            
+                                var empO2 = GetEmployee(@_selectedReport.Detail.PmReportId, "witnessed_by");
+                                if (empO2 != null)
+                                {
+                                    @empO2.Designation
+                                }
+                            }
+
+                            @_selectedReport.Detail.WitnessedByDesig
+                            </td>
                     </tr>
                 </table>
             </div>
@@ -341,27 +376,46 @@
     </div>
 }
 
+
+
+
 @code {
     private DateTime? _fromDate = DateTime.Today.AddMonths(-1);
     private DateTime? _toDate = DateTime.Today;
     private bool _loading = false;
     private bool _isModalOpen = false;
 
+
+    private List<Location> _locations = new();
     private List<CalibrationUiView> _gridItems = new();
     private CalibrationUiView? _selectedReport;
 
+    private List<EmployeeEngineer> _employees = new();
+
+    private List<SupabasePmReport> _pmReports = new();
+
     protected override async Task OnInitializedAsync()
     {
+        var empResponse =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Get();
+
+        _employees = empResponse.Models;
+
         await LoadCalibrationData();
     }
 
-    // Static text helper to systematically scrub out 'NOT FOUND'
+    // 1. Core text cleaner: Destroys "NOT FOUND" so the system knows to keep looking
     private static string CleanText(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return "";
         if (input.Trim().Equals("NOT FOUND", StringComparison.OrdinalIgnoreCase)) return "";
 
         string cleaned = input;
+
+        // Aggressively clean certificate slashes like "INST/NOT FOUND/3" -> "INST/3"
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND/", "/", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND/", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -371,7 +425,7 @@
         return cleaned.Trim();
     }
 
-    // NEW: Deep Recursive JSON Search to forcefully find missing manual inputs anywhere in the JSON payload
+    // 2. Recursive Search: Now forcefully ignores "NOT FOUND" to reach manual keys
     private static string FindJsonValue(JsonElement node, string[] keys)
     {
         if (node.ValueKind == JsonValueKind.Array)
@@ -384,7 +438,7 @@
         }
         else if (node.ValueKind == JsonValueKind.Object)
         {
-            // Level 1 check: Prioritize current object properties first
+            // Level 1: Check prioritized keys
             foreach (var prop in node.EnumerateObject())
             {
                 if (prop.Value.ValueKind == JsonValueKind.Null) continue;
@@ -393,14 +447,18 @@
                 {
                     if (prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase))
                     {
-                        string val = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() ?? "" : prop.Value.ToString();
-                        val = CleanText(val);
-                        if (!string.IsNullOrWhiteSpace(val)) return val;
+                        string rawVal = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() ?? "" : prop.Value.ToString();
+
+                        // Pass through CleanText. If it was "NOT FOUND", it becomes "".
+                        string cleanVal = CleanText(rawVal);
+
+                        // Only return if it actually contains valid text (like "Suction Pressure")
+                        if (!string.IsNullOrWhiteSpace(cleanVal)) return cleanVal;
                     }
                 }
             }
 
-            // Level 2 check: If not found, dive deeper into nested arrays/objects
+            // Level 2: Dive deeper into nested objects (like CalibrationData { ... })
             foreach (var prop in node.EnumerateObject())
             {
                 if (prop.Value.ValueKind == JsonValueKind.Object || prop.Value.ValueKind == JsonValueKind.Array)
@@ -417,109 +475,145 @@
     {
         try
         {
+            var start = (_fromDate ?? DateTime.Today.AddMonths(-1)).Date;
+            var end = (_toDate ?? DateTime.Today).Date.AddDays(1);
+
+            _locations = (await SupabaseClient.From<Location>().Get()).Models;
+
+
             _loading = true;
             StateHasChanged();
 
-            var detailsResponse = await SupabaseClient.From<SupabasePmCalibrationDetail>().Get();
-            var fetchedDetails = detailsResponse.Models;
+            // var detailsResponse = await SupabaseClient.From<SupabasePmCalibrationDetail>().Get();
 
-            var reportsResponse = await SupabaseClient.From<SupabasePmReport>().Get();
+
+            // 1. Fetch reports based on the date range
+            var reportsResponse = await SupabaseClient.From<SupabasePmReport>()
+                .Select("*")
+                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                .Filter("completion_date", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
+                .Get();
+
             var fetchedReports = reportsResponse.Models;
+
+            _pmReports = fetchedReports; // Store for potential future use
+
+            // 2. Extract the list of Report IDs
+            var reportIds = fetchedReports.Select(r => r.Id).ToList();
+
+            var fetchedDetails = new List<SupabasePmCalibrationDetail>();
+
+            // 3. Fetch calibration details ONLY if there are reports found to avoid a 400 Bad Request on an empty IN clause
+            if (reportIds.Any())
+            {
+                var detailsResponse = await SupabaseClient
+                    .From<SupabasePmCalibrationDetail>()
+                    .Select("*")
+                    .Filter("pm_report_id", Supabase.Postgrest.Constants.Operator.In, reportIds)
+                    .Get();
+
+                fetchedDetails = detailsResponse.Models;
+            }
+
+
 
             var jsonOptions = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true };
 
             _gridItems = fetchedDetails.Select(detail =>
+{
+    var parentReport = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId);
+
+    var view = new CalibrationUiView
+    {
+        Detail = detail,
+        FallbackDate = parentReport?.CompletionDate?.DateTime,
+    };
+
+    string ExtractWithNoBlanks(JsonElement root, string[] keys, string dbFallback)
+    {
+        var extracted = FindJsonValue(root, keys);
+        if (!string.IsNullOrWhiteSpace(extracted)) return extracted;
+
+        var fallbackCleaned = CleanText(dbFallback);
+        if (!string.IsNullOrWhiteSpace(fallbackCleaned)) return fallbackCleaned;
+
+        return "";
+    }
+
+    if (!string.IsNullOrWhiteSpace(detail.CalibrationData))
+    {
+        try
+        {
+            string cleanJson = detail.CalibrationData.Trim();
+            if (cleanJson.StartsWith("\"") && cleanJson.EndsWith("\""))
             {
-                var parentReport = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId);
+                cleanJson = JsonSerializer.Deserialize<string>(cleanJson, jsonOptions) ?? "{}";
+                cleanJson = cleanJson.Trim();
+            }
 
-                var view = new CalibrationUiView
-                {
-                    Detail = detail,
-                    FallbackDate = parentReport?.CompletionDate?.DateTime,
+            using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
+            var rootElement = document.RootElement;
 
-                    // Assign strict database base fallbacks initially
-                    DisplayLocationName = CleanText(parentReport?.LocationName),
-                    DisplayInstrumentType = CleanText(detail.InstrumentType),
-                    DisplayUnitId = CleanText(detail.UnitId),
-                    DisplayModel = CleanText(detail.Model),
-                    DisplayRange = CleanText(detail.InstrumentRange),
-                    DisplayInstallation = CleanText(detail.Installation),
-                    DisplayCertNo = CleanText(detail.CertNo)
-                };
+            // --- STANDARD MAPPINGS ---
+            view.DisplayInstrumentType = ExtractWithNoBlanks(rootElement, new[] { "ManualInstrument", "REInstrumentType", "Instrument", "InstrumentType" }, detail.InstrumentType);
+            view.DisplayUnitId = ExtractWithNoBlanks(rootElement, new[] { "ManualTag", "TagNumber", "ManualUnit", "REUnit", "Unit", "UnitId" }, detail.UnitId);
+            view.DisplayModel = ExtractWithNoBlanks(rootElement, new[] { "ManualMakeModel", "REModel", "MakeModel", "Model" }, detail.Model);
+            view.DisplayRange = ExtractWithNoBlanks(rootElement, new[] { "ManualRange", "RERange", "Range", "InstrumentRange" }, detail.InstrumentRange);
+            view.DisplayCertNo = ExtractWithNoBlanks(rootElement, new[] { "ManualCertNo", "RECertificateNo", "CertNo", "CertificateNo" }, detail.CertNo);
 
-                if (!string.IsNullOrWhiteSpace(detail.CalibrationData))
-                {
-                    try
-                    {
-                        string cleanJson = detail.CalibrationData.Trim();
-                        if (cleanJson.StartsWith("\"") && cleanJson.EndsWith("\""))
-                        {
-                            cleanJson = JsonSerializer.Deserialize<string>(cleanJson, jsonOptions) ?? "{}";
-                            cleanJson = cleanJson.Trim();
-                        }
+            // --- FIX 1: Fix Location Name Overwrite ---
+            view.DisplayLocationName = ExtractWithNoBlanks(rootElement, new[] { "ManualLocation", "LocationName", "Location" }, parentReport?.LocationName ?? "");
 
-                        using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
-                        var rootElement = document.RootElement;
+            // --- FIX 2: Dynamic Installation Resolution based on LocationId ---
+            string installationFallback = detail.Installation ?? "";
 
-                        // Helper inline function to utilize the deep search
-                        string TryExtract(string[] keys, string fallback)
-                        {
-                            var val = FindJsonValue(rootElement, keys);
-                            if (!string.IsNullOrWhiteSpace(val)) return val;
-                            return CleanText(fallback);
-                        }
+            // If the detail installation is empty, we derive it from the parent report's LocationId
+            if (string.IsNullOrWhiteSpace(installationFallback) && parentReport?.LocationId != null)
+            {
+                installationFallback = GetInstallationNameFromId(parentReport.LocationId.Value);
+            }
 
-                        // Aggressively hunt for manual entry data across all possible naming structures
-                        view.DisplayInstrumentType = TryExtract(new[] { "ManualInstrument", "Instrument", "REInstrumentType", "InstrumentType", "Type" }, detail.InstrumentType);
-                        view.DisplayUnitId = TryExtract(new[] { "ManualUnit", "Unit", "REUnit", "UnitId", "TagNo", "Tag" }, detail.UnitId);
-                        view.DisplayModel = TryExtract(new[] { "ManualMakeModel", "ManualModel", "MakeModel", "Model", "REModel", "Make" }, detail.Model);
-                        view.DisplayRange = TryExtract(new[] { "ManualRange", "Range", "RERange", "InstrumentRange" }, detail.InstrumentRange);
-                        view.DisplayInstallation = TryExtract(new[] { "ManualInstallation", "Installation", "REInstallation" }, detail.Installation);
-                        view.DisplayCertNo = TryExtract(new[] { "ManualCertNo", "CertNo", "RECertificateNo", "CertificateNo" }, detail.CertNo);
+            view.DisplayInstallation = ExtractWithNoBlanks(rootElement, new[] { "ManualInstallation", "REInstallation", "Installation" }, installationFallback);
 
-                        var extractedLoc = TryExtract(new[] { "ManualLocation", "LocationName", "Location", "RELocation" }, "");
-                        if (!string.IsNullOrWhiteSpace(extractedLoc))
-                        {
-                            view.DisplayLocationName = extractedLoc;
-                        }
+            // --- OPTIONAL: Handle other fields from pm_reports if needed ---
+            // For example, if you want to store Technician Email or Assignment metadata:
+            // view.TechnicianEmail = parentReport?.TechnicianEmail ?? "N/A";
 
-                        // Extract main table and simulation payloads cleanly
-                        JsonElement payloadElement = rootElement;
-                        if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
-                        {
-                            payloadElement = rootElement[0];
-                        }
+            // --- Payload Processing ---
+            JsonElement payloadElement = rootElement;
+            if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
+            {
+                payloadElement = rootElement[0];
+            }
 
-                        if (payloadElement.ValueKind == JsonValueKind.Object && payloadElement.TryGetProperty("CalibrationData", out var calDataNode))
-                        {
-                            if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
-                            {
-                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                            }
-                            else
-                            {
-                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(calDataNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                            }
-                        }
-                        else
-                        {
-                            view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(payloadElement.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                        }
-                    }
-                    catch
-                    {
-                        view.CalibrationPayload = new ParsedPayload();
-                    }
-                }
+            if (payloadElement.ValueKind == JsonValueKind.Object && payloadElement.TryGetProperty("CalibrationData", out var calDataNode))
+            {
+                if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
+                    view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
+                else
+                    view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(calDataNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
+            }
+            else
+            {
+                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(payloadElement.GetRawText(), jsonOptions) ?? new ParsedPayload();
+            }
+        }
+        catch
+        {
+            view.CalibrationPayload = new ParsedPayload();
+        }
+    }
 
-                view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
-                                    view.CalibrationPayload.SimulationTable.Any() ||
-                                    !string.IsNullOrWhiteSpace(view.CalibrationPayload.SetPoint);
+    view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
+                        view.CalibrationPayload.SimulationTable.Any() ||
+                        !string.IsNullOrWhiteSpace(view.CalibrationPayload.SetPoint);
 
-                return view;
-            })
-            .OrderByDescending(v => v.Detail.ReportDate ?? v.FallbackDate)
-            .ToList();
+    return view;
+})
+.OrderByDescending(v => v.Detail.ReportDate ?? v.FallbackDate)
+.ToList();
+
+
         }
         catch (Exception ex)
         {
@@ -531,13 +625,74 @@
         }
     }
 
+    private string GetInstallationNameFromId(long locationId)
+    {
+        return _locations.FirstOrDefault(l => l.Id == Convert.ToInt32(locationId))?.InstallationName ?? "N/A";
+
+    }
+
+    private EmployeeEngineer GetEmployee(int pmReportId, string requiredType)
+    {
+        // 1. Find the report
+        var report = _pmReports.FirstOrDefault(r => r.Id == pmReportId);
+
+        if (report?.JobCarriedBy == null || report.JobCarriedBy.Count == 0)
+            return null;
+
+        // 2. Identify the target EmpCode based on your rule
+        string targetEmpCode = null;
+
+        if (requiredType == "performed_by" && report.JobCarriedBy.Count >= 1)
+        {
+            targetEmpCode = report.JobCarriedBy[0];
+        }
+        else if (requiredType == "witnessed_by" && report.JobCarriedBy.Count >= 2)
+        {
+            targetEmpCode = report.JobCarriedBy[1];
+        }
+
+        // 3. Find and return the EmployeeEngineer object using the correct property
+        return _employees.FirstOrDefault(e => e.EmpCode == targetEmpCode);
+    }
+
     private void ViewCertificate(CalibrationUiView item)
     {
         _selectedReport = item;
         _isModalOpen = true;
     }
 
+    
+
     private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
+
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("emp_code")]
+        public string EmpCode { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("grade")]
+        public string Grade { get; set; }
+
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("installation_name")] public string InstallationName { get; set; }
+    }
 
     [Table("pm_reports")]
     public class SupabasePmReport : BaseModel
@@ -549,13 +704,17 @@
         [Column("technician_email")] public string? TechnicianEmail { get; set; }
         [Column("completion_date")] public DateTimeOffset? CompletionDate { get; set; }
         [Column("assigned_to")] public string? AssignedTo { get; set; }
+        // Maps to the 'job_carried_by' text[] column in Supabase
+        [Column("job_carried_by")]
+        public List<string>? JobCarriedBy { get; set; }
+        [Column("Report_Prepared_By")] public string? ReportPreparedBy { get; set; }
     }
 
     [Table("pm_calibration_details")]
     public class SupabasePmCalibrationDetail : BaseModel
     {
         [PrimaryKey("id", false)] public int Id { get; set; }
-        [Column("pm_report_id")] public int? PmReportId { get; set; }
+        [Column("pm_report_id")] public int PmReportId { get; set; }
         [Column("job_id")] public Guid? JobId { get; set; }
         [Column("cert_no")] public string CertNo { get; set; } = string.Empty;
         [Column("installation")] public string? Installation { get; set; }
@@ -618,3 +777,4 @@
         [JsonPropertyName("PSRemarks")] public string PSRemarks { get; set; } = "";
     }
 }
+
