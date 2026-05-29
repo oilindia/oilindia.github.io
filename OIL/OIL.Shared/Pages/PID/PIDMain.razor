@@ -156,6 +156,9 @@
                     </MudPaper>
 
                     <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Save" Class="mt-4">Update Database</MudButton>
+                    
+                    <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="CloseEdit" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Cancel" Class="mt-4"> Cancel & Close Drawer</MudButton>
+                    
                     <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="() => DeleteMarker(_selectedMarker)" FullWidth="true" Size="Size.Small">Delete Marker</MudButton>
                 </MudStack>
             }
@@ -266,6 +269,12 @@
     {
         _selectedMarker = m;
         _drawerOpen = true;
+    }
+
+    private void CloseEdit()
+    {
+        //_selectedMarker = m;
+        _drawerOpen = false;
     }
 
     private async Task HandleImageClick(MouseEventArgs e)
