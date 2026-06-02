@@ -26,8 +26,12 @@
                 <PropertyColumn Property="x => x.EmpCode" Title="Code" />
                 <PropertyColumn Property="x => x.FullName" Title="Name" />
                 <PropertyColumn Property="x => x.Designation" Title="Designation" />
+                <PropertyColumn Property="x => x.TeamGroup" Title="Team Group" />
+
                 <PropertyColumn Property="x => x.Department" Title="Dept" />
                 <PropertyColumn Property="x => x.AnnualCost" Title="Annual Cost" Format="N0" />
+
+
                 <TemplateColumn Title="Actions">
                     <CellTemplate>
                         <MudIconButton Icon="@Icons.Material.Outlined.Edit" Color="Color.Info" OnClick="@(() => OpenEditModal(context.Item))" />
@@ -89,6 +93,9 @@
                 <MudItem xs="12">
                     <MudNumericField @bind-Value="_editingEngineer.ReportsToId" Label="Reports To (Executive ID)" Variant="Variant.Outlined" HelperText="ID of the Executive Manager" />
                 </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_editingEngineer.TeamGroup" Label="Team Group" Variant="Variant.Outlined" HideSpinButtons="true" HelperText="Numeric team identifier" />
+                </MudItem>
             </MudGrid>
 
             <div class="d-flex justify-end gap-2 mt-6">
@@ -116,6 +123,8 @@
         [Column("department")] public string? Department { get; set; }
         [Column("section")] public string? Section { get; set; }
         [Column("annual_cost")] public long? AnnualCost { get; set; }
+        // ADD THIS LINE
+        [Column("team_group")] public int? TeamGroup { get; set; }
     }
 
     private List<Engineer> _engineers = new();
@@ -170,7 +179,9 @@
             Mobile = e.Mobile,
             Department = e.Department,
             Section = e.Section,
-            AnnualCost = e.AnnualCost
+            AnnualCost = e.AnnualCost,
+            // ADD THIS LINE
+            TeamGroup = e.TeamGroup
         };
         _isModalOpen = true;
     }
