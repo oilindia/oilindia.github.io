@@ -409,7 +409,7 @@ else
                     <th style="width: 80px;">NOTIF. NO.</th>
                     <th style="width: 140px;">INSTALLATION</th>
                     <th style="width: 100px;">EQUIPMENT</th>
-                    <th style="width: 50px;">DEVICE</th>
+                    @* <th style="width: 50px;">DEVICE</th> *@
                     <th style="width: 60px;">TAG NO.</th>
                     <th class="text-left">FIELD REPORT</th>
                     <th>JOB DONE</th>
@@ -444,7 +444,7 @@ else
                                 <td>@job.NotificationNumber</td>
                                 <td class="text-left">@GetLocationName(job.LocationId)</td>
                                 <td>@GetEquipmentName(job.LocTagNumber)</td>
-                                <td>@job.JobName</td>
+                                @* <td>@job.</td> *@
                                 <td>@job.LocTagNumber</td>
 
                                 <td class="text-left">@job.JobName</td>
@@ -455,7 +455,9 @@ else
                                 <td>
                                     @FormatSpareDetails(job.JobSpareReplaced)
                                 </td>
-                                <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td>
+
+                                <td></td>
+                                @* <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td> *@
                             </tr>
                         }
                     }

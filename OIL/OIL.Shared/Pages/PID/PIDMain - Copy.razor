@@ -1,4 +1,4 @@
-﻿@page "/pidmain"
+﻿@page "/pidmain3"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -104,14 +104,13 @@
     </MudContainer>
 
     @* --- FULL ASSET INTELLIGENCE DRAWER (Mobile Responsive) --- *@
-    @* --- FULL ASSET INTELLIGENCE DRAWER (Mobile Responsive) --- *@
-    <MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="100%" Style="max-width: 450px;" Variant="DrawerVariant.Temporary" Elevation="5">
+    <MudDrawer @bind-Open="_drawerOpen" Anchor="Anchor.End" Width="@(_isMobile ? "100%" : "450px")" Variant="DrawerVariant.Temporary" Elevation="5">
         <MudDrawerHeader Class="pa-4 bg-primary mud-theme-primary">
             <MudText Typo="Typo.h6" Color="Color.Inherit">Asset Configuration</MudText>
             <MudSpacer />
             <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" OnClick="() => _drawerOpen = false" />
         </MudDrawerHeader>
-        <div class="pa-4 pa-sm-6">
+        <div class="pa-6">
             @if (_selectedMarker != null)
             {
                 <MudStack Spacing="4">
@@ -140,16 +139,15 @@
                     <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 800">Maintenance & Logistics</MudText>
 
                     <MudGrid Spacing="2">
-                        <MudItem xs="12" sm="6">
+                        <MudItem xs="6">
                             <MudNumericField @bind-Value="_selectedMarker.Replacement_cost" Label="Part Price (₹)" Variant="Variant.Outlined" Dense="true" HideSpinButtons="true" />
                         </MudItem>
-                        <MudItem xs="12" sm="6">
+                        <MudItem xs="6">
                             <MudTextField Label="PM Frequency" Value="@($"{_locationPmConfig?.FrequencyDays ?? 0} Days")" ReadOnly="true" Variant="Variant.Outlined" Dense="true" />
                         </MudItem>
                     </MudGrid>
 
-                    @* Added flex-wrap here so the image and text wrap nicely on very small screens *@
-                    <MudPaper Variant="Variant.Outlined" Class="pa-4 d-flex flex-wrap align-center gap-4 mt-2" Style="background: #f8f9fa; border-style: dashed;">
+                    <MudPaper Variant="Variant.Outlined" Class="pa-4 d-flex align-center gap-4 mt-2" Style="background: #f8f9fa; border-style: dashed;">
                         <img src="@GetQrCodeUrl(_selectedMarker.TagNumber)" style="width: 100px; height: 100px;" />
                         <div>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Field Tag QR</MudText>
@@ -158,16 +156,14 @@
                     </MudPaper>
 
                     <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="SaveMarker" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Save" Class="mt-4">Update Database</MudButton>
-
-                    <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="CloseEdit" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Cancel" Class="mt-1"> Cancel & Close Drawer</MudButton>
-
-                    <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="() => DeleteMarker(_selectedMarker)" FullWidth="true" Size="Size.Small" Class="mt-2">Delete Marker</MudButton>
+                    
+                    <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="CloseEdit" FullWidth="true" Size="Size.Large" StartIcon="@Icons.Material.Filled.Cancel" Class="mt-4"> Cancel & Close Drawer</MudButton>
+                    
+                    <MudButton Color="Color.Error" Variant="Variant.Text" OnClick="() => DeleteMarker(_selectedMarker)" FullWidth="true" Size="Size.Small">Delete Marker</MudButton>
                 </MudStack>
             }
         </div>
     </MudDrawer>
-
-
 </div>
 
 <style>

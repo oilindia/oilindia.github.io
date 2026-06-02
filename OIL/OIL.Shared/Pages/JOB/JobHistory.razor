@@ -34,51 +34,52 @@
     <MudPaper Class="pa-4 mb-4">
 
         <MudGrid>
-
-            <MudItem xs="12" sm="3">
+            <MudItem xs="12" sm="2">
                 <MudDatePicker Label="From Date"
                                @bind-Date="_fromDate"
                                Variant="Variant.Outlined" />
             </MudItem>
 
-            <MudItem xs="12" sm="3">
+            <MudItem xs="12" sm="2">
                 <MudDatePicker Label="To Date"
                                @bind-Date="_toDate"
                                Variant="Variant.Outlined" />
             </MudItem>
 
-            <MudItem xs="12" sm="3" Class="d-flex align-center">
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_searchString"
+                              Placeholder="Search any text..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Variant="Variant.Outlined"
+                              Clearable="true" />
+            </MudItem>
 
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Search"
                            OnClick="LoadJobHistory">
-
-                    Search Jobs
-
+                    Load Jobs
                 </MudButton>
-
             </MudItem>
 
-            <MudItem xs="12" sm="3" Class="d-flex align-center">
-
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Success"
                            StartIcon="@Icons.Material.Filled.Download"
                            OnClick="ExportToExcel">
-
                     Export Excel
-
                 </MudButton>
-
             </MudItem>
-
         </MudGrid>
 
     </MudPaper>
 
     <MudTable Items="_jobHistory"
-              Hover="true"
+              Filter="new Func<JobHistoryViewModel, bool>(FilterFunc)"
+        Hover="true"
               Dense="true"
               Bordered="true"
               Striped="true"
@@ -373,6 +374,35 @@
     private DateTime? _toDate = DateTime.Today;
 
     private List<JobHistoryViewModel> _jobHistory = new();
+
+    // NEW: Search string variable
+    private string _searchString = "";
+
+    // NEW: Filter function for MudTable
+    private bool FilterFunc(JobHistoryViewModel element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (element.JobName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobStatus?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobType?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.LocationId?.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.AreaName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.InstallationName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.DriverName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.VehicleNumber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobAction?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobActionBy?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Priority?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+        // Check if any of the assigned engineers match the search string
+        if (element.Engineers != null && element.Engineers.Any(e => e.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
+    }
 
     protected override async Task OnInitializedAsync()
     {
