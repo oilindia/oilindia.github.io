@@ -1,4 +1,4 @@
-﻿@page "/dailyreportprint"
+﻿@page "/dailyreportprint3"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -6,16 +6,11 @@
 @inject Supabase.Client SupabaseClient
 @inject IJSRuntime JS
 
-
-@using System.Collections.Generic;
-@using System.Linq;
-@using System.Text.Json;
-
 <style>
 
     /* =========================================================
-               GLOBAL PAGE
-            ========================================================= */
+           GLOBAL PAGE
+        ========================================================= */
     html, body {
         margin: 0;
         padding: 0;
@@ -29,8 +24,8 @@
     }
 
     /* =========================================================
-               PRINT FIXES
-            ========================================================= */
+           PRINT FIXES
+        ========================================================= */
     @@media print {
 
         html, body {
@@ -120,8 +115,8 @@
     }
 
     /* =========================================================
-               SCREEN CONTAINER
-            ========================================================= */
+           SCREEN CONTAINER
+        ========================================================= */
     .a4-container {
         width: 287mm;
         min-height: 200mm;
@@ -135,8 +130,8 @@
     }
 
     /* =========================================================
-               TOP TOOLBAR
-            ========================================================= */
+           TOP TOOLBAR
+        ========================================================= */
     .no-print {
         position: sticky;
         top: 0;
@@ -144,8 +139,8 @@
     }
 
     /* =========================================================
-               HEADER TABLE
-            ========================================================= */
+           HEADER TABLE
+        ========================================================= */
     .header-table {
         width: 100%;
         border-collapse: collapse;
@@ -184,8 +179,8 @@
     }
 
     /* =========================================================
-               SECTION BANNERS
-            ========================================================= */
+           SECTION BANNERS
+        ========================================================= */
     .section-banner {
         background: #f2f2f2;
         border: 1px solid black;
@@ -199,8 +194,8 @@
     }
 
     /* =========================================================
-               REPORT TABLE
-            ========================================================= */
+           REPORT TABLE
+        ========================================================= */
     .report-table {
         width: 100%;
         border-collapse: collapse;
@@ -235,16 +230,16 @@
         }
 
     /* =========================================================
-               TEXT ALIGNMENT
-            ========================================================= */
+           TEXT ALIGNMENT
+        ========================================================= */
     .text-left {
         text-align: left !important;
         padding-left: 6px !important;
     }
 
     /* =========================================================
-               FOOTER
-            ========================================================= */
+           FOOTER
+        ========================================================= */
     .footer-container {
         display: flex;
         justify-content: space-between;
@@ -280,8 +275,8 @@
     }
 
     /* =========================================================
-               RESPONSIVE TABLE
-            ========================================================= */
+           RESPONSIVE TABLE
+        ========================================================= */
     @@media (max-width: 1200px) {
 
         .a4-container {
@@ -324,8 +319,8 @@
     }
 
     /* =========================================================
-               LOADING BAR
-            ========================================================= */
+           LOADING BAR
+        ========================================================= */
     .mud-progress-linear {
         position: sticky;
         top: 0;
@@ -333,6 +328,10 @@
     }
 
 </style>
+
+
+
+
 
 @* --- NAVIGATION CONSOLE (With Date Selectors & Refresh) --- *@
 <div class="no-print pa-4" style="background: #e3f2fd; border-bottom: 3px solid #1565c0;">
@@ -342,7 +341,7 @@
         <MudItem xs="12" md="3">
             <MudSelect T="string" Label="Field Type" @bind-Value="selectedFieldType" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="@("Western Fields")" />
-                <MudSelectItem Value="@("Eastern Fields")" />
+                <MudSelectItem Value="@("Eastern Fields")" />               
             </MudSelect>
         </MudItem>
 
@@ -392,10 +391,11 @@ else
                 <tr>
                     <td><b>To : विभाग अध्यक्ष (यंत्रीकरण) / HOD (Instrumentation)</b></td>
                     <td><b>Through : अनुभाग प्रमुख / Section Head (Inst. - Field Maintenance)</b></td>
-
+                    
                 </tr>
             </table>
         </div>
+
 
         @* --- PREVIOUS DAY SECTION --- *@
         <div class="section-banner">
@@ -418,47 +418,21 @@ else
                 </tr>
             </thead>
             <tbody>
-                @{
-                    int prevSl = 1;
-                }
-                @foreach (var assignment in _prevDayEntries)
+                @foreach (var (item, index) in _prevDayEntries.Select((v, i) => (v, i)))
                 {
-                    @if (assignment.JobIds != null)
-                    {
-                        foreach (var jobId in assignment.JobIds)
-                        {
-                            var job = _jobs.FirstOrDefault(j => j.Id == jobId);
-                            if (job == null) continue;
-
-                            // Additional check to only render jobs associated with the selected field
-                            if (!string.IsNullOrEmpty(selectedFieldType))
-                            {
-                                var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
-                                if (loc == null || !string.Equals(loc.FieldType, selectedFieldType, StringComparison.OrdinalIgnoreCase))
-                                    continue;
-                            }
-
-                            <tr>
-                                <td>@(prevSl++)</td>
-                                <td>@assignment.ShiftName</td>
-                                <td>@job.NotificationNumber</td>
-                                <td class="text-left">@GetLocationName(job.LocationId)</td>
-                                <td>@GetEquipmentName(job.LocTagNumber)</td>
-                                <td>@job.JobName</td>
-                                <td>@job.LocTagNumber</td>
-
-                                <td class="text-left">@job.JobName</td>
-
-                                @* <td class="text-left">@job.Description</td> *@
-                                <td class="text-left">@job.JobActionRemarks</td>
-                                @* <td>@job.JobSpareReplaced</td> *@
-                                <td>
-                                    @FormatSpareDetails(job.JobSpareReplaced)
-                                </td>
-                                <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td>
-                            </tr>
-                        }
-                    }
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@item.ShiftName</td>
+                        <td>@item.NotificationNo</td>
+                        <td class="text-left">@GetLocationName(item.JobIds.FirstOrDefault())</td>
+                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        <td>@item.DeviceType</td>
+                        <td>@item.TagNo</td>
+                        <td class="text-left">@item.FieldReport</td>
+                        <td class="text-left">@item.JobDoneDetails</td>
+                        <td>@GetSpareDetails(item.JobIds.FirstOrDefault())</td>
+                        <td></td>
+                    </tr>
                 }
             </tbody>
         </table>
@@ -483,44 +457,28 @@ else
                 </tr>
             </thead>
             <tbody>
-                @{
-                    int todaySl = 1;
-                }
-                @foreach (var assignment in _todayEntries)
+                @foreach (var (item, index) in _todayEntries.Select((v, i) => (v, i)))
                 {
-                    @if (assignment.JobIds != null)
-                    {
-                        foreach (var jobId in assignment.JobIds)
-                        {
-                            var job = _jobs.FirstOrDefault(j => j.Id == jobId);
-                            if (job == null) continue;
-
-                            if (!string.IsNullOrEmpty(selectedFieldType))
-                            {
-                                var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
-                                if (loc == null || !string.Equals(loc.FieldType, selectedFieldType, StringComparison.OrdinalIgnoreCase))
-                                    continue;
-                            }
-
-                            <tr>
-                                <td>@(todaySl++)</td>
-                                <td>@assignment.ShiftName</td>
-                                <td>@job.NotificationNumber</td>
-                                <td class="text-left">@GetLocationName(job.LocationId)</td>
-                                <td>@GetEquipmentName(job.LocTagNumber)</td>
-                                <td>@job.JobName</td>
-                                <td class="text-left">@job.Description</td>
-                                <td class="text-left">@GetDriverVehicleNumber(assignment.DriverId)</td>
-                                <td class="text-left">@(assignment.PersonnelIds != null ? string.Join(", ", assignment.PersonnelIds.Select(GetEngineerName)) : "")</td>
-                                <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td>
-                            </tr>
-                        }
-                    }
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@item.ShiftName</td>
+                        <td>@item.NotificationNo</td>
+                        <td class="text-left">@GetLocationName(item.JobIds.FirstOrDefault())</td>
+                        <td class="text-left">@GetEquipmentName(item.JobIds.FirstOrDefault())</td>
+                        @* <td>@item.Equipment</td> *@
+                        <td>@item.DeviceType</td>
+                        <td>@GetJobName(item.JobIds.FirstOrDefault())</td>
+                        @* <td class="text-left">@item.PlannedTask</td> *@
+                       @*  <td>@(_drivers.FirstOrDefault(d => d.Id == item.DriverId)?.FullName ?? "-")</td> *@
+                        <td class="text-left">@GetDriverVehicleNumber(item.JobIds.FirstOrDefault())</td>
+                        <td class="text-left">@string.Join(", ", item.PersonnelIds.Select(GetEngineerName))</td>
+                        <td></td>
+                    </tr>
                 }
             </tbody>
         </table>
 
-        @* --- FOOTER --- *@
+        @* --- FOOTER (Matches image_bbe915.png) --- *@
         <div class="footer-container">
             <div class="signature-section">
                 <div><b>Prepared By:</b> <span class="handwritten">_____________</span></div>
@@ -529,10 +487,9 @@ else
             </div>
 
             <div class="stats-card">
-                @{
-                    var totalTodayJobs = todaySl - 1;
-                }
-                <div style="font-size: 16px;">Today's Jobs: @totalTodayJobs</div>
+                <div style="font-size: 16px;">Today's Jobs: @_todayEntries.Count</div>
+
+               @*  <div style="font-size: 16px; margin-top: 10px;">Notification Pending: 4</div> *@
             </div>
         </div>
     </div>
@@ -548,7 +505,10 @@ else
     private List<Job> _jobs = new();
     private List<Engineer> _engineers = new();
     private List<Location> _locations = new();
+
     private List<Marker> _markers = new();
+
+    private List<Assignment> _assignments_alljobs = new List<Assignment>();
 
     private string selectedFieldType = "Eastern Fields";
 
@@ -564,7 +524,7 @@ else
             _jobs = (await SupabaseClient.From<Job>().Get()).Models;
             _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
             _locations = (await SupabaseClient.From<Location>().Get()).Models;
-            _markers = (await SupabaseClient.From<Marker>().Get()).Models;
+            //_assignments_alljobs = (await SupabaseClient.From<Assignment>().Get()).Models;
 
             var todayStr = _todayDate?.ToString("yyyy-MM-dd");
             var prevStr = _prevDate?.ToString("yyyy-MM-dd");
@@ -580,16 +540,25 @@ else
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
                 .Get()).Models;
 
-            // 3. Apply the relational filter
+            // 3. Apply the relational filter using LINQ based on your dropdown selection
+            // Assuming 'selectedFieldType' holds the current dropdown value ("Eastern", "Western", or null/empty for all)
             if (!string.IsNullOrEmpty(selectedFieldType))
             {
                 _prevDayEntries = FilterAssignmentsByFieldType(rawPrevDayEntries, selectedFieldType);
                 _todayEntries = FilterAssignmentsByFieldType(rawTodayEntries, selectedFieldType);
+
+                _assignments_alljobs.Clear();
+                _assignments_alljobs = new List<Assignment>(_prevDayEntries);
+                _assignments_alljobs.AddRange(_todayEntries);
             }
             else
             {
                 _prevDayEntries = rawPrevDayEntries;
                 _todayEntries = rawTodayEntries;
+
+                _assignments_alljobs.Clear();
+                _assignments_alljobs = new List<Assignment>(_prevDayEntries);
+                _assignments_alljobs.AddRange(_todayEntries);
             }
         }
         finally
@@ -598,112 +567,106 @@ else
             StateHasChanged();
         }
     }
-
     private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
     {
+        // Find all location IDs that match the selected field type ("Eastern" or "Western")
         var validLocationIds = _locations
             .Where(l => string.Equals(l.FieldType, fieldType, StringComparison.OrdinalIgnoreCase))
             .Select(l => l.Id)
-            .ToHashSet();
+            .ToHashSet(); // HashSet for O(1) lookups
 
+        // Find all job IDs linked to those valid locations
         var validJobIds = _jobs
             .Where(j => j.LocationId.HasValue && validLocationIds.Contains(j.LocationId.Value))
             .Select(j => j.Id)
             .ToHashSet();
 
+        // Filter assignments where at least one of its job_ids is contained in our valid jobs set
         return assignments
             .Where(a => a.JobIds != null && a.JobIds.Any(id => validJobIds.Contains(id)))
             .ToList();
     }
 
-    // --- REFACTORED HELPERS ---
-    private string GetLocationName(long? locationId)
+    private string GetEquipmentName(Guid jobId)
     {
-        if (!locationId.HasValue) return "";
-        return _locations.FirstOrDefault(l => l.Id == locationId.Value)?.InstallationName ?? "";
-    }
-
-    private string GetEquipmentName(string tagNumber)
-    {
-        if (string.IsNullOrWhiteSpace(tagNumber)) return "";
-        return _markers.FirstOrDefault(m => m.TagNumber == tagNumber)?.InstrumentName ?? "";
-    }
-
-    public static string FormatSpareDetails(string jsonString, string lineSeparator = "<br/>")
-    {
-        if (string.IsNullOrWhiteSpace(jsonString))
+        // 1. Fetch the tag number string from the jobs collection using the Guid
+        var tagNumber = _jobs.FirstOrDefault(j => j.Id == jobId)?.LocTagNumber;
+        if (string.IsNullOrWhiteSpace(tagNumber) || tagNumber == "")
         {
-            return string.Empty;
+            return "";
         }
+        // 2. Fetch the corresponding marker from pid_markers using that tag number string
+        var InstrumentName = _markers.FirstOrDefault(m => m.TagNumber == tagNumber)?.InstrumentName;
 
-        try
+        // 3. Return the data from the Instrument column
+        return InstrumentName ?? "";
+    }
+
+
+    private string GetDriverVehicleNumber(Guid jobId)
+    {
+        // 1. Scan job assignments to find records containing our specific jobId in their array
+        // 2. Sort by CreatedAt descending to ensure the latest assignment is evaluated first
+        var latestAssignment = _assignments_alljobs
+            .Where(a => a.JobIds != null && a.JobIds.Contains(jobId))
+            .OrderByDescending(a => a.CreatedAt)
+            .FirstOrDefault();
+
+        // 3. If an assignment is found and contains a valid driver reference, cross-reference the drivers table
+        if (latestAssignment?.DriverId.HasValue == true)
         {
-            using var doc = JsonDocument.Parse(jsonString);
-            var formattedSpares = new List<string>();
-
-            // Ensure we are dealing with a JSON array
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            var driver = _drivers.FirstOrDefault(d => d.Id == latestAssignment.DriverId.Value);
+            if (driver != null && !string.IsNullOrWhiteSpace(driver.VehicleNumber))
             {
-                return jsonString;
+                return driver.VehicleNumber;
             }
-
-            foreach (var element in doc.RootElement.EnumerateArray())
-            {
-                // Safely extract properties
-                var type = element.TryGetProperty("InstrumentType", out var it) ? it.GetString() : null;
-                var loc = element.TryGetProperty("DeviceLocation", out var dl) ? dl.GetString() : null;
-                var tag = element.TryGetProperty("TagNumber", out var tn) ? tn.GetString() : null;
-                var make = element.TryGetProperty("NewMakeModel", out var nm) ? nm.GetString() : null;
-
-                // Filter out null/empty/whitespace values
-                var details = new[] { type, loc, tag, make }.Where(x => !string.IsNullOrWhiteSpace(x));
-
-                if (details.Any())
-                {
-                    formattedSpares.Add(string.Join(", ", details));
-                }
-            }
-
-            return string.Join(lineSeparator, formattedSpares);
         }
-        catch (JsonException)
-        {
-            // Fallback to returning the raw string if the JSON is malformed
-            return jsonString;
-        }
+
+        return "";
     }
 
-    private string GetDriverVehicleNumber(long? driverId)
+
+    private string GetSpareDetails(Guid jobId)
     {
-        if (!driverId.HasValue) return "";
-        return _drivers.FirstOrDefault(d => d.Id == driverId.Value)?.VehicleNumber ?? "";
+        var latestAssignment = _assignments_alljobs
+        .Where(a => a.JobIds != null && a.JobIds.Contains(jobId))
+        .OrderByDescending(a => a.CreatedAt)
+        .FirstOrDefault();
+
+        string _localspareused = "";
+
+        if (latestAssignment?.DriverId.HasValue == true)
+        {
+            var spareused = _assignments_alljobs.FirstOrDefault(d => d.Id == latestAssignment.Id);
+            if (spareused != null && !string.IsNullOrWhiteSpace(spareused.SpareUsed))
+            {
+                _localspareused = spareused.SpareUsed;
+
+                return spareused.SpareUsed;
+            }
+            else
+            {
+                return "";
+            }
+        }
+
+        return _localspareused;
     }
 
+    private string GetLocationName(Guid jobId) => _locations.FirstOrDefault(l => l.Id == _jobs.FirstOrDefault(j => j.Id == jobId)?.LocationId)?.InstallationName ?? "";
+    private string GetJobName(Guid jobId) => _jobs.FirstOrDefault(j => j.Id == jobId)?.JobName ?? "";
     private string GetEngineerName(long id) => _engineers.FirstOrDefault(e => e.Id == id)?.FullName ?? "";
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
 
-
-    public class JobAssignmentViewModel
-    {
-        public string JobSpareReplaced { get; set; }
-
-        // Read-only property for the UI
-        public string FormattedSpareReplaced => FormatSpareDetails(JobSpareReplaced);
-    }
-
-    // --- MODELS ---
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {
         [PrimaryKey("id")] public Guid Id { get; set; }
         [Column("created_at")] public DateTime? CreatedAt { get; set; }
-        [Column("driver_id")] public long? DriverId { get; set; }
         [Column("shift_name")] public string ShiftName { get; set; }
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
-        [Column("job_overtime")] public double? JobOvertime { get; set; }
-
-        // Retaining these to prevent Supabase deserialization errors if they still exist in your schema
+        [Column("driver_id")] public long? DriverId { get; set; }
         [Column("notification_no")] public string NotificationNo { get; set; }
         [Column("device_type")] public string DeviceType { get; set; }
         [Column("tag_no")] public string TagNo { get; set; }
@@ -711,19 +674,6 @@ else
         [Column("job_done_details")] public string JobDoneDetails { get; set; }
         [Column("planned_task")] public string PlannedTask { get; set; }
         [Column("spare_used")] public string SpareUsed { get; set; }
-    }
-
-    [Table("jobs")]
-    public class Job : BaseModel
-    {
-        [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("job_name")] public string JobName { get; set; }
-        [Column("location_id")] public long? LocationId { get; set; }
-        [Column("loc_tag_number")] public string LocTagNumber { get; set; }
-        [Column("notification_number")] public string NotificationNumber { get; set; }
-        [Column("description")] public string Description { get; set; }
-        [Column("job_action_remarks")] public string JobActionRemarks { get; set; }
-        [Column("job_spare_replaced")] public string JobSpareReplaced { get; set; }
     }
 
     [Table("pid_markers")]
@@ -742,7 +692,9 @@ else
         [Column("InstrumentName")] public string? InstrumentName { get; set; }
     }
 
+    /* Keep existing models for Driver, Job, Engineer, Location */
     [Table("locations")] public class Location : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("installation_name")] public string InstallationName { get; set; } [Column("field_type")] public string FieldType { get; set; } }
+    [Table("jobs")] public class Job : BaseModel { [PrimaryKey("id")] public Guid Id { get; set; } [Column("job_name")] public string JobName { get; set; } [Column("location_id")] public long? LocationId { get; set; } [Column("loc_tag_number")] public string LocTagNumber { get; set; } }
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } }
 }
