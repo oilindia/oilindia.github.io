@@ -30,9 +30,6 @@
 
 
 
-
-
-
 <MudOverlay Visible="_isSaving" DarkBackground="true" ZIndex="9999">
     <div class="d-flex flex-column align-items-center">
         <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
@@ -101,6 +98,28 @@
         </MudExpansionPanel>
     </MudExpansionPanels>
 
+    @* --- DATA MANAGEMENT BAR (NEW) --- *@
+    <div class="d-flex justify-end gap-3 mb-2 mx-2">
+        <MudFileUpload T="IBrowserFile" FilesChanged="ImportFromExcel" Accept=".xlsx" MaxFileSize="10485760">
+            <ActivatorContent>
+                <MudButton HtmlTag="label" 
+                           Variant="Variant.Outlined" 
+                           Color="Color.Info" 
+                           StartIcon="@Icons.Material.Filled.FileUpload">
+                    Import Excel
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+
+        <MudButton Variant="Variant.Outlined" 
+                   Color="Color.Success" 
+                   StartIcon="@Icons.Material.Filled.FileDownload" 
+                   OnClick="ExportToExcel">
+            Export Excel
+        </MudButton>
+    </div>
+
+
     @* --- SAVE NOTIFICATION BAR --- *@
     @if (_pendingChanges.Any())
     {
@@ -114,7 +133,7 @@
         @* Side-by-Side Layout: lg="6" ensures two columns on wide screens *@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
-            <div class="grid-scroll-container">
+            <div id="staff-grid" class="grid-scroll-container">
                 <MudTable Items="@(AttendanceData.Engineers
                               .OrderBy(x => x.TeamGroup)
                               .ThenBy(x => GetTodayPriority(x.UniqueId)))" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
@@ -162,7 +181,7 @@
 
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Secondary">DRIVERS</MudText>
-            <div class="grid-scroll-container">
+            <div id="driver-grid" class="grid-scroll-container">
                 <MudTable Items="@(AttendanceData.Drivers
     .OrderBy(x => x.Role)
     .ThenBy(x => GetTodayPriority(x.UniqueId)))"  T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
@@ -569,7 +588,7 @@ else
 @code {
 
     private List<DateTime> _daysInMonth = new();
-    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL", "O1", "O2", "M1","M2","E1","E2"};
+    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL", "O1", "O2","O3", "M1","M2","M3","E1","E2","E3"};
     private Dictionary<string, AttendanceScheduleModel> _pendingChanges = new();
     private bool _isSaving = false;
     private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
@@ -846,6 +865,131 @@ else
 
     }
 
+    // --- EXPORT LOGIC ---
+    private async Task ExportToExcel()
+    {
+        _isSaving = true; // Show overlay
+        StateHasChanged();
+
+        try
+        {
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var ws = workbook.Worksheets.Add("Attendance Status");
+
+            // 1. Build Headers
+            ws.Cell(1, 1).Value = "Unique ID";
+            ws.Cell(1, 2).Value = "Role";
+            ws.Cell(1, 3).Value = "Name/Vehicle";
+            ws.Cell(1, 4).Value = "Team Group";
+
+            int colIndex = 5;
+            foreach (var day in _daysInMonth)
+            {
+                ws.Cell(1, colIndex).Value = $"{day.Day}-{day.ToString("MMM")}";
+                ws.Cell(1, colIndex).Style.Font.Bold = true;
+                ws.Cell(1, colIndex + 1).Value = "Remark"; // Column for remark next to status
+                ws.Cell(1, colIndex + 1).Style.Font.Bold = true;
+                colIndex += 2;
+            }
+
+            // 2. Populate Data (Engineers + Drivers)
+            int rowIndex = 2;
+            var allMembers = AttendanceData.Engineers.Concat(AttendanceData.Drivers).ToList();
+
+            foreach (var member in allMembers)
+            {
+                ws.Cell(rowIndex, 1).Value = member.UniqueId;
+                ws.Cell(rowIndex, 2).Value = member.Role;
+                ws.Cell(rowIndex, 3).Value = member.Role == "Driver" ? $"{member.FullName} ({member.VehicleNumber})" : member.FullName;
+                ws.Cell(rowIndex, 4).Value = member.TeamGroup;
+
+                int dayCol = 5;
+                foreach (var day in _daysInMonth)
+                {
+                    var status = GetStatus(member.UniqueId, day);
+                    var reason = GetReason(member.UniqueId, day);
+
+                    ws.Cell(rowIndex, dayCol).Value = status;
+                    ws.Cell(rowIndex, dayCol + 1).Value = reason;
+                    dayCol += 2;
+                }
+                rowIndex++;
+            }
+
+            ws.Columns().AdjustToContents(); // Auto-fit columns
+
+            // 3. Convert to Byte Array and Download
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var content = stream.ToArray();
+
+            await JS.InvokeVoidAsync("downloadFileFromStream", "AttendanceExport.xlsx", Convert.ToBase64String(content));
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    // --- IMPORT LOGIC ---
+    private async Task ImportFromExcel(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        _isSaving = true; // Show overlay
+        StateHasChanged();
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream); // 10MB limit
+            stream.Position = 0;
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+            var ws = workbook.Worksheet("Attendance Status");
+            if (ws == null) return; // Validate worksheet exists
+
+            var rows = ws.RowsUsed().Skip(1); // Skip header row
+            var allMembers = AttendanceData.Engineers.Concat(AttendanceData.Drivers).ToList();
+
+            foreach (var row in rows)
+            {
+                var uniqueId = row.Cell(1).GetString();
+                var member = allMembers.FirstOrDefault(m => m.UniqueId == uniqueId);
+
+                if (member == null) continue; // Skip unknown IDs
+
+                int dayCol = 5;
+                foreach (var day in _daysInMonth)
+                {
+                    var excelStatus = row.Cell(dayCol).GetString();
+                    var excelReason = row.Cell(dayCol + 1).GetString();
+
+                    var currentStatus = GetStatus(member.UniqueId, day);
+                    var currentReason = GetReason(member.UniqueId, day);
+
+                    // Only trigger change if the Excel value is different from the current state
+                    if (excelStatus != currentStatus || excelReason != currentReason)
+                    {
+                        // Use your existing method so it registers in _pendingChanges
+                        OnEntryChanged(member, day, excelStatus, excelReason);
+                    }
+                    dayCol += 2;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Handle parsing errors (e.g., show a Snackbar notification)
+            Console.WriteLine($"Import Failed: {ex.Message}");
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
+    }
 
 
 
@@ -934,22 +1078,21 @@ else
         try
         {
             if (_selectedDriver == null || !_selectedJobs.Any()) return;
+
+            // 1. Prepare and Save Assignment to Database
             var item = new Assignment
             {
                 Id = Guid.NewGuid(),
                 CreatedAt = DateTime.UtcNow,
                 DriverId = _selectedDriver.Id,
-
                 ShiftName = _selectedShift,
-
                 job_assignment_table_JobAssignedBy = _fullName,
-
                 JobAction = "assigned",
-
                 JobIds = _selectedJobs.Select(x => x.Id).ToList(),
                 PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
                 DocNumber = $"OIL-{_selectedShift[0]}-{DateTime.Now:ddMMyy-HHmm}"
             };
+
             await SupabaseClient.From<Assignment>().Insert(item);
 
             foreach (var job in _selectedJobs)
@@ -958,68 +1101,45 @@ else
                 await SupabaseClient.From<Job>().Update(job);
             }
 
-
-            await LoadData();
-            _selectedDriver = null; _selectedJobs = new List<Job>(); _selectedEngineers = new List<Engineer>();
-            Snackbar.Add("Job Plotted", Severity.Success);
-
-            StateHasChanged();
-
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Method Error: {ex.Message}");
-            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
-        }
-
-
-        try
-        {
-            // 1. Format the Job Names to display in the remarks input
-            string plottedJobNames = _selectedJobs != null && _selectedJobs.Any()
-                ? string.Join(", ", _selectedJobs.Select(j => j.JobName))
-                : "Job Assigned";
-
+            // 2. Format Grid Data (Read BEFORE clearing state)
+            string plottedJobNames = string.Join(", ", _selectedJobs.Select(j => j.JobName));
             DateTime targetDate = DateTime.Today;
 
-            // 2. Update Selected Engineers
+            // 3. Update Attendance Grid for Selected Engineers
             if (_selectedEngineers != null)
             {
                 foreach (var eng in _selectedEngineers)
                 {
-                    // Map the DB Engineer back to the Attendance Grid Member
                     var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
                     if (member != null)
                     {
                         var currentStatus = GetStatus(member.UniqueId, targetDate);
-                        if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P"; // Default to Present if empty
+                        if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
 
-                        // This populates the UI remark and adds it to the save queue
                         OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
                     }
                 }
             }
 
-            // 3. Update Selected Driver
-            if (_selectedDriver != null)
+            // 4. Update Attendance Grid for Selected Driver
+            var driverMember = AttendanceData.Drivers.FirstOrDefault(d => d.UniqueId == _selectedDriver.VehicleNumber);
+            if (driverMember != null)
             {
-                // Based on your IsResourceEngaged method, Driver UniqueId maps to VehicleNumber
-                var driverMember = AttendanceData.Drivers.FirstOrDefault(d => d.UniqueId == _selectedDriver.VehicleNumber);
-                if (driverMember != null)
-                {
-                    var currentStatus = GetStatus(driverMember.UniqueId, targetDate);
-                    if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
+                var currentStatus = GetStatus(driverMember.UniqueId, targetDate);
+                if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
 
-                    OnEntryChanged(driverMember, targetDate, currentStatus, plottedJobNames);
-                }
+                OnEntryChanged(driverMember, targetDate, currentStatus, plottedJobNames);
             }
 
-            // Clear selections if desired
-            // _selectedEngineers = null;
-            // _selectedJobs = null;
-            // _selectedDriver = null;
+            // 5. Reload external data
+            await LoadData();
 
-            // Refresh UI to instantly show the yellow cells and remarks
+            // 6. Safely clear selections now that all logic is complete
+            _selectedDriver = null;
+            _selectedJobs = new List<Job>();
+            _selectedEngineers = new List<Engineer>();
+
+            Snackbar.Add("Job Plotted", Severity.Success);
             StateHasChanged();
         }
         catch (Exception ex)
@@ -1028,6 +1148,106 @@ else
             Snackbar.Add($"Error : {ex.Message}", Severity.Error);
         }
     }
+
+    // private async Task SaveAssignment()
+    // {
+    //     try
+    //     {
+    //         if (_selectedDriver == null || !_selectedJobs.Any()) return;
+    //         var item = new Assignment
+    //         {
+    //             Id = Guid.NewGuid(),
+    //             CreatedAt = DateTime.UtcNow,
+    //             DriverId = _selectedDriver.Id,
+
+    //             ShiftName = _selectedShift,
+
+    //             job_assignment_table_JobAssignedBy = _fullName,
+
+    //             JobAction = "assigned",
+
+    //             JobIds = _selectedJobs.Select(x => x.Id).ToList(),
+    //             PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
+    //             DocNumber = $"OIL-{_selectedShift[0]}-{DateTime.Now:ddMMyy-HHmm}"
+    //         };
+    //         await SupabaseClient.From<Assignment>().Insert(item);
+
+    //         foreach (var job in _selectedJobs)
+    //         {
+    //             job.JobStatus = "assigned";
+    //             await SupabaseClient.From<Job>().Update(job);
+    //         }
+
+
+    //         await LoadData();
+    //         _selectedDriver = null; _selectedJobs = new List<Job>(); _selectedEngineers = new List<Engineer>();
+    //         Snackbar.Add("Job Plotted", Severity.Success);
+
+    //         StateHasChanged();
+
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Method Error: {ex.Message}");
+    //         Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+    //     }
+
+
+    //     try
+    //     {
+    //         // 1. Format the Job Names to display in the remarks input
+    //         string plottedJobNames = _selectedJobs != null && _selectedJobs.Any()
+    //             ? string.Join(", ", _selectedJobs.Select(j => j.JobName))
+    //             : "Job Assigned";
+
+    //         DateTime targetDate = DateTime.Today;
+
+    //         // 2. Update Selected Engineers
+    //         if (_selectedEngineers != null)
+    //         {
+    //             foreach (var eng in _selectedEngineers)
+    //             {
+    //                 // Map the DB Engineer back to the Attendance Grid Member
+    //                 var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
+    //                 if (member != null)
+    //                 {
+    //                     var currentStatus = GetStatus(member.UniqueId, targetDate);
+    //                     if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P"; // Default to Present if empty
+
+    //                     // This populates the UI remark and adds it to the save queue
+    //                     OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
+    //                 }
+    //             }
+    //         }
+
+    //         // 3. Update Selected Driver
+    //         if (_selectedDriver != null)
+    //         {
+    //             // Based on your IsResourceEngaged method, Driver UniqueId maps to VehicleNumber
+    //             var driverMember = AttendanceData.Drivers.FirstOrDefault(d => d.UniqueId == _selectedDriver.VehicleNumber);
+    //             if (driverMember != null)
+    //             {
+    //                 var currentStatus = GetStatus(driverMember.UniqueId, targetDate);
+    //                 if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
+
+    //                 OnEntryChanged(driverMember, targetDate, currentStatus, plottedJobNames);
+    //             }
+    //         }
+
+    //         // Clear selections if desired
+    //         // _selectedEngineers = null;
+    //         // _selectedJobs = null;
+    //         // _selectedDriver = null;
+
+    //         // Refresh UI to instantly show the yellow cells and remarks
+    //         StateHasChanged();
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Method Error: {ex.Message}");
+    //         Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+    //     }
+    // }
 
     private async Task DeleteAssignment(Guid id)
     {

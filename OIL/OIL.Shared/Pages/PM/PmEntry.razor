@@ -14,6 +14,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IDialogService DialogService
 @inject IBrowserViewportService BrowserViewportService
+@inject NavigationManager Nav
 
 <style>
     /* 1. GLOBAL UI & LAYOUT */
@@ -1228,12 +1229,17 @@
                 .Update();
             Snackbar.Add($"Transaction Completed for job: {_selectedJob!.Id}", Severity.Success);
 
+            Nav.NavigateTo("pmexecution", forceLoad: false);
+
         }
         catch (Exception ex)
         {
             var msg = ex.InnerException?.Message ?? ex.Message;
             Snackbar.Add($"Save Error: {msg}", Severity.Error);
         }
+
+
+
     }
 
     private async Task SaveOcsReport()
@@ -1322,6 +1328,8 @@
 
 
             Snackbar.Add($"Transaction Completed for job: {_selectedJob!.Id}", Severity.Success);
+
+            Nav.NavigateTo("pmexecution", forceLoad: false);
 
         }
         catch (Exception ex)

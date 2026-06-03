@@ -1,5 +1,16 @@
 ﻿
 //------- Download Excel Logic ---
+window.downloadFileFromStream = async (fileName, base64String) => {
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + base64String;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+//------- Download Excel Logic ---
 
 window.downloadFile = (fileName, base64Data) => {
 
@@ -39,14 +50,28 @@ window.blazorPrint = () => {
 // --- Schedule & Grid Logic ---
 window.scrollToToday = () => {
     const today = new Date().getDate();
-    // 85px is the cell width. We subtract 2 days to center "Today" in the view.
+
+    // 85px per cell. Subtracting 2 to keep 'today' slightly centered.
+    // Note: If you have sticky columns on the left, you may need to add their 
+    // combined width (e.g., + 200) to this scrollAmount for exact precision.
     const scrollAmount = (today - 2) * 85;
 
     const grids = ['staff-grid', 'driver-grid'];
+
     grids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.scrollLeft = scrollAmount;
+        // Blazor MudTables sometimes render an inner '.mud-table-container' 
+        // that handles the actual overflow. If scrolling the wrapper fails, 
+        // target the inner container.
+        const wrapper = document.getElementById(id);
+        if (wrapper) {
+            // Check if MudBlazor created an inner scrollable div
+            const innerScroll = wrapper.querySelector('.mud-table-container');
+            const target = innerScroll || wrapper;
+
+            target.scrollTo({
+                left: scrollAmount,
+                behavior: 'smooth'
+            });
         }
     });
 };

@@ -402,6 +402,19 @@
         [Column("full_name")] public string? FullName { get; set; }
     }
 
+    [Table("employees_executives")]
+    public class Executive : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string Email { get; set; } = "";
+        [Column("designation")] public string Designation { get; set; } = "";
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("Department")] public string? Department { get; set; } // Case sensitive mapping
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+    }
+
     [Table("jobs")]
     public class Job : BaseModel
     {
@@ -544,7 +557,7 @@
                 return null;
             }
 
-            
+
         }
         catch (Exception e)
         {
@@ -560,51 +573,75 @@
         {
             _loading = true;
 
-            // Step 1: Find the employee ID using the authenticated user's email or emp_code
-            // (Assuming user.GetEmail() maps to the email column in employees_engineers)
+            // Step 1: Check if the user is an Employee/Engineer
             var empRes = await SupabaseClient.From<EmployeeEngineer>()
                 .Where(x => x.FullName == _fullName)
-                // Note: If you extract emp_code directly from claims, use: .Where(x => x.EmpCode == _empCode)
                 .Get();
 
             var currentEmployee = empRes.Models.FirstOrDefault();
 
-            if (currentEmployee == null)
+            if (currentEmployee != null)
             {
-                _pendingJobs = new List<Job>();
-                Snackbar.Add("Could not locate your engineer profile in the system.", Severity.Warning);
-                _loading = false;
-                return;
-            }
+                // --- ENGINEER LOGIC ---
 
-            // Step 2: Fetch Job Assignments where the personnel_ids array contains the user's ID
-            var assignmentsRes = await SupabaseClient.From<JobAssignment>()
-                .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
-                .Get();
-
-            // Step 3: Flatten the lists of job_ids from all matching assignments
-            var assignedJobIds = assignmentsRes.Models
-                .Where(a => a.JobIds != null && a.status != "deleted") // ensure we don't pull deleted assignments
-                .SelectMany(a => a.JobIds!)
-                .Distinct()
-                .ToList();
-
-            // Step 4: Fetch the actual Job records
-            if (assignedJobIds.Any())
-            {
-                var jobsRes = await SupabaseClient.From<Job>()
-                    .Where(x => x.Status == "assigned")
-                    .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+                // Fetch Job Assignments where the personnel_ids array contains the user's ID
+                var assignmentsRes = await SupabaseClient.From<JobAssignment>()
+                    .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
                     .Get();
 
-                _pendingJobs = jobsRes.Models;
+                // Flatten the lists of job_ids from all matching assignments
+                var assignedJobIds = assignmentsRes.Models
+                    .Where(a => a.JobIds != null && a.status != "deleted")
+                    .SelectMany(a => a.JobIds!)
+                    .Distinct()
+                    .ToList();
+
+                // Fetch the actual Job records
+                if (assignedJobIds.Any())
+                {
+                    var jobsRes = await SupabaseClient.From<Job>()
+                        .Where(x => x.Status == "assigned")
+                        .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+                        .Get();
+
+                    _pendingJobs = jobsRes.Models;
+                }
+                else
+                {
+                    _pendingJobs = new List<Job>();
+                }
             }
             else
             {
-                _pendingJobs = new List<Job>();
+                // Step 2: If not an Engineer, check if the user is an Executive
+                var execRes = await SupabaseClient.From<Executive>()
+                    .Where(x => x.FullName == _fullName)
+                    .Get();
+
+                var currentExec = execRes.Models.FirstOrDefault();
+
+                if (currentExec != null)
+                {
+                    // --- EXECUTIVE LOGIC ---
+
+                    // Fetch ALL jobs where status is assigned
+                    var jobsRes = await SupabaseClient.From<Job>()
+                        .Where(x => x.Status == "assigned")
+                        .Get();
+
+                    _pendingJobs = jobsRes.Models;
+                }
+                else
+                {
+                    // --- NOT FOUND IN EITHER TABLE ---
+                    _pendingJobs = new List<Job>();
+                    Snackbar.Add("Could not locate your profile in the system.", Severity.Warning);
+                    _loading = false;
+                    return;
+                }
             }
 
-            Console.WriteLine($"_pendingJobs: {_pendingJobs.Count}");
+            Console.WriteLine($"_pendingJobs: {_pendingJobs?.Count ?? 0}");
 
             // Load checklists as usual
             var master = await SupabaseClient.From<ChecklistItem>().Get();
@@ -619,6 +656,87 @@
             Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
     }
+
+    // private async Task LoadInitialData()
+    // {
+    //     try
+    //     {
+    //         _loading = true;
+
+
+
+
+    //         // Step 1: Find the employee ID using the authenticated user's email or emp_code
+    //         // (Assuming user.GetEmail() maps to the email column in employees_engineers)
+    //         var empRes = await SupabaseClient.From<EmployeeEngineer>()
+    //             .Where(x => x.FullName == _fullName)
+    //             // Note: If you extract emp_code directly from claims, use: .Where(x => x.EmpCode == _empCode)
+    //             .Get();
+
+    //         var currentEmployee = empRes.Models.FirstOrDefault();
+
+    //         if (currentEmployee == null)
+    //         {
+
+    //             var execRes = await SupabaseClient.From<Executive>()
+    //             .Where(x => x.FullName == _fullName)
+    //             // Note: If you extract emp_code directly from claims, use: .Where(x => x.EmpCode == _empCode)
+    //             .Get();
+
+    //             var currentExec = execRes.Models.FirstOrDefault();
+
+    //             if (currentExec == null)
+    //             {
+
+    //                 _pendingJobs = new List<Job>();
+    //                 Snackbar.Add("Could not locate your engineer profile in the system.", Severity.Warning);
+    //                 _loading = false;
+    //                 return;
+    //             }
+    //         }
+
+    //         // Step 2: Fetch Job Assignments where the personnel_ids array contains the user's ID
+    //         var assignmentsRes = await SupabaseClient.From<JobAssignment>()
+    //             .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
+    //             .Get();
+
+    //         // Step 3: Flatten the lists of job_ids from all matching assignments
+    //         var assignedJobIds = assignmentsRes.Models
+    //             .Where(a => a.JobIds != null && a.status != "deleted") // ensure we don't pull deleted assignments
+    //             .SelectMany(a => a.JobIds!)
+    //             .Distinct()
+    //             .ToList();
+
+    //         // Step 4: Fetch the actual Job records
+    //         if (assignedJobIds.Any())
+    //         {
+    //             var jobsRes = await SupabaseClient.From<Job>()
+    //                 .Where(x => x.Status == "assigned")
+    //                 .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+    //                 .Get();
+
+    //             _pendingJobs = jobsRes.Models;
+    //         }
+    //         else
+    //         {
+    //             _pendingJobs = new List<Job>();
+    //         }
+
+    //         Console.WriteLine($"_pendingJobs: {_pendingJobs.Count}");
+
+    //         // Load checklists as usual
+    //         var master = await SupabaseClient.From<ChecklistItem>().Get();
+    //         _allMasterTasks = master.Models;
+
+    //         _loading = false;
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         _loading = false;
+    //         Console.WriteLine($"Method Error: {e.Message}");
+    //         Snackbar.Add($"Error : {e.Message}", Severity.Error);
+    //     }
+    // }
 
 
     // private async Task LoadInitialData()
