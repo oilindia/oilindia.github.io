@@ -21,5 +21,7 @@ namespace OIL.Shared.Services
 
         public static string GetGrade(this ClaimsPrincipal user)
             => user.FindFirst("Grade")?.Value ?? string.Empty;
+
+      
     }
 }

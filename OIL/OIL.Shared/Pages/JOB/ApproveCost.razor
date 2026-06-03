@@ -1,0 +1,614 @@
+﻿@page "/approvecost"
+
+@using System.Data
+@using ClosedXML.Excel
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using MudBlazor
+@using Microsoft.JSInterop
+@using Supabase
+@using Newtonsoft.Json
+@using System.Globalization
+@using System.Runtime.Serialization
+
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@* Assuming AttendanceData is needed based on original snippet *@
+@* @inject OIL.Shared.Services.AttendanceService AttendanceData *@
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+
+    <MudPaper Class="pa-4 mb-4">
+
+        <MudGrid>
+            <MudItem xs="12" sm="2">
+                <MudDatePicker Label="From Date"
+                               @bind-Date="_fromDate"
+                               Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" sm="2">
+                <MudDatePicker Label="To Date"
+                               @bind-Date="_toDate"
+                               Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="12" sm="2">
+                <MudTextField @bind-Value="_searchString"
+                              Placeholder="Search any text..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Variant="Variant.Outlined"
+                              Clearable="true" />
+            </MudItem>
+
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Search"
+                           OnClick="LoadJobHistory">
+                    Load Jobs
+                </MudButton>
+            </MudItem>
+
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportToExcel">
+                    Export Excel
+                </MudButton>
+            </MudItem>
+            
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.FactCheck"
+                           OnClick="BulkUpdateCosts"
+                           Disabled="@(!_selectedItems.Any())">
+                    Bulk Update (@_selectedItems.Count)
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+    </MudPaper>
+
+    <MudTable Items="_jobHistory"
+              MultiSelection="true"
+              @bind-SelectedItems="_selectedItems"
+              Filter="new Func<JobHistoryViewModel, bool>(FilterFunc)"
+              Hover="true"
+              Dense="true"
+              Bordered="true"
+              Striped="true"
+              Loading="_loading"
+              Elevation="4">
+
+        <HeaderContent>
+            <MudTh>Job Name</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Installation</MudTh>
+            <MudTh>Installation Type</MudTh>
+            <MudTh>Engineers</MudTh>
+            <MudTh>Action By</MudTh>
+            <MudTh>Action Time</MudTh>
+            <MudTh>Overtime Approved</MudTh>
+            <MudTh>Spare Cost Approved</MudTh>
+            <MudTh>Update Action</MudTh>
+            <MudTh>Description</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="Job Name">@context.JobName</MudTd>
+
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Color="@(context.JobStatus == "completed" ? Color.Success : Color.Warning)">
+                    @context.JobStatus
+                </MudChip>
+            </MudTd>
+
+            <MudTd DataLabel="Type">@context.JobType</MudTd>
+            <MudTd DataLabel="Installation">@context.InstallationName</MudTd>
+            <MudTd DataLabel="Installation Type">@context.InstallationType</MudTd>
+
+            <MudTd DataLabel="Engineers">
+                @foreach (var eng in context.Engineers)
+                {
+                    <MudChip T="string" Color="Color.Info" Class="mr-1 mb-1">
+                        @eng
+                    </MudChip>
+                }
+            </MudTd>
+
+            <MudTd DataLabel="Action By">@context.JobActionBy</MudTd>
+            <MudTd DataLabel="Action Time">@(context.JobActionTime?.ToString("dd-MMM-yyyy HH:mm"))</MudTd>
+
+            <MudTd DataLabel="Overtime Approved">
+                <MudNumericField T="float?" 
+                                 @bind-Value="context.OvertimeApproved" 
+                                 Variant="Variant.Outlined" 
+                                 Margin="Margin.Dense"
+                                 Min="0" 
+                                 HideSpinButtons="true" />
+            </MudTd>
+
+            <MudTd DataLabel="Spare Cost Approved">
+                <MudNumericField T="float?" 
+                                 @bind-Value="context.JobSpareCostApproved" 
+                                 Variant="Variant.Outlined" 
+                                 Margin="Margin.Dense"
+                                 Min="0" 
+                                 HideSpinButtons="true" />
+            </MudTd>
+
+            <MudTd DataLabel="Update Action">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Small" 
+                           OnClick="@(() => UpdateSingleCost(context))">
+                    Update
+                </MudButton>
+            </MudTd>
+
+            <MudTd DataLabel="Description" Style="max-width:300px; white-space:pre-wrap;">
+                @context.Description
+            </MudTd>
+
+        </RowTemplate>
+
+    </MudTable>
+
+</MudContainer>
+
+@code
+{
+    // TODO: Map this to your actual authenticated user's Employee Code context
+    private string _currentUserEmpCode = "EMP001"; 
+
+    #region TABLE MODELS
+
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("job_name")]
+        public string JobName { get; set; }
+
+        [Column("location_id")]
+        public long? LocationId { get; set; }
+
+        [Column("status")]
+        public string Status { get; set; }
+
+        [Column("job_type")]
+        public string JobType { get; set; }
+
+        [Column("priority")]
+        public string Priority { get; set; }
+
+        [Column("description")]
+        public string Description { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+
+        [Column("job_action_remarks")]
+        public string JobActionRemarks { get; set; }
+
+        // NEW COLUMNS ADDED
+        [Column("cost_approved_by")]
+        public string CostApprovedBy { get; set; }
+
+        [Column("cost_approved_dt")]
+        public DateTime? CostApprovedDt { get; set; }
+
+        [Column("overtime_approved")]
+        public float? OvertimeApproved { get; set; }
+
+        [Column("job_spare_cost_approved")]
+        public float? JobSpareCostApproved { get; set; }
+    }
+
+    [Table("job_assignments")]
+    public class JobAssignment : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public Guid Id { get; set; }
+
+        [Column("job_ids")]
+        public List<Guid> JobIds { get; set; }
+
+        [Column("personnel_ids")]
+        public List<long> PersonnelIds { get; set; }
+
+        [Column("driver_id")]
+        public long? DriverId { get; set; }
+
+        [Column("job_action")]
+        public string JobAction { get; set; }
+
+        [Column("job_action_time")]
+        public DateTime? JobActionTime { get; set; }
+
+        [Column("job_action_by")]
+        public string JobActionBy { get; set; }
+
+        [Column("job_action_remarks")]
+        public string JobActionRemarks { get; set; }
+
+        [Column("status")]
+        public string Status { get; set; }
+
+        [Column("job_overtime")]
+        public float? JobOverTime { get; set; }
+
+        [Column("created_at")]
+        public DateTime? CreatedAt { get; set; }
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("area_name")]
+        public string AreaName { get; set; }
+
+        [Column("installation_name")]
+        public string InstallationName { get; set; }
+
+        [Column("installation_type")]
+        public string InstallationType { get; set; }
+    }
+
+    [Table("employees_engineers")]
+    public class Engineer : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("designation")]
+        public string Designation { get; set; }
+    }
+
+    [Table("drivers")]
+    public class Driver : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("vehicle_number")]
+        public string VehicleNumber { get; set; }
+    }
+
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public int Id { get; set; }
+
+        [Column("job_id")]
+        public Guid JobId { get; set; }
+
+        [Column("work_status")]
+        public string WorkStatus { get; set; }
+
+        [Column("remarks")]
+        public string Remarks { get; set; }
+    }
+
+    #endregion
+
+    #region VIEWMODEL
+
+    public class JobHistoryViewModel
+    {
+        public Guid JobId { get; set; }
+        public string JobName { get; set; }
+        public string JobStatus { get; set; }
+        public string JobType { get; set; }
+        public long? LocationId { get; set; }
+        public string AreaName { get; set; }
+        public string InstallationName { get; set; }
+        public string InstallationType { get; set; }
+        public List<string> Engineers { get; set; } = new();
+        public string DriverName { get; set; }
+        public string VehicleNumber { get; set; }
+        public string JobAction { get; set; }
+        public string JobActionBy { get; set; }
+        public DateTime? JobActionTime { get; set; }
+        public float? JobOverTime { get; set; }
+        public string JobActionRemarks { get; set; }
+        public string Priority { get; set; }
+        public string Description { get; set; }
+        public string PmWorkStatus { get; set; }
+        public string PmRemarks { get; set; }
+
+        // NEW PROPERTIES
+        public float? OvertimeApproved { get; set; }
+        public float? JobSpareCostApproved { get; set; }
+        public string CostApprovedBy { get; set; }
+        public DateTime? CostApprovedDt { get; set; }
+    }
+
+    #endregion
+
+    private bool _loading = false;
+    private DateTime? _fromDate = DateTime.Today.AddDays(-30);
+    private DateTime? _toDate = DateTime.Today;
+    private List<JobHistoryViewModel> _jobHistory = new();
+    private string _searchString = "";
+    
+    // Multi-select bindable property
+    private HashSet<JobHistoryViewModel> _selectedItems = new();
+
+    private bool FilterFunc(JobHistoryViewModel element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (element.JobName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobStatus?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobType?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.LocationId?.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.AreaName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.InstallationName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.DriverName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.VehicleNumber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobAction?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.JobActionBy?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Priority?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+        if (element.Engineers != null && element.Engineers.Any(e => e.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadJobHistory();
+    }
+
+    private async Task LoadJobHistory()
+    {
+        try
+        {
+            _loading = true;
+            _jobHistory.Clear();
+            _selectedItems.Clear(); // Clear selection on reload
+
+            var assignmentRes = await SupabaseClient.From<JobAssignment>().Get();
+            var assignments = assignmentRes.Models;
+
+            var jobRes = await SupabaseClient.From<Job>().Get();
+            var jobs = jobRes.Models;
+
+            var locationRes = await SupabaseClient.From<Location>().Get();
+            var locations = locationRes.Models;
+
+            var engineerRes = await SupabaseClient.From<Engineer>().Get();
+            var engineers = engineerRes.Models;
+
+            var driverRes = await SupabaseClient.From<Driver>().Get();
+            var drivers = driverRes.Models;
+
+            var pmRes = await SupabaseClient.From<PmReport>().Get();
+            var pmReports = pmRes.Models;
+
+            foreach (var assignment in assignments)
+            {
+                if (_fromDate.HasValue && assignment.CreatedAt.HasValue && assignment.CreatedAt.Value.Date < _fromDate.Value.Date)
+                    continue;
+
+                if (_toDate.HasValue && assignment.CreatedAt.HasValue && assignment.CreatedAt.Value.Date > _toDate.Value.Date)
+                    continue;
+
+                if (assignment.JobIds == null)
+                    continue;
+
+                foreach (var jobId in assignment.JobIds)
+                {
+                    var foundJob = jobs.FirstOrDefault(j => j.Id == jobId);
+                    if (foundJob == null) continue;
+
+                    var foundLocation = locations.FirstOrDefault(l => l.Id == foundJob.LocationId);
+                    var foundDriver = drivers.FirstOrDefault(d => d.Id == assignment.DriverId);
+                    var foundPm = pmReports.FirstOrDefault(p => p.JobId == foundJob.Id);
+
+                    List<string> engineerNames = new();
+                    if (assignment.PersonnelIds != null)
+                    {
+                        foreach (var engId in assignment.PersonnelIds)
+                        {
+                            var eng = engineers.FirstOrDefault(e => e.Id == engId);
+                            if (eng != null) engineerNames.Add(eng.FullName);
+                        }
+                    }
+
+                    _jobHistory.Add(new JobHistoryViewModel
+                    {
+                        JobId = foundJob.Id,
+                        JobName = foundJob.JobName,
+                        JobStatus = foundJob.Status,
+                        JobType = foundJob.JobType,
+                        LocationId = foundJob.LocationId,
+                        Priority = foundJob.Priority,
+                        Description = foundJob.Description,
+                        
+                        OvertimeApproved = foundJob.OvertimeApproved,
+                        JobSpareCostApproved = foundJob.JobSpareCostApproved,
+                        CostApprovedBy = foundJob.CostApprovedBy,
+                        CostApprovedDt = foundJob.CostApprovedDt,
+
+                        AreaName = foundLocation?.AreaName,
+                        InstallationName = foundLocation?.InstallationName,
+                        InstallationType = foundLocation?.InstallationType,
+
+                        Engineers = engineerNames,
+                        DriverName = foundDriver?.FullName,
+                        VehicleNumber = foundDriver?.VehicleNumber,
+
+                        JobAction = assignment.JobAction,
+                        JobActionBy = assignment.JobActionBy,
+                        JobActionTime = assignment.JobActionTime,
+                        JobOverTime = assignment.JobOverTime,
+                        JobActionRemarks = assignment.JobActionRemarks,
+
+                        PmWorkStatus = foundPm?.WorkStatus,
+                        PmRemarks = foundPm?.Remarks
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task UpdateSingleCost(JobHistoryViewModel item)
+    {
+        try
+        {
+            _loading = true;
+            
+            var currentDt = DateTime.UtcNow; // Or DateTime.Now based on your timezone needs
+            
+            await SupabaseClient.From<Job>()
+                .Where(x => x.Id == item.JobId)
+                .Set(x => x.CostApprovedBy, _currentUserEmpCode)
+                .Set(x => x.CostApprovedDt, currentDt)
+                .Set(x => x.OvertimeApproved, item.OvertimeApproved)
+                .Set(x => x.JobSpareCostApproved, item.JobSpareCostApproved)
+                .Update();
+
+            item.CostApprovedBy = _currentUserEmpCode;
+            item.CostApprovedDt = currentDt;
+
+            Snackbar.Add($"Costs approved and updated for '{item.JobName}'", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Update failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task BulkUpdateCosts()
+    {
+        if (!_selectedItems.Any()) return;
+
+        try
+        {
+            _loading = true;
+            var currentDt = DateTime.UtcNow;
+
+            foreach (var item in _selectedItems)
+            {
+                await SupabaseClient.From<Job>()
+                    .Where(x => x.Id == item.JobId)
+                    .Set(x => x.CostApprovedBy, _currentUserEmpCode)
+                    .Set(x => x.CostApprovedDt, currentDt)
+                    .Set(x => x.OvertimeApproved, item.OvertimeApproved)
+                    .Set(x => x.JobSpareCostApproved, item.JobSpareCostApproved)
+                    .Update();
+
+                // Reflect change locally without a full grid reload
+                item.CostApprovedBy = _currentUserEmpCode;
+                item.CostApprovedDt = currentDt;
+            }
+
+            Snackbar.Add($"Successfully updated and approved {_selectedItems.Count} jobs.", Severity.Success);
+            _selectedItems.Clear(); // Clear selection after processing
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Bulk update failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportToExcel()
+    {
+        try
+        {
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Job History");
+
+            worksheet.Cell(1, 1).Value = "Job Name";
+            worksheet.Cell(1, 2).Value = "Status";
+            worksheet.Cell(1, 3).Value = "Type";
+            worksheet.Cell(1, 4).Value = "Location ID";
+            worksheet.Cell(1, 5).Value = "Area";
+            worksheet.Cell(1, 6).Value = "Installation";
+            worksheet.Cell(1, 7).Value = "Installation Type";
+            worksheet.Cell(1, 8).Value = "Engineers";
+            worksheet.Cell(1, 9).Value = "Action By";
+            worksheet.Cell(1, 10).Value = "Action Time";
+            worksheet.Cell(1, 11).Value = "Overtime";
+            worksheet.Cell(1, 12).Value = "Overtime Approved";
+            worksheet.Cell(1, 13).Value = "Spare Cost Approved";
+            worksheet.Cell(1, 14).Value = "Cost Approved By";
+            worksheet.Cell(1, 15).Value = "Description";
+
+            int row = 2;
+
+            foreach (var item in _jobHistory)
+            {
+                worksheet.Cell(row, 1).Value = item.JobName;
+                worksheet.Cell(row, 2).Value = item.JobStatus;
+                worksheet.Cell(row, 3).Value = item.JobType;
+                worksheet.Cell(row, 4).Value = item.LocationId;
+                worksheet.Cell(row, 5).Value = item.AreaName;
+                worksheet.Cell(row, 6).Value = item.InstallationName;
+                worksheet.Cell(row, 7).Value = item.InstallationType;
+                worksheet.Cell(row, 8).Value = string.Join(", ", item.Engineers);
+                worksheet.Cell(row, 9).Value = item.JobActionBy;
+                worksheet.Cell(row, 10).Value = item.JobActionTime?.ToString("dd-MMM-yyyy HH:mm");
+                worksheet.Cell(row, 11).Value = item.JobOverTime;
+                worksheet.Cell(row, 12).Value = item.OvertimeApproved;
+                worksheet.Cell(row, 13).Value = item.JobSpareCostApproved;
+                worksheet.Cell(row, 14).Value = item.CostApprovedBy;
+                worksheet.Cell(row, 15).Value = item.Description;
+
+                row++;
+            }
+
+            worksheet.Columns().AdjustToContents();
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+            var content = stream.ToArray();
+            var fileName = $"JobHistory_{DateTime.Now:ddMMyyyyHHmmss}.xlsx";
+
+            await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(content));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

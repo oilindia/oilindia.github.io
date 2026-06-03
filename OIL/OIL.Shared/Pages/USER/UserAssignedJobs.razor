@@ -391,7 +391,17 @@
 
 
 
-@code {
+    @code {
+
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("emp_code")] public string EmpCode { get; set; } = "";
+        [Column("email")] public string? Email { get; set; }
+        [Column("full_name")] public string? FullName { get; set; }
+    }
+
     [Table("jobs")]
     public class Job : BaseModel
     {
@@ -426,6 +436,10 @@
     {
         [PrimaryKey("id", false)] public Guid Id { get; set; }
         [Column("job_ids")] public List<Guid>? JobIds { get; set; }
+
+        // Add this property to map the int8[] column
+        [Column("personnel_ids")] public List<long>? PersonnelIds { get; set; }
+
         [Column("job_action")] public string? JobAction { get; set; }
         [Column("job_action_time")] public DateTime? JobActionTime { get; set; }
         [Column("job_action_by")] public string? JobActionBy { get; set; }
@@ -487,7 +501,7 @@
     private string _email = "";
     private string _fullName = "";
     private string _designation = "";
-
+    private long? _empCode;
 
     private List<string> _existingPhotos = new();
     private bool _isImageOpen = false;
@@ -505,11 +519,40 @@
                 _email = user.GetEmail();
                 _fullName = user.GetFullName();
                 _designation = user.GetDesignation();
-
+                _empCode = await GetEngineerEmpCode(_fullName);
             }
         }
         await LoadInitialData();    
     } 
+
+    private async Task<long?> GetEngineerEmpCode(string fullName)
+    {
+        try
+        {
+            var empRes = await SupabaseClient.From<EmployeeEngineer>()
+                .Where(x => x.Email == _email)
+                .Get();
+            var currentEmployee = empRes.Models.FirstOrDefault();
+            if (currentEmployee != null)
+            {
+                _empCode = long.Parse(currentEmployee.EmpCode);
+                return _empCode;
+            }
+            else
+            {
+                Snackbar.Add("Could not locate your engineer profile in the system.", Severity.Warning);
+                return null;
+            }
+
+            
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error fetching employee data: {e.Message}");
+            Snackbar.Add($"Error fetching employee data: {e.Message}", Severity.Error);
+            return null;
+        }
+    }
 
     private async Task LoadInitialData()
     {
@@ -517,25 +560,56 @@
         {
             _loading = true;
 
-            // var res = await SupabaseClient.From<Job>()
-            //         // 1. Force an inner join so Jobs without valid assignments are excluded
-            //         .Select("*, job_assignments!inner(*)")
+            // Step 1: Find the employee ID using the authenticated user's email or emp_code
+            // (Assuming user.GetEmail() maps to the email column in employees_engineers)
+            var empRes = await SupabaseClient.From<EmployeeEngineer>()
+                .Where(x => x.FullName == _fullName)
+                // Note: If you extract emp_code directly from claims, use: .Where(x => x.EmpCode == _empCode)
+                .Get();
 
-            //         // 2. Filter the parent table (Job)
-            //         .Where(x => x.Status == "assigned" || x.Status == "pending")
+            var currentEmployee = empRes.Models.FirstOrDefault();
 
-            //         // 3. Filter the child table (job_assignments) using a string-based filter
-            //         .Filter("job_assignments.status", Supabase.Postgrest.Constants.Operator.NotEqual, "deleted")
+            if (currentEmployee == null)
+            {
+                _pendingJobs = new List<Job>();
+                Snackbar.Add("Could not locate your engineer profile in the system.", Severity.Warning);
+                _loading = false;
+                return;
+            }
 
-            //     .Get();
-            var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned").Get();
-            //var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned" || x.Status == "assigned").Get();
-            _pendingJobs = res.Models;
+            // Step 2: Fetch Job Assignments where the personnel_ids array contains the user's ID
+            var assignmentsRes = await SupabaseClient.From<JobAssignment>()
+                .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
+                .Get();
 
-            Console.WriteLine($"_pendingJobs: {res.Models.Count()}");
+            // Step 3: Flatten the lists of job_ids from all matching assignments
+            var assignedJobIds = assignmentsRes.Models
+                .Where(a => a.JobIds != null && a.status != "deleted") // ensure we don't pull deleted assignments
+                .SelectMany(a => a.JobIds!)
+                .Distinct()
+                .ToList();
 
+            // Step 4: Fetch the actual Job records
+            if (assignedJobIds.Any())
+            {
+                var jobsRes = await SupabaseClient.From<Job>()
+                    .Where(x => x.Status == "assigned")
+                    .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+                    .Get();
+
+                _pendingJobs = jobsRes.Models;
+            }
+            else
+            {
+                _pendingJobs = new List<Job>();
+            }
+
+            Console.WriteLine($"_pendingJobs: {_pendingJobs.Count}");
+
+            // Load checklists as usual
             var master = await SupabaseClient.From<ChecklistItem>().Get();
             _allMasterTasks = master.Models;
+
             _loading = false;
         }
         catch (Exception e)
@@ -544,8 +618,44 @@
             Console.WriteLine($"Method Error: {e.Message}");
             Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
-
     }
+
+
+    // private async Task LoadInitialData()
+    // {
+    //     try
+    //     {
+    //         _loading = true;
+
+    //         // var res = await SupabaseClient.From<Job>()
+    //         //         // 1. Force an inner join so Jobs without valid assignments are excluded
+    //         //         .Select("*, job_assignments!inner(*)")
+
+    //         //         // 2. Filter the parent table (Job)
+    //         //         .Where(x => x.Status == "assigned" || x.Status == "pending")
+
+    //         //         // 3. Filter the child table (job_assignments) using a string-based filter
+    //         //         .Filter("job_assignments.status", Supabase.Postgrest.Constants.Operator.NotEqual, "deleted")
+
+    //         //     .Get();
+    //         var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned").Get();
+    //         //var res = await SupabaseClient.From<Job>().Where(x => x.Status == "assigned" || x.Status == "assigned").Get();
+    //         _pendingJobs = res.Models;
+
+    //         Console.WriteLine($"_pendingJobs: {res.Models.Count()}");
+
+    //         var master = await SupabaseClient.From<ChecklistItem>().Get();
+    //         _allMasterTasks = master.Models;
+    //         _loading = false;
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         _loading = false;
+    //         Console.WriteLine($"Method Error: {e.Message}");
+    //         Snackbar.Add($"Error : {e.Message}", Severity.Error);
+    //     }
+
+    // }
 
 
     private void OpenImage(string url)
