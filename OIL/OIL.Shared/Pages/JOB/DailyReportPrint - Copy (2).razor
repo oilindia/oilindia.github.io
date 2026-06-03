@@ -1,20 +1,21 @@
-﻿@page "/dailyreportprint"
+﻿@page "/dailyreportprint4"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 @inject Supabase.Client SupabaseClient
 @inject IJSRuntime JS
-@inject ISnackbar Snackbar
+
 
 @using System.Collections.Generic;
 @using System.Linq;
 @using System.Text.Json;
 
 <style>
+
     /* =========================================================
-                   GLOBAL PAGE
-                ========================================================= */
+               GLOBAL PAGE
+            ========================================================= */
     html, body {
         margin: 0;
         padding: 0;
@@ -28,32 +29,10 @@
     }
 
     /* =========================================================
-                   EDITABLE CELLS (SCREEN & PRINT)
-                ========================================================= */
-    .editable-cell {
-        width: 100%;
-        border: 1px dashed #b0bec5;
-        background-color: transparent;
-        font-family: inherit;
-        font-size: inherit;
-        padding: 4px;
-        text-align: inherit;
-        /* Modern CSS to auto-expand textarea height based on content */
-        field-sizing: content;
-        min-height: 22px;
-        resize: none;
-    }
-
-        .editable-cell:focus {
-            outline: 2px solid #1976d2;
-            background-color: #ffffff;
-            border-color: transparent;
-        }
-
-    /* =========================================================
-                   PRINT FIXES
-                ========================================================= */
+               PRINT FIXES
+            ========================================================= */
     @@media print {
+
         html, body {
             background: white !important;
             width: 100% !important;
@@ -138,19 +117,11 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        /* Remove borders and backgrounds from inputs when printing */
-        .editable-cell {
-            border: none !important;
-            background-color: transparent !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            white-space: pre-wrap !important;
-        }
     }
 
     /* =========================================================
-                   SCREEN CONTAINER
-                ========================================================= */
+               SCREEN CONTAINER
+            ========================================================= */
     .a4-container {
         width: 287mm;
         min-height: 200mm;
@@ -164,8 +135,8 @@
     }
 
     /* =========================================================
-                   TOP TOOLBAR
-                ========================================================= */
+               TOP TOOLBAR
+            ========================================================= */
     .no-print {
         position: sticky;
         top: 0;
@@ -173,8 +144,8 @@
     }
 
     /* =========================================================
-                   HEADER TABLE
-                ========================================================= */
+               HEADER TABLE
+            ========================================================= */
     .header-table {
         width: 100%;
         border-collapse: collapse;
@@ -213,8 +184,8 @@
     }
 
     /* =========================================================
-                   SECTION BANNERS
-                ========================================================= */
+               SECTION BANNERS
+            ========================================================= */
     .section-banner {
         background: #f2f2f2;
         border: 1px solid black;
@@ -228,8 +199,8 @@
     }
 
     /* =========================================================
-                   REPORT TABLE
-                ========================================================= */
+               REPORT TABLE
+            ========================================================= */
     .report-table {
         width: 100%;
         border-collapse: collapse;
@@ -264,16 +235,16 @@
         }
 
     /* =========================================================
-                   TEXT ALIGNMENT
-                ========================================================= */
+               TEXT ALIGNMENT
+            ========================================================= */
     .text-left {
         text-align: left !important;
         padding-left: 6px !important;
     }
 
     /* =========================================================
-                   FOOTER
-                ========================================================= */
+               FOOTER
+            ========================================================= */
     .footer-container {
         display: flex;
         justify-content: space-between;
@@ -309,9 +280,10 @@
     }
 
     /* =========================================================
-                   RESPONSIVE TABLE
-                ========================================================= */
+               RESPONSIVE TABLE
+            ========================================================= */
     @@media (max-width: 1200px) {
+
         .a4-container {
             width: 100%;
             min-width: 1200px;
@@ -320,6 +292,7 @@
     }
 
     @@media (max-width: 768px) {
+
         .header-table td {
             font-size: 9px;
             padding: 4px;
@@ -351,8 +324,8 @@
     }
 
     /* =========================================================
-                   LOADING BAR
-                ========================================================= */
+               LOADING BAR
+            ========================================================= */
     .mud-progress-linear {
         position: sticky;
         top: 0;
@@ -366,35 +339,21 @@
     <MudGrid Justify="Justify.Center" Class="align-center">
 
         @* --- NEW FIELD TYPE DROPDOWN --- *@
-        <MudItem xs="12" md="2">
+        <MudItem xs="12" md="3">
             <MudSelect T="string" Label="Field Type" @bind-Value="selectedFieldType" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="@("Western Fields")" />
                 <MudSelectItem Value="@("Eastern Fields")" />
             </MudSelect>
         </MudItem>
 
-        <MudItem xs="12" md="2">
+        <MudItem xs="12" md="3">
             <MudDatePicker Label="Select Previous Day" @bind-Date="_prevDate" Variant="Variant.Outlined" Color="Color.Secondary" Margin="Margin.Dense" />
         </MudItem>
-        <MudItem xs="12" md="2">
+        <MudItem xs="12" md="3">
             <MudDatePicker Label="Select Today's Date" @bind-Date="_todayDate" Variant="Variant.Outlined" Color="Color.Primary" Margin="Margin.Dense" />
         </MudItem>
-        <MudItem xs="12" md="6" Class="d-flex gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" StartIcon="@Icons.Material.Filled.Sync">Refresh</MudButton>
-
-            @* --- SAVE CHANGES BUTTON --- *@
-            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveChanges" Disabled="@_isSaving" StartIcon="@Icons.Material.Filled.Save">
-                @if (_isSaving)
-                {
-                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                    <span class="ms-2">Saving...</span>
-                }
-                else
-                {
-                    <span>Save Changes</span>
-                }
-            </MudButton>
-
+        <MudItem xs="12" md="3" Class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RefreshData" StartIcon="@Icons.Material.Filled.Sync">Refresh Data</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Dark" OnClick="HandlePrint" StartIcon="@Icons.Material.Filled.LocalPrintshop">Print Report</MudButton>
         </MudItem>
     </MudGrid>
@@ -433,6 +392,7 @@ else
                 <tr>
                     <td><b>To : विभाग अध्यक्ष (यंत्रीकरण) / HOD (Instrumentation)</b></td>
                     <td><b>Through : अनुभाग प्रमुख / Section Head (Inst. - Field Maintenance)</b></td>
+
                 </tr>
             </table>
         </div>
@@ -445,10 +405,11 @@ else
             <thead>
                 <tr>
                     <th style="width: 30px;">SL</th>
-                    <th style="width: 50px;">SHIFT</th>
+                    <th style="width: 40px;">SHIFT</th>
                     <th style="width: 80px;">NOTIF. NO.</th>
                     <th style="width: 140px;">INSTALLATION</th>
                     <th style="width: 100px;">EQUIPMENT</th>
+                    @* <th style="width: 50px;">DEVICE</th> *@
                     <th style="width: 60px;">TAG NO.</th>
                     <th class="text-left">FIELD REPORT</th>
                     <th>JOB DONE</th>
@@ -469,6 +430,7 @@ else
                             var job = _jobs.FirstOrDefault(j => j.Id == jobId);
                             if (job == null) continue;
 
+                            // Additional check to only render jobs associated with the selected field
                             if (!string.IsNullOrEmpty(selectedFieldType))
                             {
                                 var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
@@ -478,19 +440,24 @@ else
 
                             <tr>
                                 <td>@(prevSl++)</td>
-                                <td><textarea class="editable-cell" @bind="assignment.ShiftName"></textarea></td>
-                                <td><textarea class="editable-cell" @bind="job.NotificationNumber"></textarea></td>
-
+                                <td>@assignment.ShiftName</td>
+                                <td>@job.NotificationNumber</td>
                                 <td class="text-left">@GetLocationName(job.LocationId)</td>
                                 <td>@GetEquipmentName(job.LocTagNumber)</td>
+                                @* <td>@job.</td> *@
+                                <td>@job.LocTagNumber</td>
 
-                                <td><textarea class="editable-cell" @bind="job.LocTagNumber"></textarea></td>
-                                <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td>
-                                <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobActionRemarks"></textarea></td>
+                                <td class="text-left">@job.JobName</td>
 
-                                <td><textarea class="editable-cell text-left" @bind="job.JobSpareReplaced"></textarea></td>
+                                @* <td class="text-left">@job.Description</td> *@
+                                <td class="text-left">@job.JobActionRemarks</td>
+                                @* <td>@job.JobSpareReplaced</td> *@
+                                <td>
+                                    @FormatSpareDetails(job.JobSpareReplaced)
+                                </td>
 
-                                <td><textarea class="editable-cell text-left" @bind="assignment.JobDoneDetails"></textarea></td>
+                                <td></td>
+                                @* <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td> *@
                             </tr>
                         }
                     }
@@ -506,7 +473,7 @@ else
             <thead>
                 <tr>
                     <th style="width: 30px;">SL</th>
-                    <th style="width: 50px;">SHIFT</th>
+                    <th style="width: 40px;">SHIFT</th>
                     <th style="width: 80px;">NOTIF. NO.</th>
                     <th style="width: 140px;">INSTALLATION</th>
                     <th style="width: 100px;">EQUIPMENT</th>
@@ -539,19 +506,15 @@ else
 
                             <tr>
                                 <td>@(todaySl++)</td>
-                                <td><textarea class="editable-cell" @bind="assignment.ShiftName"></textarea></td>
-                                <td><textarea class="editable-cell" @bind="job.NotificationNumber"></textarea></td>
-
+                                <td>@assignment.ShiftName</td>
+                                <td>@job.NotificationNumber</td>
                                 <td class="text-left">@GetLocationName(job.LocationId)</td>
                                 <td>@GetEquipmentName(job.LocTagNumber)</td>
-
-                                <td><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td>
-                                <td class="text-left"><textarea class="editable-cell text-left" @bind="job.Description"></textarea></td>
-
+                                <td>@job.JobName</td>
+                                <td class="text-left">@job.Description</td>
                                 <td class="text-left">@GetDriverVehicleNumber(assignment.DriverId)</td>
                                 <td class="text-left">@(assignment.PersonnelIds != null ? string.Join(", ", assignment.PersonnelIds.Select(GetEngineerName)) : "")</td>
-
-                                <td><textarea class="editable-cell" @bind="assignment.FieldReport"></textarea></td>
+                                <td>@(assignment.JobOvertime > 0 ? $"OT: {assignment.JobOvertime} hrs" : "")</td>
                             </tr>
                         }
                     }
@@ -581,7 +544,6 @@ else
     private DateTime? _prevDate = DateTime.Today.AddDays(-1);
     private DateTime? _todayDate = DateTime.Today;
     private bool _loading = true;
-    private bool _isSaving = false;
 
     private List<Assignment> _prevDayEntries = new(), _todayEntries = new();
     private List<Driver> _drivers = new();
@@ -599,6 +561,7 @@ else
         _loading = true;
         try
         {
+            // 1. Fetch lookup tables
             _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
             _jobs = (await SupabaseClient.From<Job>().Get()).Models;
             _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
@@ -608,6 +571,7 @@ else
             var todayStr = _todayDate?.ToString("yyyy-MM-dd");
             var prevStr = _prevDate?.ToString("yyyy-MM-dd");
 
+            // 2. Fetch raw assignments for the date ranges
             var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
@@ -618,6 +582,7 @@ else
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
                 .Get()).Models;
 
+            // 3. Apply the relational filter
             if (!string.IsNullOrEmpty(selectedFieldType))
             {
                 _prevDayEntries = FilterAssignmentsByFieldType(rawPrevDayEntries, selectedFieldType);
@@ -632,51 +597,6 @@ else
         finally
         {
             _loading = false;
-            StateHasChanged();
-        }
-    }
-
-    // --- NEW: SAVE METHOD TO UPDATE SUPABASE ---
-    private async Task SaveChanges()
-    {
-        _isSaving = true;
-        StateHasChanged();
-
-        try
-        {
-            // 1. Collect all unique jobs currently displayed on the page
-            var displayedJobIds = _prevDayEntries.SelectMany(a => a.JobIds ?? new List<Guid>())
-                .Concat(_todayEntries.SelectMany(a => a.JobIds ?? new List<Guid>()))
-                .Distinct()
-                .ToHashSet();
-
-            var jobsToUpdate = _jobs.Where(j => displayedJobIds.Contains(j.Id)).ToList();
-
-            // 2. Collect all assignments displayed on the page
-            var assignmentsToUpdate = _prevDayEntries.Concat(_todayEntries).ToList();
-
-            // 3. Update Jobs
-            foreach (var job in jobsToUpdate)
-            {
-                await SupabaseClient.From<Job>().Update(job);
-            }
-
-            // 4. Update Assignments
-            foreach (var assignment in assignmentsToUpdate)
-            {
-                await SupabaseClient.From<Assignment>().Update(assignment);
-            }
-
-            // Provide visual feedback
-            Snackbar?.Add("Changes saved successfully!", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar?.Add($"Error saving changes: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
             StateHasChanged();
         }
     }
@@ -698,6 +618,7 @@ else
             .ToList();
     }
 
+    // --- REFACTORED HELPERS ---
     private string GetLocationName(long? locationId)
     {
         if (!locationId.HasValue) return "";
@@ -710,6 +631,50 @@ else
         return _markers.FirstOrDefault(m => m.TagNumber == tagNumber)?.InstrumentName ?? "";
     }
 
+    public static string FormatSpareDetails(string jsonString, string lineSeparator = "<br/>")
+    {
+        if (string.IsNullOrWhiteSpace(jsonString))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonString);
+            var formattedSpares = new List<string>();
+
+            // Ensure we are dealing with a JSON array
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return jsonString;
+            }
+
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                // Safely extract properties
+                var type = element.TryGetProperty("InstrumentType", out var it) ? it.GetString() : null;
+                var loc = element.TryGetProperty("DeviceLocation", out var dl) ? dl.GetString() : null;
+                var tag = element.TryGetProperty("TagNumber", out var tn) ? tn.GetString() : null;
+                var make = element.TryGetProperty("NewMakeModel", out var nm) ? nm.GetString() : null;
+
+                // Filter out null/empty/whitespace values
+                var details = new[] { type, loc, tag, make }.Where(x => !string.IsNullOrWhiteSpace(x));
+
+                if (details.Any())
+                {
+                    formattedSpares.Add(string.Join(", ", details));
+                }
+            }
+
+            return string.Join(lineSeparator, formattedSpares);
+        }
+        catch (JsonException)
+        {
+            // Fallback to returning the raw string if the JSON is malformed
+            return jsonString;
+        }
+    }
+
     private string GetDriverVehicleNumber(long? driverId)
     {
         if (!driverId.HasValue) return "";
@@ -717,8 +682,16 @@ else
     }
 
     private string GetEngineerName(long id) => _engineers.FirstOrDefault(e => e.Id == id)?.FullName ?? "";
-
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
+
+
+    public class JobAssignmentViewModel
+    {
+        public string JobSpareReplaced { get; set; }
+
+        // Read-only property for the UI
+        public string FormattedSpareReplaced => FormatSpareDetails(JobSpareReplaced);
+    }
 
     // --- MODELS ---
     [Table("job_assignments")]
@@ -731,6 +704,8 @@ else
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("job_overtime")] public double? JobOvertime { get; set; }
+
+        // Retaining these to prevent Supabase deserialization errors if they still exist in your schema
         [Column("notification_no")] public string NotificationNo { get; set; }
         [Column("device_type")] public string DeviceType { get; set; }
         [Column("tag_no")] public string TagNo { get; set; }
