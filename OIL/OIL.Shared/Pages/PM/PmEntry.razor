@@ -1226,7 +1226,7 @@
                 .Set(x => x.Status, "completed")
                 .Set(x => x.SparesConsumed, _sparesConsumed)
                 .Update();
-         Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
+            Snackbar.Add($"Transaction Completed for job: {_selectedJob!.Id}", Severity.Success);
 
         }
         catch (Exception ex)
@@ -1321,7 +1321,7 @@
                 .Update();
 
 
-            Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
+            Snackbar.Add($"Transaction Completed for job: {_selectedJob!.Id}", Severity.Success);
 
         }
         catch (Exception ex)
