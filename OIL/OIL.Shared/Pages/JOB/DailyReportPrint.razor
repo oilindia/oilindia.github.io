@@ -38,7 +38,6 @@
         font-size: inherit;
         padding: 4px;
         text-align: inherit;
-        /* Modern CSS to auto-expand textarea height based on content */
         field-sizing: content;
         min-height: 22px;
         resize: none;
@@ -49,6 +48,17 @@
             background-color: #ffffff;
             border-color: transparent;
         }
+
+    /* Hide spin buttons for number inputs */
+    input.editable-cell::-webkit-outer-spin-button,
+    input.editable-cell::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input.editable-cell {
+        -moz-appearance: textfield;
+    }
 
     /* =========================================================
                    PRINT FIXES
@@ -138,7 +148,7 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        /* Remove borders and backgrounds from inputs when printing */
+
         .editable-cell {
             border: none !important;
             background-color: transparent !important;
@@ -365,7 +375,7 @@
 <div class="no-print pa-4" style="background: #e3f2fd; border-bottom: 3px solid #1565c0;">
     <MudGrid Justify="Justify.Center" Class="align-center">
 
-        @* --- NEW FIELD TYPE DROPDOWN --- *@
+        @* --- FIELD TYPE DROPDOWN --- *@
         <MudItem xs="12" md="2">
             <MudSelect T="string" Label="Field Type" @bind-Value="selectedFieldType" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="@("Western Fields")" />
@@ -487,10 +497,10 @@ else
                                 <td><textarea class="editable-cell" @bind="job.LocTagNumber"></textarea></td>
                                 <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td>
                                 <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobActionRemarks"></textarea></td>
-
                                 <td><textarea class="editable-cell text-left" @bind="job.JobSpareReplaced"></textarea></td>
 
-                                <td><textarea class="editable-cell text-left" @bind="assignment.JobDoneDetails"></textarea></td>
+                                @* Previous day remarks column was explicitly empty in original layout *@
+                                <td><textarea class="editable-cell text-left" placeholder="Type notes..."></textarea></td>
                             </tr>
                         }
                     }
@@ -551,7 +561,10 @@ else
                                 <td class="text-left">@GetDriverVehicleNumber(assignment.DriverId)</td>
                                 <td class="text-left">@(assignment.PersonnelIds != null ? string.Join(", ", assignment.PersonnelIds.Select(GetEngineerName)) : "")</td>
 
-                                <td><textarea class="editable-cell" @bind="assignment.FieldReport"></textarea></td>
+                                @* Maps to real column assignment.JobOvertime numeric property *@
+                                <td>
+                                    <input type="number" step="0.5" class="editable-cell" @bind="assignment.JobOvertime" style="text-align: center;" placeholder="OT Hrs" />
+                                </td>
                             </tr>
                         }
                     }
@@ -636,7 +649,6 @@ else
         }
     }
 
-    // --- NEW: SAVE METHOD TO UPDATE SUPABASE ---
     private async Task SaveChanges()
     {
         _isSaving = true;
@@ -644,31 +656,27 @@ else
 
         try
         {
-            // 1. Collect all unique jobs currently displayed on the page
             var displayedJobIds = _prevDayEntries.SelectMany(a => a.JobIds ?? new List<Guid>())
                 .Concat(_todayEntries.SelectMany(a => a.JobIds ?? new List<Guid>()))
                 .Distinct()
                 .ToHashSet();
 
             var jobsToUpdate = _jobs.Where(j => displayedJobIds.Contains(j.Id)).ToList();
+            var assignmentsToUpdate = _prevDayEntries.Concat(_todayEntries).DistinctBy(a => a.Id).ToList();
 
-            // 2. Collect all assignments displayed on the page
-            var assignmentsToUpdate = _prevDayEntries.Concat(_todayEntries).ToList();
-
-            // 3. Update Jobs
+            // 1. Update Jobs
             foreach (var job in jobsToUpdate)
             {
                 await SupabaseClient.From<Job>().Update(job);
             }
 
-            // 4. Update Assignments
+            // 2. Update Assignments
             foreach (var assignment in assignmentsToUpdate)
             {
                 await SupabaseClient.From<Assignment>().Update(assignment);
             }
 
-            // Provide visual feedback
-            Snackbar?.Add("Changes saved successfully!", Severity.Success);
+            Snackbar?.Add("Changes saved safely to database!", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -720,7 +728,7 @@ else
 
     private async Task HandlePrint() => await JS.InvokeVoidAsync("window.print");
 
-    // --- MODELS ---
+    // --- MODELS (CLEANED UP FROM DEPRECATED COLUMNS) ---
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {
@@ -731,13 +739,6 @@ else
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("job_overtime")] public double? JobOvertime { get; set; }
-        [Column("notification_no")] public string NotificationNo { get; set; }
-        [Column("device_type")] public string DeviceType { get; set; }
-        [Column("tag_no")] public string TagNo { get; set; }
-        [Column("field_report")] public string FieldReport { get; set; }
-        [Column("job_done_details")] public string JobDoneDetails { get; set; }
-        [Column("planned_task")] public string PlannedTask { get; set; }
-        [Column("spare_used")] public string SpareUsed { get; set; }
     }
 
     [Table("jobs")]

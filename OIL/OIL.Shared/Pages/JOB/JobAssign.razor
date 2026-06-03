@@ -236,9 +236,9 @@ else
             <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-warning); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
                 <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Shift</b></MudText>
                 <MudSelect T="string" Label="Select Shift" Variant="Variant.Outlined" @bind-Value="_selectedShift" AnchorOrigin="Origin.BottomCenter">
-                    <MudSelectItem Value="@("Morning")">Morning</MudSelectItem>
-                    <MudSelectItem Value="@("Evening")">Evening</MudSelectItem>
-                    @* <MudSelectItem Value="@("Night")">Night</MudSelectItem> *@
+                    <MudSelectItem Value="@("M")">Morning</MudSelectItem>
+                    <MudSelectItem Value="@("E")">Evening</MudSelectItem>
+                    <MudSelectItem Value="@("G")">General</MudSelectItem>
                 </MudSelect>
             </MudPaper>
         </MudItem>
@@ -861,7 +861,7 @@ else
     //Rsource Dispatch Mapper
 
     private bool _loading = true, _isPreviewOpen, _isEditModalOpen;
-    private string _selectedShift = "Morning";
+    private string _selectedShift = "M";
     private Driver? _selectedDriver, _editDriver;
     private IReadOnlyCollection<Job> _selectedJobs { get; set; } = new List<Job>();
     private IReadOnlyCollection<Engineer> _selectedEngineers { get; set; } = new List<Engineer>();
