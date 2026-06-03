@@ -1210,8 +1210,24 @@
                     Snackbar.Add($"Save Error: {detailEx.Message}", Severity.Error);
                     Console.WriteLine($"Error saving detail for Cert {detail.CertNo}: {detailEx.Message}");
                 }
-                Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
+                
             }
+        
+            var jobUpdate = new Job
+            {
+                Status = "Completed",
+                SparesConsumed = _sparesConsumed
+            };
+
+            // Execute the update
+            var jobresponse = await SupabaseClient
+                .From<Job>()
+                .Where(x => x.Id == _selectedJob!.Id)
+                .Set(x => x.Status, "completed")
+                .Set(x => x.SparesConsumed, _sparesConsumed)
+                .Update();
+         Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
+
         }
         catch (Exception ex)
         {
@@ -1287,10 +1303,25 @@
                 {
                     Console.WriteLine($"Error saving detail for Cert {detail.CertNo}: {detailEx.Message}");
                 }
-                Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
+                
             }
 
+            var jobUpdate = new Job
+            {
+                Status = "Completed",
+                SparesConsumed = _sparesConsumed
+            };
 
+            // Execute the update
+            var jobresponse = await SupabaseClient
+                .From<Job>()
+                .Where(x => x.Id == _selectedJob!.Id)
+                .Set(x => x.Status, "completed")
+                .Set(x => x.SparesConsumed, _sparesConsumed)
+                .Update();
+
+
+            Snackbar.Add($"Transaction Completed: {detail.CertNo}", Severity.Success);
 
         }
         catch (Exception ex)
@@ -1514,6 +1545,7 @@
         [Supabase.Postgrest.Attributes.Column("status")] public string Status { get; set; } = "";
         [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
         [Supabase.Postgrest.Attributes.Column("job_type")] public string JobType { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("job_spare_replaced")] public string SparesConsumed { get; set; } = "";
     }
 
     [Supabase.Postgrest.Attributes.Table("locations")]

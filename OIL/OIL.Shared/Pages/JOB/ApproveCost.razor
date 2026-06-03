@@ -95,7 +95,9 @@
             <MudTh>Engineers</MudTh>
             <MudTh>Action By</MudTh>
             <MudTh>Action Time</MudTh>
+            <MudTh>Overtime Filled</MudTh>
             <MudTh>Overtime Approved</MudTh>
+            <MudTh>Spares Consumed</MudTh>
             <MudTh>Spare Cost Approved</MudTh>
             <MudTh>Update Action</MudTh>
             <MudTh>Description</MudTh>
@@ -126,6 +128,8 @@
             <MudTd DataLabel="Action By">@context.JobActionBy</MudTd>
             <MudTd DataLabel="Action Time">@(context.JobActionTime?.ToString("dd-MMM-yyyy HH:mm"))</MudTd>
 
+            <MudTd DataLabel="Overtime Filled">@context.JobOverTime</MudTd>
+
             <MudTd DataLabel="Overtime Approved">
                 <MudNumericField T="float?" 
                                  @bind-Value="context.OvertimeApproved" 
@@ -134,6 +138,8 @@
                                  Min="0" 
                                  HideSpinButtons="true" />
             </MudTd>
+
+            <MudTd DataLabel="Spares Consumed">@context.JobSpareReplaced</MudTd>
 
             <MudTd DataLabel="Spare Cost Approved">
                 <MudNumericField T="float?" 
@@ -199,6 +205,10 @@
 
         [Column("job_action_remarks")]
         public string JobActionRemarks { get; set; }
+
+        
+        [Column("job_spare_replaced")]
+        public string JobSpareReplaced { get; set; }
 
         // NEW COLUMNS ADDED
         [Column("cost_approved_by")]
@@ -337,6 +347,8 @@
         public string PmRemarks { get; set; }
 
         // NEW PROPERTIES
+        public string JobSpareReplaced { get; set; }
+
         public float? OvertimeApproved { get; set; }
         public float? JobSpareCostApproved { get; set; }
         public string CostApprovedBy { get; set; }
@@ -467,6 +479,7 @@
                         JobActionTime = assignment.JobActionTime,
                         JobOverTime = assignment.JobOverTime,
                         JobActionRemarks = assignment.JobActionRemarks,
+                        JobSpareReplaced = foundJob.JobSpareReplaced,
 
                         PmWorkStatus = foundPm?.WorkStatus,
                         PmRemarks = foundPm?.Remarks
