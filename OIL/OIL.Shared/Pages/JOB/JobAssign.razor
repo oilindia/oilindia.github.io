@@ -569,7 +569,7 @@ else
 @code {
 
     private List<DateTime> _daysInMonth = new();
-    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL" };
+    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL", "O1", "O2", "M1","M2", "E1" , "E2"};
     private Dictionary<string, AttendanceScheduleModel> _pendingChanges = new();
     private bool _isSaving = false;
     private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
