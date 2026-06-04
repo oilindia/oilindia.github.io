@@ -1406,28 +1406,38 @@ else
     // --- Implement OpenEditModal ---
     private async Task OpenEditModal(Assignment item)
     {
-        _editingItem = item;
+        try
+        {
+            _editingItem = item;
 
-        // 1. Map existing Driver and Engineers from memory
-        _editDriver = _dbDrivers.FirstOrDefault(d => d.Id == item.DriverId);
-        _editEngineers = _dbEngineers.Where(e => item.PersonnelIds.Contains(e.Id)).ToList();
+            // 1. Map existing Driver and Engineers from memory
+            _editDriver = _dbDrivers.FirstOrDefault(d => d.Id == item.DriverId);
+            _editEngineers = _dbEngineers.Where(e => item.PersonnelIds.Contains(e.Id)).ToList();
 
-        // 2. Fetch the specific Jobs assigned to this record (since they aren't in the pending _dbJobs list)
-        var assignedJobsResponse = await SupabaseClient.From<Job>()
-            .Where(x => item.JobIds.Contains(x.Id))
-            .Get();
+            // 2. FIX: Use native Postgrest Filter with Operator.In instead of .Where()
+            var assignedJobsResponse = await SupabaseClient.From<Job>()
+                .Filter("id", Supabase.Postgrest.Constants.Operator.In, item.JobIds)
+                .Get();
 
-        var assignedJobs = assignedJobsResponse.Models;
+            var assignedJobs = assignedJobsResponse.Models;
 
-        // 3. Combine pending jobs with the currently assigned jobs to populate the dropdown
-        _availableJobsForEdit = _dbJobs.ToList(); // Start with pending jobs
-        _availableJobsForEdit.AddRange(assignedJobs);
-        _availableJobsForEdit = _availableJobsForEdit.DistinctBy(j => j.Id).ToList(); // Prevent duplicates
+            // 3. Combine pending jobs with the currently assigned jobs to populate the dropdown
+            _availableJobsForEdit = _dbJobs.ToList();
+            _availableJobsForEdit.AddRange(assignedJobs);
+            _availableJobsForEdit = _availableJobsForEdit.DistinctBy(j => j.Id).ToList();
 
-        // 4. Set the pre-selected values in the dropdown
-        _editJobs = assignedJobs;
+            // 4. Set the pre-selected values in the dropdown
+            _editJobs = assignedJobs;
 
-        _isEditModalOpen = true;
+            _isEditModalOpen = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Method Error: {ex.Message}");
+            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+        }
+
+       
     }
 
     // --- Implement UpdateAssignment ---
