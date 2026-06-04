@@ -1,4 +1,11 @@
 ﻿@page "/jobassign"
+
+@using Npgsql
+@using Dapper
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Config
+
+
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Models
@@ -43,7 +50,7 @@
     <MudExpansionPanels Class="mb-4 mx-2">
         <MudExpansionPanel Text="Bulk Mark Attendance" Icon="@Icons.Material.Filled.BatchPrediction">
             <MudGrid AlignItems="AlignItems.Center" Class="pa-2">
-               @*  <MudItem xs="12" md="3">
+                @*  <MudItem xs="12" md="3">
                     <MudSelect T="Member" Label="Resource" @bind-Value="_bulkMember" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense">
                         @foreach (var m in AttendanceData.Engineers.Concat(AttendanceData.Drivers))
                         {
@@ -102,18 +109,18 @@
     <div class="d-flex justify-end gap-3 mb-2 mx-2">
         <MudFileUpload T="IBrowserFile" FilesChanged="ImportFromExcel" Accept=".xlsx" MaxFileSize="10485760">
             <ActivatorContent>
-                <MudButton HtmlTag="label" 
-                           Variant="Variant.Outlined" 
-                           Color="Color.Info" 
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Outlined"
+                           Color="Color.Info"
                            StartIcon="@Icons.Material.Filled.FileUpload">
                     Import Excel
                 </MudButton>
             </ActivatorContent>
         </MudFileUpload>
 
-        <MudButton Variant="Variant.Outlined" 
-                   Color="Color.Success" 
-                   StartIcon="@Icons.Material.Filled.FileDownload" 
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.FileDownload"
                    OnClick="ExportToExcel">
             Export Excel
         </MudButton>
@@ -135,10 +142,10 @@
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
             <div id="staff-grid" class="grid-scroll-container">
                 <MudTable Items="@(AttendanceData.Engineers
-                              .OrderBy(x => x.TeamGroup)
-                              .ThenBy(x => GetTodayPriority(x.UniqueId)))" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                                                        .OrderBy(x => x.TeamGroup)
+                                                        .ThenBy(x => GetTodayPriority(x.UniqueId)))" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
-                        
+
                         <MudTh Class="sticky-col">E.Code</MudTh>
                         <MudTh Class="sticky-col">Team Group</MudTh>
                         <MudTh Class="sticky-col">Name</MudTh>
@@ -148,7 +155,7 @@
                         }
                     </HeaderContent>
                     <RowTemplate>
-                        
+
                         <MudTd Class="sticky-col">@context.UniqueId</MudTd>
                         <MudTd Class="sticky-col">@context.TeamGroup</MudTd>
                         <MudTd Class="sticky-col">@context.FullName</MudTd>
@@ -159,8 +166,8 @@
                                 <div class="cell-input-stack">
                                     <select value="@GetStatus(m.UniqueId, d)"
                                             class="native-select
-       @(IsModified(m.UniqueId, d) ? "modified" : "")
-       @GetStatusClass(GetStatus(m.UniqueId, d))"
+                                        @(IsModified(m.UniqueId, d) ? "modified" : "")
+                                        @GetStatusClass(GetStatus(m.UniqueId, d))"
                                             @onchange="@(e => OnEntryChanged(m, d, e.Value?.ToString(), GetReason(m.UniqueId, d)))">
                                         <option value="">--</option>
                                         @foreach (var s in _shiftCodes)
@@ -183,8 +190,8 @@
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Secondary">DRIVERS</MudText>
             <div id="driver-grid" class="grid-scroll-container">
                 <MudTable Items="@(AttendanceData.Drivers
-    .OrderBy(x => x.Role)
-    .ThenBy(x => GetTodayPriority(x.UniqueId)))"  T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
+                              .OrderBy(x => x.Role)
+                              .ThenBy(x => GetTodayPriority(x.UniqueId)))" T="MemberType" Dense="true" Hover="true" Breakpoint="Breakpoint.None" Elevation="0">
                     <HeaderContent>
                         <MudTh Class="sticky-col">Name</MudTh>
                         <MudTh Class="sticky-col">VehicleNo.</MudTh>
@@ -222,6 +229,114 @@
                 </MudTable>
             </div>
         </MudItem>
+
+
+        @* --- NEW: DETAILED JOBS GRID (LAST 3 DAYS) --- *@
+        <MudGrid Spacing="1" Class="px-2 pb-16">
+            <MudItem xs="12">
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Warning">JOBS OVERVIEW (LAST 3 DAYS - ALL STATUSES)</MudText>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadJobsGridDataAsync">Refresh Jobs</MudButton>
+                </div>
+
+                @if (_isJobsLoading)
+                {
+                    <MudProgressLinear Color="Color.Warning" Indeterminate="true" />
+                }
+                else
+                {
+                    <div id="jobs-grid" class="grid-scroll-container" style="max-height: 450px; overflow-y: auto;">
+
+                        
+                        
+                        
+                        
+                        <MudTable Items="@_jobsGridData" Dense="true" Hover="true" Elevation="1" Striped="true" FixedHeader="true" Height="calc(100vh - 200px)">
+
+                            <ColGroup>
+                                <col style="width: 12%;" />
+                                <col style="width: 28%;" />
+                                <col style="width: 15%;" />
+                                <col style="width: 15%;" />
+                                <col style="width: 15%;" />
+                                <col style="width: 7%;" />
+                                <col style="width: 8%;" />
+                            </ColGroup>
+
+                            <HeaderContent>
+                                <MudTh>Date Created</MudTh>
+                                <MudTh>Job & Notification</MudTh>
+                                <MudTh>Location</MudTh>
+                                <MudTh>Assigned Engineer</MudTh>
+                                <MudTh>Logistics Details</MudTh>
+                                <MudTh Style="text-align: center;">Priority</MudTh>
+                                <MudTh Style="text-align: center;">Status</MudTh>
+                            </HeaderContent>
+
+                            <RowTemplate>
+                                <MudTd DataLabel="Date Created">
+                                    <MudText Typo="Typo.body2" Class="fw-bold">@context.CreatedAt?.ToString("dd MMM yyyy")</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.CreatedAt?.ToString("HH:mm")</MudText>
+                                </MudTd>
+
+                                <MudTd DataLabel="Job & Notification" Style="white-space: normal; word-break: break-word;">
+                                    <MudText Typo="Typo.body2" Class="fw-bold mb-1">@context.JobName</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        No: @(string.IsNullOrEmpty(context.NotificationNumber) ? "N/A" : context.NotificationNumber) | Type: @context.JobType
+                                    </MudText>
+                                </MudTd>
+
+                                <MudTd DataLabel="Location">
+                                    <div class="d-flex align-start gap-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mud-text-secondary mt-1" />
+                                        <MudText Typo="Typo.body2" Style="white-space: normal; word-break: break-word;">
+                                            @context.LocationName
+                                        </MudText>
+                                    </div>
+                                </MudTd>
+
+                                <MudTd DataLabel="Assigned Engineer">
+                                    @if (context.EngineerNames != "Unassigned")
+                                    {
+                                        <MudText Typo="Typo.body2" Class="fw-bold">@context.EngineerNames</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Code: @context.EngineerCodes</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.body2" Class="mud-text-secondary"><em>Unassigned</em></MudText>
+                                    }
+                                </MudTd>
+
+                                <MudTd DataLabel="Logistics Details">
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                        <em>No Dispatch Active</em>
+                                    </MudText>
+                                </MudTd>
+
+                                <MudTd DataLabel="Priority">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(context.Priority)" Variant="Variant.Text" Class="font-weight-bold">
+                                        @context.Priority
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Status">
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)" Variant="Variant.Filled">
+                                        @context.Status
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+
+
+                    </div>
+                }
+            </MudItem>
+        </MudGrid>
+
+
+
+
+
+
     </MudGrid>
 }
 else
@@ -510,7 +625,7 @@ else
                     }
                     @foreach (var task in ActiveJobData.JCDetailedDesc)
                     {
-                        <div class="mb-2">( @task.JobDetailedDescString )</div>      
+                        <div class="mb-2">( @task.JobDetailedDescString )</div>
                     }
                 </div>
             </div>
@@ -594,8 +709,224 @@ else
 
 @code {
 
+    //JobsGrid Data
+    // --- New Jobs Grid Properties ---
+    private bool _isJobsLoading = true;
+    private List<JobDetailsDto> _jobsGridData = new();
+
+    public async Task LoadJobsGridDataAsync()
+    {
+        try
+        {
+            _isJobsLoading = true;
+            StateHasChanged();
+
+            // 1. Fetch 50 Jobs
+            var jobs = (await SupabaseClient.From<Job>()
+                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(50)
+                .Get()).Models;
+
+            // 2. Fetch Assignments
+            var assignments = (await SupabaseClient.From<Assignment>()
+                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(50)
+                .Get()).Models;
+
+            // 3. Extract IDs for Lookups (Using .Where(x => x != 0) instead of .HasValue)
+            var locationIds = jobs.Where(a => a.JobLocationId != 0).Select(a => a.JobLocationId).Distinct().ToList();
+            var engineerIds = assignments.Where(a => a.PersonnelIds != null && a.PersonnelIds.Any()).SelectMany(a => a.PersonnelIds).Distinct().ToList();
+            var driverIds = assignments.Where(a => a.DriverId != 0).Select(a => a.DriverId).Distinct().ToList();
+
+            // 4. Fetch References using .Filter instead of .In
+            var locations = (await SupabaseClient.From<LocationTable>()
+                .Filter("id", Supabase.Postgrest.Constants.Operator.In, locationIds)
+                .Get()).Models.ToDictionary(l => l.Id);
+
+            var engineers = (await SupabaseClient.From<Engineer>()
+                        .Filter("id", Supabase.Postgrest.Constants.Operator.In, engineerIds)
+                        .Get()).Models.ToDictionary(e => e.Id);
+
+            var drivers = (await SupabaseClient.From<Driver>()
+                        .Filter("id", Supabase.Postgrest.Constants.Operator.In, driverIds)
+                        .Get()).Models.ToDictionary(d => d.Id);
+
+            // 5. Map to DTO
+            _jobsGridData = jobs.Select(job =>
+            {
+                // Note: Since you stated assigned_to is in job_assignments, we find the assignment containing this job.id
+                // If your DB job_ids are integers, ensure the comparison type matches.
+                //var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains((Guid)job.Id.GetHashCode()));
+
+                // Simply check if the JobIds array contains the current job's Guid
+                var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
+
+                // Resolve Location from Job
+                locations.TryGetValue(job.JobLocationId, out var loc);
+                // Resolve Engineers safely
+                string names = "Unassigned";
+                string codes = "N/A";
+
+                if (assignment?.PersonnelIds != null && assignment.PersonnelIds.Count() > 0)
+                {
+                    var assignedEngineers = assignment.PersonnelIds
+                        .Where(id => engineers.ContainsKey(id))
+                        .Select(id => engineers[id])
+                        .ToList();
+
+                    if (assignedEngineers.Any())
+                    {
+                        names = string.Join(", ", assignedEngineers.Select(e => e.FullName));
+                        //codes = string.Join(", ", assignedEngineers.Select(e => e.EmpCode));
+                    }
+                }
+                // Resolve Driver
+                drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
+
+
+                // locations.TryGetValue(assignment?.LocationId ?? 0, out var loc);
+                // engineers.TryGetValue(assignment?.AssignedToId ?? 0, out var eng);
+                //drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
+
+                return new JobDetailsDto
+                {
+                    Id = job.Id,
+                    CreatedAt = job.CreatedAt,
+                    JobName = job.JobName,
+                    //NotificationNumber = job.NotificationNumber,
+                    //Priority = job.Priority ?? "Normal",
+                    JobType = job.tbJobType,
+                    Status = job.JobStatus ?? "pending",
+                    LocationName = loc != null ? (loc.InstallationName ?? "Unknown") : "N/A",
+                    // Join the names and codes into a single string
+                    EngineerNames = names,
+                    //EngineerCodes = codes,
+                    ShiftName = assignment?.ShiftName,
+                    DriverName = drv?.DriverName,
+                    VehicleNumber = drv?.VehicleNumber
+                };
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isJobsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // // --- Supabase Model Mappings (Decorated with Attributes) ---
+    // [Supabase.Postgrest.Attributes.Table("jobs")]
+    // public class Job : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [Supabase.Postgrest.Attributes.PrimaryKey("id")] public Guid Id { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("created_at")] public DateTime? CreatedAt { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("job_name")] public string JobName { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("location_id")] public long? LocationId { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("assigned_to_id")] public long? AssignedToId { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("priority")] public string Priority { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("status")] public string Status { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("job_type")] public string JobType { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("notification_number")] public string NotificationNumber { get; set; }
+    // }
+
+    // [Supabase.Postgrest.Attributes.Table("job_assignments")]
+    // public class JobAssignment : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [Supabase.Postgrest.Attributes.PrimaryKey("id")] public Guid Id { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("driver_id")] public long? DriverId { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("shift_name")] public string ShiftName { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("job_ids")] public Guid[] JobIds { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("created_at")] public DateTime? CreatedAt { get; set; }
+    // }
+
+    // [Supabase.Postgrest.Attributes.Table("locations")]
+    // public class Location : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [Supabase.Postgrest.Attributes.PrimaryKey("id")] public long Id { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("area_name")] public string AreaName { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("installation_name")] public string InstallationName { get; set; }
+    // }
+
+    // [Supabase.Postgrest.Attributes.Table("employees_engineers")]
+    // public class Engineer : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [Supabase.Postgrest.Attributes.PrimaryKey("id")] public long Id { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("full_name")] public string FullName { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("emp_code")] public string EmpCode { get; set; }
+    // }
+
+    // [Supabase.Postgrest.Attributes.Table("drivers")]
+    // public class Driver : Supabase.Postgrest.Models.BaseModel
+    // {
+    //     [Supabase.Postgrest.Attributes.PrimaryKey("id")] public long Id { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("full_name")] public string FullName { get; set; }
+    //     [Supabase.Postgrest.Attributes.Column("vehicle_number")] public string VehicleNumber { get; set; }
+    // }
+
+    // Call this inside your existing ApplyBulkUpdate or SaveChanges methods to refresh the grid layout
+    private async Task TriggerUIRefresh()
+    {
+        await LoadJobsGridDataAsync();
+    }
+    // --- Helper Methods for Job Grid Chip Colors ---
+    private Color GetPriorityColor(string priority) => priority?.ToLower() switch
+    {
+        "high" => Color.Error,
+        "normal" => Color.Info,
+        "low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetStatusColor(string status) => status?.ToLower() switch
+    {
+        "pending" => Color.Warning,
+        "assigned" => Color.Info,
+        "completed" => Color.Success,
+        "cancelled" => Color.Error,
+        _ => Color.Default
+    };
+    // --- Data Mapping DTOs ---
+    private class RawJob { public Guid id { get; set; } public DateTime? created_at { get; set; } public string job_name { get; set; } public long? location_id { get; set; } public long? assigned_to_id { get; set; } public string priority { get; set; } public string status { get; set; } public string job_type { get; set; } public string notification_number { get; set; } }
+    private class RawAssignment { public Guid id { get; set; } public long? driver_id { get; set; } public string shift_name { get; set; } public Guid[] job_ids { get; set; } public DateTime? created_at { get; set; } }
+    private class RawLocation { public long id { get; set; } public string area_name { get; set; } public string installation_name { get; set; } }
+    private class RawEngineer { public long id { get; set; } public string full_name { get; set; } public string emp_code { get; set; } }
+    private class RawDriver { public long id { get; set; } public string full_name { get; set; } public string vehicle_number { get; set; } }
+
+    public class JobDetailsDto
+    {
+        public Guid Id { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public string JobName { get; set; }
+        public string NotificationNumber { get; set; }
+        public string Priority { get; set; }
+        public string JobType { get; set; }
+        public string Status { get; set; }
+        public string LocationName { get; set; }
+        public string EngineerNames { get; set; }
+        public string EngineerCodes { get; set; }
+        public string ShiftName { get; set; }
+        public string DriverName { get; set; }
+        public string VehicleNumber { get; set; }
+    }
+
+    public class UuidArrayHandler : SqlMapper.TypeHandler<Guid[]>
+    {
+        public override void SetValue(System.Data.IDbDataParameter parameter, Guid[] value) => parameter.Value = value;
+        public override Guid[] Parse(object value) => value as Guid[];
+    }
+
+
+
+
+
+
+
     private List<DateTime> _daysInMonth = new();
-    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL", "O1", "O2","O3", "M1","M2","M3","E1","E2","E3"};
+    private string[] _shiftCodes = { "P", "G", "M", "E", "A", "O", "CL", "SL", "O1", "O2", "O3", "M1", "M2", "M3", "E1", "E2", "E3" };
     private Dictionary<string, AttendanceScheduleModel> _pendingChanges = new();
     private bool _isSaving = false;
     private bool IsModified(string id, DateTime date) => _pendingChanges.ContainsKey($"{id}_{date:yyyyMMdd}");
@@ -641,7 +972,7 @@ else
         LoadData();
 
 
-       
+        LoadJobsGridDataAsync();
 
 
     }
@@ -1047,7 +1378,7 @@ else
         try
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending" ).Get()).Models;
+            _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
             _dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
             _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
 
@@ -1071,12 +1402,14 @@ else
                 x => (x.JobName ?? "", x.JobDescription ?? "") // Use your actual Description property name here
             );
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
-        finally { _loading = false; StateHasChanged();
-             await JS.InvokeVoidAsync("scrollToToday");
+        finally
+        {
+            _loading = false; StateHasChanged();
+            await JS.InvokeVoidAsync("scrollToToday");
         }
     }
 
@@ -1387,7 +1720,7 @@ else
     //             {
     //                 JobDetailedDescString = GetJobDetailDesc(id) ?? "No Description"
     //             }).ToList() ?? new List<JobDetailedDesc>(),
-            
+
     //         };
     //         StateHasChanged();
     //         _isPreviewOpen = true;
@@ -1397,39 +1730,72 @@ else
     //         Console.WriteLine($"Method Error: {ex.Message}");
     //         Snackbar.Add($"Error : {ex.Message}", Severity.Error);
     //     }
-    
+
     // }
 
     // --- Add this to your declarations ---
     private List<Job> _availableJobsForEdit = new();
+    // Add this field to your variables
+    private List<Job> _allDbJobs = new();
 
     // --- Implement OpenEditModal ---
     private async Task OpenEditModal(Assignment item)
     {
         try
         {
+            // Fetch ALL jobs to allow re-assignment inside the edit modal
+            _allDbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus != "deleted") // Avoid pulling deleted assignments
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(55)
+                .Get()).Models;
+
+            _assignments = (await SupabaseClient.From<Assignment>()
+                .Where(x => x.Status != "deleted") // Avoid pulling deleted assignments
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(35)
+                .Get()).Models;
+
+            _jobDictionary = _allDbJobs.ToDictionary(
+                x => x.Id.ToString(),
+                x => (x.JobName ?? "", x.JobDescription ?? "")
+            );
+
+
             _editingItem = item;
 
-            // 1. Map existing Driver and Engineers from memory
             _editDriver = _dbDrivers.FirstOrDefault(d => d.Id == item.DriverId);
             _editEngineers = _dbEngineers.Where(e => item.PersonnelIds.Contains(e.Id)).ToList();
 
-            // 2. FIX: Use native Postgrest Filter with Operator.In instead of .Where()
-            var assignedJobsResponse = await SupabaseClient.From<Job>()
-                .Filter("id", Supabase.Postgrest.Constants.Operator.In, item.JobIds)
-                .Get();
+            // Show ALL jobs in the dropdown, regardless of whether they are pending or assigned elsewhere
+            _availableJobsForEdit = _allDbJobs.ToList();
 
-            var assignedJobs = assignedJobsResponse.Models;
-
-            // 3. Combine pending jobs with the currently assigned jobs to populate the dropdown
-            _availableJobsForEdit = _dbJobs.ToList();
-            _availableJobsForEdit.AddRange(assignedJobs);
-            _availableJobsForEdit = _availableJobsForEdit.DistinctBy(j => j.Id).ToList();
-
-            // 4. Set the pre-selected values in the dropdown
-            _editJobs = assignedJobs;
+            // Map currently assigned items for this specific card
+            _editJobs = _allDbJobs.Where(j => item.JobIds.Contains(j.Id)).ToList();
 
             _isEditModalOpen = true;
+
+            // _editingItem = item;
+
+            // // 1. Map existing Driver and Engineers from memory
+            // _editDriver = _dbDrivers.FirstOrDefault(d => d.Id == item.DriverId);
+            // _editEngineers = _dbEngineers.Where(e => item.PersonnelIds.Contains(e.Id)).ToList();
+
+            // // 2. FIX: Use native Postgrest Filter with Operator.In instead of .Where()
+            // var assignedJobsResponse = await SupabaseClient.From<Job>()
+            //     .Filter("id", Supabase.Postgrest.Constants.Operator.In, item.JobIds)
+            //     .Get();
+
+            // var assignedJobs = assignedJobsResponse.Models;
+
+            // // 3. Combine pending jobs with the currently assigned jobs to populate the dropdown
+            // _availableJobsForEdit = _dbJobs.ToList();
+            // _availableJobsForEdit.AddRange(assignedJobs);
+            // _availableJobsForEdit = _availableJobsForEdit.DistinctBy(j => j.Id).ToList();
+
+            // // 4. Set the pre-selected values in the dropdown
+            // _editJobs = assignedJobs;
+
+            // _isEditModalOpen = true;
         }
         catch (Exception ex)
         {
@@ -1440,60 +1806,123 @@ else
        
     }
 
-    // --- Implement UpdateAssignment ---
     private async Task UpdateAssignment()
     {
         try
         {
-            var oldJobIds = _editingItem.JobIds ?? new List<Guid>(); // Or int, depending on your ID type
+            _loading = true;
+
+            // 0. Fetch fresh active assignments to ensure we capture any real-time shifts
+            var activeAssignments = (await SupabaseClient.From<Assignment>()
+                .Where(x => x.Status != "deleted" && x.Id != _editingItem.Id)
+                .Get()).Models;
+
+            // =================================================================
+            // FIX: Match types exactly to Postgres DDL layout
+            // =================================================================
+
+            // 1. Jobs are UUIDs -> C# Guid
+            var oldJobIds = _editingItem.JobIds ?? new List<Guid>();
             var newJobIds = _editJobs.Select(j => j.Id).ToList();
 
-            // 1. Calculate which jobs were removed and which were added
+            // 2. Personnel are bigints -> C# long
+            var oldPersonnelIds = _editingItem.PersonnelIds ?? new List<long>();
+            var newPersonnelIds = _editEngineers.Select(e => e.Id).ToList();
+
+            // 3. Driver is bigint null -> C# long?
+            long? newDriverId = _editDriver?.Id;
+
+            // =================================================================
+            // STEP 1: RESOLVE JOB CONFLICTS & UPDATES (Guid / UUID)
+            // =================================================================
             var jobsToUnassignIds = oldJobIds.Except(newJobIds).ToList();
             var jobsToAssignIds = newJobIds.Except(oldJobIds).ToList();
 
-            // 2. Revert unselected jobs back to "pending"
-            if (jobsToUnassignIds.Any())
+            // If a job was unselected from this assignment, it returns to "pending"
+            foreach (var jobId in jobsToUnassignIds)
             {
-                var unassignedJobsResult = await SupabaseClient.From<Job>()
-                    .Where(x => jobsToUnassignIds.Contains(x.Id))
-                    .Get();
-
-                foreach (var job in unassignedJobsResult.Models)
+                var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
+                if (job != null)
                 {
                     job.JobStatus = "pending";
                     await SupabaseClient.From<Job>().Update(job);
                 }
             }
 
-            // 3. Update newly selected jobs to "assigned"
-            if (jobsToAssignIds.Any())
+            // If a job is newly added here, check if it was stolen from another assignment
+            foreach (var jobId in jobsToAssignIds)
             {
-                var jobsToUpdate = _editJobs.Where(j => jobsToAssignIds.Contains(j.Id)).ToList();
-                foreach (var job in jobsToUpdate)
+                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(jobId));
+                if (conflictAssignment != null)
+                {
+                    conflictAssignment.JobIds.Remove(jobId);
+                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
+                }
+
+                var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
+                if (job != null)
                 {
                     job.JobStatus = "assigned";
                     await SupabaseClient.From<Job>().Update(job);
                 }
             }
 
-            // 4. Update the Assignment record itself
-            _editingItem.DriverId = _editDriver?.Id ?? default;
+            // =================================================================
+            // STEP 2: RESOLVE PERSONNEL (ENGINEER) CONFLICTS (long / bigint)
+            // =================================================================
+            var engineersStolenIds = newPersonnelIds.Except(oldPersonnelIds).ToList();
+
+            foreach (var engId in engineersStolenIds)
+            {
+                // If this engineer is working elsewhere, remove them from that assignment
+                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.PersonnelIds != null && a.PersonnelIds.Contains(engId));
+                if (conflictAssignment != null)
+                {
+                    conflictAssignment.PersonnelIds.Remove(engId);
+                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
+                }
+            }
+
+            // =================================================================
+            // STEP 3: RESOLVE DRIVER / VEHICLE CONFLICTS (long? / bigint null)
+            // =================================================================
+            if (newDriverId.HasValue && newDriverId != _editingItem.DriverId)
+            {
+                // If the newly selected driver is assigned to another team, clear them from that team
+                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.DriverId == newDriverId);
+                if (conflictAssignment != null)
+                {
+                    conflictAssignment.DriverId = null; // Explicitly null out the driver from the old team
+                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
+                }
+            }
+
+            // =================================================================
+            // STEP 4: SAVE THE CURRENT ASSIGNMENT CHANGES
+            // =================================================================
+            _editingItem.DriverId = newDriverId;
             _editingItem.JobIds = newJobIds;
-            _editingItem.PersonnelIds = _editEngineers.Select(e => e.Id).ToList();
+            _editingItem.PersonnelIds = newPersonnelIds;
 
             await SupabaseClient.From<Assignment>().Update(_editingItem);
 
-            // 5. Cleanup and refresh UI
+            // =================================================================
+            // STEP 5: REFRESH STATE
+            // =================================================================
             _isEditModalOpen = false;
-            Snackbar.Add("Assignment updated successfully", Severity.Success);
+            Snackbar.Add("Assignment updated and resource conflicts resolved!", Severity.Success);
 
-            await LoadData(); // This will refresh _dbJobs (pending only) and the grid
+            await LoadData();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Update Error: {ex.Message}");
+            Console.WriteLine($"Critical Update Error: {ex.Message}");
             Snackbar.Add($"Error updating assignment: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
         }
     }
 
@@ -1525,8 +1954,8 @@ else
     }
     private string GetDriverName(long? id) => _dbDrivers.FirstOrDefault(x => x.Id == id)?.VehicleNumber ?? "";
 
-    // private async Task<string> GetJobName(Guid id) 
-    // { 
+    // private async Task<string> GetJobName(Guid id)
+    // {
     //     _dbJobs = (await SupabaseClient.From<Job>().Get()).Models;
 
     //     string JobName = _dbJobs.FirstOrDefault(x => x.Id.ToString() == id.ToString())?.JobName ?? "N/A";
@@ -1605,7 +2034,7 @@ else
 
     public class JobCardModel { public string JobassignedBy { get; set; } = ""; public string DocNumber { get; set; } = ""; public DateTime Date { get; set; } public List<JobTask> Tasks { get; set; } = new(); public List<string> Personnel { get; set; } = new(); public string Vehicle { get; set; } = ""; public List<JobLocations> JCLocations { get; set; } = new(); public List<JobDetailedDesc> JCDetailedDesc { get; set; } = new(); }
     // public class JobTask { public string Description { get; set; } = ""; }
-    
+
     public class JobTask
     {
         public string Description { get; set; } = "";     // Will store Job Name
@@ -1624,12 +2053,18 @@ else
     }
 
     [Table("drivers")] public class Driver : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("vehicle_number")] public string VehicleNumber { get; set; } = ""; [Column("full_name")] public string DriverName { get; set; } = ""; }
-    [Table("jobs")] 
-    public class Job : BaseModel { 
-        [PrimaryKey("id")] public Guid Id { get; set; } 
-        [Column("job_name")] public string JobName { get; set; } = ""; 
-        [Column("status")] public string JobStatus { get; set; } = ""; 
-        [Column("description")] public string JobDescription { get; set; } = ""; 
+    [Table("jobs")]
+    public class Job : BaseModel
+    {
+        [PrimaryKey("id")] public Guid Id { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("status")] public string JobStatus { get; set; } = "";
+        [Column("description")] public string JobDescription { get; set; } = "";
+
+        [Column("job_type")] public string tbJobType { get; set; } = "";
+        //[Column("status")] public string tbJobStatus { get; set; } = "";
+
         [Column("location_id")] public long JobLocationId { get; set; }
 
         
@@ -1640,7 +2075,7 @@ else
         public LocationTable Location { get; set; }
     }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; [Column("section")] public string Section { get; set; } = ""; [Column("designation")] public string Designation { get; set; } = ""; }
-    
+
     
     [Table("job_assignments")]
     public class Assignment : BaseModel
@@ -1674,8 +2109,8 @@ else
 
 <style>
     /* =========================================================
-               1. GLOBAL PAGE & LAYOUT
-            ========================================================= */
+                   1. GLOBAL PAGE & LAYOUT
+                ========================================================= */
     html, body {
         margin: 0;
         padding: 0;
@@ -1709,8 +2144,8 @@ else
         }
 
     /* =========================================================
-               2. MUDBLAZOR TABLE OVERRIDES
-            ========================================================= */
+                   2. MUDBLAZOR TABLE OVERRIDES
+                ========================================================= */
     .mud-table-root {
         background: white !important;
     }
@@ -1783,8 +2218,8 @@ else
     }
 
     /* =========================================================
-               3. INPUTS & CONTROLS
-            ========================================================= */
+                   3. INPUTS & CONTROLS
+                ========================================================= */
     .cell-input-stack {
         display: flex;
         flex-direction: column;
@@ -1878,8 +2313,8 @@ else
     }
 
     /* =========================================================
-               4. STATE & STATUS COLORS
-            ========================================================= */
+                   4. STATE & STATUS COLORS
+                ========================================================= */
     .modified {
         background-color: #fff8c6 !important;
         border: 1px solid #fbc02d !important;
@@ -1953,8 +2388,8 @@ else
     }
 
     /* =========================================================
-               5. PRINT PREVIEW (SCREEN DISPLAY) & JOB CARD
-            ========================================================= */
+                   5. PRINT PREVIEW (SCREEN DISPLAY) & JOB CARD
+                ========================================================= */
     .print-overlay {
         position: fixed;
         inset: 0; /* Shorthand for top/left/right/bottom 0 */
@@ -2046,8 +2481,8 @@ else
     }
 
     /* =========================================================
-               6. MOBILE RESPONSIVENESS (CONSOLIDATED)
-            ========================================================= */
+                   6. MOBILE RESPONSIVENESS (CONSOLIDATED)
+                ========================================================= */
     @@media (max-width: 768px) {
         /* Page & Structural */
         html, body {
@@ -2297,8 +2732,8 @@ else
     }
 
     /* =========================================================
-           7. RELIABLE PRINT ENGINE (WHITELIST APPROACH)
-        ========================================================= */
+               7. RELIABLE PRINT ENGINE (WHITELIST APPROACH)
+            ========================================================= */
     @@page {
         size: A4 portrait;
         margin: 8mm;
@@ -2394,7 +2829,6 @@ else
             border-right: 1px solid black !important;
             border-bottom: none !important;
         }
-
     }
 </style>
 
@@ -3330,7 +3764,7 @@ else
 
 
 
-            @* New CSS ALL -1  *@
+@* New CSS ALL -1  *@
 
 
 @* New CSS ALL - 2 *@
@@ -3505,7 +3939,7 @@ else
     }
 </style> *@
 
-            @* New CSS ALL - 3 *@
+@* New CSS ALL - 3 *@
 
 
 

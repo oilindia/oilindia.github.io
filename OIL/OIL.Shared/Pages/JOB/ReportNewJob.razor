@@ -153,7 +153,9 @@
                             <MudSelect T="string" Label="Tag Number"
                                        Value="@_selectedTagNumber"
                                        ValueChanged="OnTagNumberChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualTagNumber"
+                                       Variant="Variant.Outlined"
+                                       Required="false" @* Changed from Required="!_isManualTagNumber" *@
+                                       Clearable="true" @* Added to allow users to clear an accidentally selected item *@
                                        Disabled="@(_selectedLocation == null || _isManualLocation || (string.IsNullOrEmpty(_selectedInstrumentType) && !_isManualInstrumentType))">
                                 @foreach (var val in _tagNumberOptions)
                                 {
@@ -163,7 +165,9 @@
                             </MudSelect>
                             @if (_isManualTagNumber)
                             {
-                                <MudTextField T="string" Class="mt-2" Label="Specify Tag Number" @bind-Value="_manualTagNumberText" Variant="Variant.Outlined" Required="true"/>
+                                <MudTextField T="string" Class="mt-2" Label="Specify Tag Number"
+                                              @bind-Value="_manualTagNumberText" Variant="Variant.Outlined"
+                                              Required="false" @* Changed from Required="true" *@ />
                             }
                         </MudItem>
 
@@ -675,47 +679,49 @@
 
     // --- POST TRANSACTION ENTRY ---
 
-    private async Task SubmitJob() {
+    private async Task SubmitJob()
+    {
         if (_isProcessing) return;
         _isProcessing = true;
-        try {
+        try
+        {
             var manualCompilation = new List<string>();
 
             // Compile Locations metadata safely
-            if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText)) 
+            if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText))
                 manualCompilation.Add($"[Inst Loc: {_manualLocationText}]");
 
             // Compile dynamic sub-dropdown metrics
-            if (_selectedInstType == "GCS") {
+            if (_selectedInstType == "GCS")
+            {
                 var gcsVal = _isManualGCSInstrument ? _manualGCSInstrumentText : _selectedGCSInstrument;
-                if (!string.IsNullOrWhiteSpace(gcsVal)) manualCompilation.Add($"[GCS Inst: {gcsVal}]");
+                if (!string.IsNullOrWhiteSpace(gcsVal) && gcsVal != _manualTextPlaceholder)
+                    manualCompilation.Add($"[GCS Inst: {gcsVal}]");
             }
 
             var devVal = _isManualDeviceLocation ? _manualDeviceLocationText : _selectedDeviceLocation;
-            if (!string.IsNullOrWhiteSpace(devVal)) manualCompilation.Add($"[Device Loc: {devVal}]");
+            if (!string.IsNullOrWhiteSpace(devVal) && devVal != _manualTextPlaceholder)
+                manualCompilation.Add($"[Device Loc: {devVal}]");
 
             var typeVal = _isManualInstrumentType ? _manualInstrumentTypeText : _selectedInstrumentType;
-            if (!string.IsNullOrWhiteSpace(typeVal)) manualCompilation.Add($"[Inst Type: {typeVal}]");
+            if (!string.IsNullOrWhiteSpace(typeVal) && typeVal != _manualTextPlaceholder)
+                manualCompilation.Add($"[Inst Type: {typeVal}]");
 
+            // Unified & Optional Tag Number Evaluation Block
             var tagVal = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
-            if (!string.IsNullOrWhiteSpace(tagVal)) manualCompilation.Add($"[Tag No: {tagVal}]");
-
-            // ---> CAPTURE AND ASSIGN TAG NUMBER HERE <---
-            var tagValAssign = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
-            if (!string.IsNullOrWhiteSpace(tagValAssign))
+            if (!string.IsNullOrWhiteSpace(tagVal) && tagVal != _manualTextPlaceholder)
             {
-                manualCompilation.Add($"[Tag No: {tagValAssign}]");
-                _newJob.Loc_Tag_Number = tagValAssign; // Directly populates the structural table field
+                manualCompilation.Add($"[Tag No: {tagVal}]");
+                _newJob.Loc_Tag_Number = tagVal; // Directly populates the structural table field
             }
             else
             {
-                _newJob.Loc_Tag_Number = null;
+                _newJob.Loc_Tag_Number = null; // Cleanly falls back to null if skipped or cleared
             }
 
-
-
             // Append metadata tags directly down onto details payload summary string column
-            if (manualCompilation.Any()) {
+            if (manualCompilation.Any())
+            {
                 _newJob.Description = $"{string.Join(" ", manualCompilation)} - {_newJob.Description}".TrimEnd(' ', '-');
             }
 
@@ -723,18 +729,16 @@
             _newJob.Id = Guid.NewGuid();
             _newJob.CreatedAt = DateTime.UtcNow;
             _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
-            
-            var sub = user.FindFirst(c => c.Type == "sub")?.Value;
 
-            _newJob.ReportedById = _email.ToString() ?? "unknown";
-
-            //if (Guid.TryParse(sub, out var userId)) _newJob.ReportedById = userId;
+            _newJob.ReportedById = _email?.ToString() ?? "unknown";
 
             var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
             var confirmed = jobRes.Models.FirstOrDefault();
-            
-            if (confirmed != null && _tempFiles.Any()) {
-                foreach (var file in _tempFiles) {
+
+            if (confirmed != null && _tempFiles.Any())
+            {
+                foreach (var file in _tempFiles)
+                {
                     var path = $"{confirmed.Id}/{Guid.NewGuid()}_{file.Name}";
                     using var stream = file.OpenReadStream(10 * 1024 * 1024);
                     using var ms = new MemoryStream();
@@ -744,16 +748,27 @@
                 }
             }
             Snackbar.Add("Job Logged successfully!", Severity.Success);
-            
+
             _tempFiles.Clear();
             _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown" };
-            _selectedFieldArea = "All"; _selectedInstType = "All";
+            _selectedFieldArea = "All";
+            _selectedInstType = "All";
             ResetAllCascadingFormDropdowns();
             _filteredLocations = _allLocations;
             await LoadData();
-        } catch (Exception ex) { Snackbar.Add("Submission Error: " + ex.Message, Severity.Error); }
-        finally { _isProcessing = false; StateHasChanged(); }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
     }
+
+
 
     private async Task OpenDetails(JobModel job, bool edit) {
         _selectedJob = new JobModel {

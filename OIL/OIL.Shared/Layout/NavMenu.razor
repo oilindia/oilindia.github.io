@@ -4,6 +4,9 @@
         <Authorized>
             @* --- GLOBAL LINKS (Everyone) --- *@
             <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
+
+           <MudNavGroup Title="Dept All" Icon="@Icons.Material.Filled.Home">
+
             <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
 
             <MudNavGroup Title="Field Maintenance Dept." Icon="@Icons.Material.Filled.DepartureBoard">
@@ -36,13 +39,15 @@
             <MudNavGroup Title="AI Assistance" Icon="@Icons.Material.Filled.Computer">
                 <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">Field Maintenance Assistance ChatBot</MudNavLink>
 
-                <MudNavLink Href="/ai-insights" Icon="@Icons.Material.Filled.Analytics">AI Insights on our Data</MudNavLink>
-
-                
+                <MudNavLink Href="/ai-insights" Icon="@Icons.Material.Filled.Analytics">AI Insights on our Data</MudNavLink>               
                
             </MudNavGroup>
 
-            <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.GroupWork">
+
+            </MudNavGroup>
+
+
+            <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Report">
             <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
             <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
             <MudNavLink Href="/jobhistory" Icon="@Icons.Material.Filled.Dataset">Job Hisotry</MudNavLink>
@@ -138,7 +143,7 @@
                 </MudNavGroup>
 
 
-                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.GroupWork">
+                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Report">
                     <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
                     <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
                     <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
