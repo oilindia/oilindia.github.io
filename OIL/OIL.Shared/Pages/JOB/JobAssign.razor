@@ -418,12 +418,19 @@ else
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
+                    @* UPDATE: Bind foreach to _availableJobsForEdit instead of _dbJobs *@
                     <MudSelect T="Job" Label="Jobs" MultiSelection="true" @bind-SelectedValues="_editJobs" Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)">
-                        @foreach (var j in _dbJobs)
+                        @foreach (var j in _availableJobsForEdit)
                         {
                             <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
                         }
                     </MudSelect>
+                    @* <MudSelect T="Job" Label="Jobs" MultiSelection="true" @bind-SelectedValues="_editJobs" Variant="Variant.Outlined" ToStringFunc="@(j => j?.JobName)">
+                        @foreach (var j in _dbJobs)
+                        {
+                            <MudSelectItem T="Job" Value="@j">@j.JobName</MudSelectItem>
+                        }
+                    </MudSelect> *@
                 </MudItem>
                 <MudItem xs="12">
                     <MudSelect T="Engineer" Label="Personnel" MultiSelection="true" @bind-SelectedValues="_editEngineers" Variant="Variant.Outlined" ToStringFunc="@(p => p?.FullName)">
@@ -1393,25 +1400,113 @@ else
     
     // }
 
-    private void OpenEditModal(Assignment item)
+    // --- Add this to your declarations ---
+    private List<Job> _availableJobsForEdit = new();
+
+    // --- Implement OpenEditModal ---
+    private async Task OpenEditModal(Assignment item)
     {
         _editingItem = item;
-        _editDriver = _dbDrivers.FirstOrDefault(x => x.Id == item.DriverId);
-        _editJobs = _dbJobs.Where(x => item.JobIds.Contains(x.Id)).ToList();
-        _editEngineers = _dbEngineers.Where(x => item.PersonnelIds.Contains(x.Id)).ToList();
+
+        // 1. Map existing Driver and Engineers from memory
+        _editDriver = _dbDrivers.FirstOrDefault(d => d.Id == item.DriverId);
+        _editEngineers = _dbEngineers.Where(e => item.PersonnelIds.Contains(e.Id)).ToList();
+
+        // 2. Fetch the specific Jobs assigned to this record (since they aren't in the pending _dbJobs list)
+        var assignedJobsResponse = await SupabaseClient.From<Job>()
+            .Where(x => item.JobIds.Contains(x.Id))
+            .Get();
+
+        var assignedJobs = assignedJobsResponse.Models;
+
+        // 3. Combine pending jobs with the currently assigned jobs to populate the dropdown
+        _availableJobsForEdit = _dbJobs.ToList(); // Start with pending jobs
+        _availableJobsForEdit.AddRange(assignedJobs);
+        _availableJobsForEdit = _availableJobsForEdit.DistinctBy(j => j.Id).ToList(); // Prevent duplicates
+
+        // 4. Set the pre-selected values in the dropdown
+        _editJobs = assignedJobs;
+
         _isEditModalOpen = true;
     }
 
+    // --- Implement UpdateAssignment ---
     private async Task UpdateAssignment()
     {
-        _editingItem.DriverId = _editDriver?.Id;
-        _editingItem.JobIds = _editJobs.Select(x => x.Id).ToList();
-        _editingItem.PersonnelIds = _editEngineers.Select(x => x.Id).ToList();
-        await SupabaseClient.From<Assignment>().Update(_editingItem);
-        _isEditModalOpen = false;
-        await LoadData();
-        Snackbar.Add("Entry Updated", Severity.Info);
+        try
+        {
+            var oldJobIds = _editingItem.JobIds ?? new List<Guid>(); // Or int, depending on your ID type
+            var newJobIds = _editJobs.Select(j => j.Id).ToList();
+
+            // 1. Calculate which jobs were removed and which were added
+            var jobsToUnassignIds = oldJobIds.Except(newJobIds).ToList();
+            var jobsToAssignIds = newJobIds.Except(oldJobIds).ToList();
+
+            // 2. Revert unselected jobs back to "pending"
+            if (jobsToUnassignIds.Any())
+            {
+                var unassignedJobsResult = await SupabaseClient.From<Job>()
+                    .Where(x => jobsToUnassignIds.Contains(x.Id))
+                    .Get();
+
+                foreach (var job in unassignedJobsResult.Models)
+                {
+                    job.JobStatus = "pending";
+                    await SupabaseClient.From<Job>().Update(job);
+                }
+            }
+
+            // 3. Update newly selected jobs to "assigned"
+            if (jobsToAssignIds.Any())
+            {
+                var jobsToUpdate = _editJobs.Where(j => jobsToAssignIds.Contains(j.Id)).ToList();
+                foreach (var job in jobsToUpdate)
+                {
+                    job.JobStatus = "assigned";
+                    await SupabaseClient.From<Job>().Update(job);
+                }
+            }
+
+            // 4. Update the Assignment record itself
+            _editingItem.DriverId = _editDriver?.Id ?? default;
+            _editingItem.JobIds = newJobIds;
+            _editingItem.PersonnelIds = _editEngineers.Select(e => e.Id).ToList();
+
+            await SupabaseClient.From<Assignment>().Update(_editingItem);
+
+            // 5. Cleanup and refresh UI
+            _isEditModalOpen = false;
+            Snackbar.Add("Assignment updated successfully", Severity.Success);
+
+            await LoadData(); // This will refresh _dbJobs (pending only) and the grid
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Update Error: {ex.Message}");
+            Snackbar.Add($"Error updating assignment: {ex.Message}", Severity.Error);
+        }
     }
+
+
+    // private void OpenEditModal(Assignment item)
+    // {
+    //     _editingItem = item;
+    //     _editDriver = _dbDrivers.FirstOrDefault(x => x.Id == item.DriverId);
+    //     _editJobs = _dbJobs.Where(x => item.JobIds.Contains(x.Id)).ToList();
+    //     _editEngineers = _dbEngineers.Where(x => item.PersonnelIds.Contains(x.Id)).ToList();
+    //     _isEditModalOpen = true;
+    // }
+
+    // private async Task UpdateAssignment()
+    // {
+    //     _editingItem.DriverId = _editDriver?.Id;
+    //     _editingItem.JobIds = _editJobs.Select(x => x.Id).ToList();
+    //     _editingItem.PersonnelIds = _editEngineers.Select(x => x.Id).ToList();
+    //     await SupabaseClient.From<Assignment>().Update(_editingItem);
+    //     _isEditModalOpen = false;
+    //     await LoadData();
+    //     Snackbar.Add("Entry Updated", Severity.Info);
+    // }
 
     private async Task PrintNow()
     {
