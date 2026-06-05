@@ -70,6 +70,7 @@
                                 <MudSelectItem Value="@("SPF")" />
                                 <MudSelectItem Value="@("EPS")" />
                                 <MudSelectItem Value="@("QPS")" />
+                                <MudSelectItem Value="@("OTHER")" />
                             </MudSelect>
                         </MudItem>
 
@@ -119,12 +120,18 @@
                             </MudItem>
                         }
 
+                        
+
                         @* 2. DEVICE LOCATION *@
+                        @* Required="!_isManualDeviceLocation" *@
                         <MudItem xs="12" md="4">
                             <MudSelect T="string" Label="Device Location"
                                        Value="@_selectedDeviceLocation"
                                        ValueChanged="OnDeviceLocationChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualDeviceLocation"
+                                       Variant="Variant.Outlined" 
+                                       Required="false" 
+                                       Clearable="true" 
+                                       
                                        Disabled="@(_selectedLocation == null || _isManualLocation)">
                                 @foreach (var val in _deviceLocationOptions)
                                 {
@@ -139,11 +146,15 @@
                         </MudItem>
 
                         @* 3. INSTRUMENT TYPE *@
+                        @* Required="!_isManualInstrumentType" *@
                         <MudItem xs="12" md="4">
                             <MudSelect T="string" Label="Instrument Type"
                                        Value="@_selectedInstrumentType"
                                        ValueChanged="OnInstrumentTypeChanged"
-                                       Variant="Variant.Outlined" Required="!_isManualInstrumentType"
+                                       Variant="Variant.Outlined" 
+                                       Required="false" 
+                                       Clearable="true" 
+                                       
                                        Disabled="@(_selectedLocation == null || _isManualLocation || (string.IsNullOrEmpty(_selectedDeviceLocation) && !_isManualDeviceLocation))">
                                 @foreach (var val in _instrumentTypeOptions)
                                 {
@@ -399,6 +410,8 @@
         [Column("reported_by_id")] public string? ReportedById { get; set; }
         [Column("job_type")] public string JobType { get; set; } = "breakdown";
 
+        [Column("device_location")] public string? DeviceLocation { get; set; } = "";
+        [Column("instrument_type")] public string? InstrumentType { get; set; } = ""; 
         [Column("loc_tag_number")] public string? Loc_Tag_Number { get; set; } = "";
 
 

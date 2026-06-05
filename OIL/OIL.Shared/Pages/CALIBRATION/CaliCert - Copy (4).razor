@@ -1,4 +1,4 @@
-﻿@page "/CalibrationCert"
+﻿@page "/CalibrationCert5"
 
 @using OIL.Shared.Models
 @using Supabase
@@ -6,21 +6,25 @@
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 @using System.IO
-@using Microsoft.AspNetCore.Components.Authorization
-@using System;
-@using System.Collections.Generic;
-@using System.Text.Json.Serialization;
-@using Supabase.Interfaces
-@using System.Text.Json
-@using Supabase.Gotrue;
-@using Supabase.Realtime;
-@using Supabase.Storage;
-@using MudBlazor
-@using Microsoft.JSInterop
 
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
 @inject IDialogService DialogService
+@using System;
+@using System.Collections.Generic;
+@using System.Text.Json.Serialization;
+
+@using System.Text.Json
+
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+@using MudBlazor
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
 
 
 <style>
@@ -41,18 +45,18 @@
         page-break-inside: auto;
     }
 
-    .report-table tr {
-        page-break-inside: avoid;
-        page-break-after: auto;
-    }
+        .report-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
 
-    .report-table th, .report-table td {
-        border: 1px solid black !important;
-        padding: 4px 6px;
-        text-align: left;
-        font-size: 13px;
-        font-weight: bold;
-    }
+        .report-table th, .report-table td {
+            border: 1px solid black !important;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: bold;
+        }
 
     .text-center {
         text-align: center !important;
@@ -92,27 +96,7 @@
         border-radius: 4px;
     }
 
-    /* Seamless Inline Editing Input Styling */
-    .print-editable-input {
-        border: none !important;
-        background: transparent !important;
-        font-family: inherit !important;
-        font-size: inherit !important;
-        font-weight: inherit !important;
-        color: black !important;
-        width: 100%;
-        padding: 2px 4px;
-        margin: 0;
-        outline: none;
-        box-sizing: border-box;
-    }
-    
-    .print-editable-input:focus {
-        background-color: #fffde7 !important; /* Soft yellow highlight on focus */
-        border-bottom: 1px dashed #1976d2 !important;
-    }
-
-    /* 2. PRINT LOGIC */
+    /* 2. PRINT LOGIC (The "Magic" Fix) */
     @@media print {
         @@page {
             size: A4;
@@ -131,10 +115,10 @@
         .modal-content-container {
             visibility: visible !important;
         }
-        /* Remove scrollbars and fixed heights for multi-page flow */
+        /* CRITICAL: Remove scrollbars and fixed heights for multi-page flow */
         .custom-modal-overlay {
             position: absolute !important;
-            display: block !important; 
+            display: block !important; /* Prevents flexbox clipping */
             overflow: visible !important;
             height: auto !important;
             background: white !important;
@@ -152,10 +136,11 @@
         }
 
         #printable-report {
-            position: static !important; 
+            position: static !important; /* Let it flow across pages naturally */
             width: 100% !important;
             border: none !important;
             padding: 0 !important;
+            /* Scale slightly to ensure it fits within A4 margins */
             transform: scale(0.98);
             transform-origin: top left;
         }
@@ -163,16 +148,12 @@
         .no-print {
             display: none !important;
         }
-
-        .print-editable-input {
-            padding: 0 !important;
-            border: none !important;
-            background: transparent !important;
-        }
     }
 </style>
 
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 no-print">
+
     <MudPaper Elevation="3" Class="pa-4 mb-6">
         <MudGrid AlignItems="AlignItems.Center">
             <MudItem xs="12" sm="4">
@@ -253,45 +234,30 @@
                 </div>
 
                 <div style="border: 1px solid black; text-align: center; background-color: #f8f9fa; padding: 4px;">
-                    <MudText Typo="Typo.body1" Class="font-bold" Style="color: black; font-weight: bold; width:100%;">
-                        Calibration Report for <input class="print-editable-input font-bold text-center" style="display:inline-block; width:auto;" @bind="_selectedReport.DisplayInstrumentType" />
+                    <MudText Typo="Typo.body1" Class="font-bold" Style="color: black; font-weight: bold;">
+                        Calibration Report for @_selectedReport.DisplayInstrumentType
                     </MudText>
                 </div>
 
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px;">
                     <tr>
-                        <td style="width: 50%; padding: 6px; border: 1px solid black;">
-                            Installation: <input class="print-editable-input" @bind="_selectedReport.DisplayInstallation" />
-                        </td>
-                        <td style="width: 50%; padding: 6px; border: 1px solid black;">
-                            Certificate No: <input class="print-editable-input" @bind="_selectedReport.DisplayCertNo" />
-                        </td>
+                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Installation: @_selectedReport.DisplayInstallation</td>
+                        <td style="width: 50%; padding: 6px; border: 1px solid black;">Certificate No: @_selectedReport.DisplayCertNo</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Date: <input class="print-editable-input" @bind="_selectedReport.CustomDateString" />
-                        </td>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Location Name: <input class="print-editable-input" @bind="_selectedReport.DisplayLocationName" />
-                        </td>
+                        <td style="padding: 6px; border: 1px solid black;">Date: @_selectedReport.DateFormatted</td>
+                        <td style="padding: 6px; border: 1px solid black;">Location Name: @_selectedReport.DisplayLocationName</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Unit / Tag Location: <input class="print-editable-input" @bind="_selectedReport.DisplayUnitId" />
-                        </td>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Model variant: <input class="print-editable-input" @bind="_selectedReport.DisplayModel" />
-                        </td>
+                        <td style="padding: 6px; border: 1px solid black;">Unit / Tag Location: @_selectedReport.DisplayUnitId</td>
+                        <td style="padding: 6px; border: 1px solid black;">Model variant: @_selectedReport.DisplayModel</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding: 6px; border: 1px solid black;">Range capability: @_selectedReport.DisplayRange</td>
                     </tr>
                     <tr>
                         <td colspan="2" style="padding: 6px; border: 1px solid black;">
-                            Range capability: <input class="print-editable-input" @bind="_selectedReport.DisplayRange" />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" style="padding: 6px; border: 1px solid black;">
-                            Master Calibrator Applied: 
-                            <input class="print-editable-input" @bind="_selectedReport.CalibrationPayload.MasterCalibrator" />
+                            Master Calibrator Applied: @(string.IsNullOrWhiteSpace(_selectedReport.CalibrationPayload.MasterCalibrator) ? _selectedReport.Detail.MasterCalibrator : _selectedReport.CalibrationPayload.MasterCalibrator)
                         </td>
                     </tr>
                 </table>
@@ -299,75 +265,59 @@
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px; margin-top: 15px;">
                     <thead>
                         <tr style="background-color: #f8f9fa;">
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 18%;">Input Applied Value</th>
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 12%;">Span %</th>
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 18%;">Expected Output</th>
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 18%;">Actual Measured</th>
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 18%;">Calculated Error</th>
-                            <th style="padding: 6px; border: 1px solid black; text-align: center; width: 18%;">Remarks</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Input Applied Value</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Span %</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Expected Output</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Actual Measured</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Calculated Error</th>
+                            <th style="padding: 6px; border: 1px solid black; text-align: center;">Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (_selectedReport.CalibrationPayload?.CalibrationTable != null && _selectedReport.CalibrationPayload.CalibrationTable.Any())
+                        @if (_selectedReport.CalibrationPayload.CalibrationTable.Any())
                         {
                             @foreach (var row in _selectedReport.CalibrationPayload.CalibrationTable)
                             {
                                 <tr>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="row.InputValue" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="row.InputPercentage" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="row.ExpectedOutput" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="row.ActualOutput" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="row.CalculatedError" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black;">
-                                        <input class="print-editable-input" @bind="row.CalRemarks" />
-                                    </td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.InputValue</td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.InputPercentage</td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.ExpectedOutput</td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.ActualOutput</td>
+
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.ExpectedOutput - @row.ActualOutput </td>
+                                    @* <td style="padding: 6px; border: 1px solid black; text-align: center;">@row.Error</td> *@
+                                    <td style="padding: 6px; border: 1px solid black;">@row.CalRemarks</td>
                                 </tr>
                             }
                         }
                     </tbody>
                 </table>
 
-                @if (_selectedReport.IsController && _selectedReport.CalibrationPayload?.SimulationTable != null)
+                @if (_selectedReport.IsController)
                 {
                     <div style="border: 1px solid black; border-top: none; padding: 8px; font-size: 13px;">
                         <p style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Dynamic Loop Configuration Parameters:</p>
                         <ul style="list-style-type: square; padding-left: 20px; margin: 0;">
-                            <li style="margin-bottom:2px;">Operational Target Setpoint: <input class="print-editable-input" style="display:inline-block; width:200px;" @bind="_selectedReport.CalibrationPayload.SetPoint" /></li>
-                            <li>Actuator / Valve Direction Matrix: <input class="print-editable-input" style="display:inline-block; width:200px;" @bind="_selectedReport.CalibrationPayload.ActuatorAction" /></li>
+                            <li>Operational Target Setpoint: @_selectedReport.CalibrationPayload.SetPoint</li>
+                            <li>Actuator / Valve Direction Matrix: @_selectedReport.CalibrationPayload.ActuatorAction</li>
                         </ul>
                     </div>
 
                     <table style="width: 100%; border-collapse: collapse; border: 1px solid black; border-top: none; font-size: 13px;">
                         <thead>
                             <tr style="background-color: #f1f1f1;">
-                                <th style="padding: 6px; border: 1px solid black; text-align: center; width: 33%;">Simulation Target Input</th>
-                                <th style="padding: 6px; border: 1px solid black; text-align: center; width: 33%;">Loops Response Output</th>
-                                <th style="padding: 6px; border: 1px solid black; text-align: center; width: 34%;">Functional Remarks</th>
+                                <th style="padding: 6px; border: 1px solid black; text-align: center;">Simulation Target Input</th>
+                                <th style="padding: 6px; border: 1px solid black; text-align: center;">Loops Response Output</th>
+                                <th style="padding: 6px; border: 1px solid black; text-align: center;">Functional Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var sim in _selectedReport.CalibrationPayload.SimulationTable)
                             {
                                 <tr>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="sim.ProcessInput" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black; text-align: center;">
-                                        <input class="print-editable-input text-center" @bind="sim.OutputPressure" />
-                                    </td>
-                                    <td style="padding: 4px; border: 1px solid black;">
-                                        <input class="print-editable-input" @bind="sim.PSRemarks" />
-                                    </td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@sim.ProcessInput</td>
+                                    <td style="padding: 6px; border: 1px solid black; text-align: center;">@sim.OutputPressure</td>
+                                    <td style="padding: 6px; border: 1px solid black;">@sim.PSRemarks</td>
                                 </tr>
                             }
                         </tbody>
@@ -375,45 +325,52 @@
                 }
 
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid black; margin-top: 15px; font-size: 13px;">
-                    <tr>
-                        <td colspan="2" style="padding: 6px; border: 1px solid black;">
-                            Observations: <input class="print-editable-input" style="display:inline-block; width:80%;" @bind="_selectedReport.Detail.Observations" />
-                        </td>
-                    </tr>
+                    <tr><td colspan="2" style="padding: 6px; border: 1px solid black;">Observations: OK.</td></tr>
                     <tr style="background-color: #f1f1f1; font-weight: bold;">
                         <td style="width: 50%; padding: 6px; border: 1px solid black;">Calibration By:</td>
                         <td style="width: 50%; padding: 6px; border: 1px solid black;">Witnessed By / Engineer:</td>
                     </tr>
+
+                     @*  @_selectedReport.Detail.WitnessedByName *@
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Name: <input class="print-editable-input" @bind="_selectedReport.Detail.PerformedByName" />
-                        </td>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Name: 
+                        <td style="padding: 6px; border: 1px solid black;">Name: 
+                            @_selectedReport.Detail.PerformedByName</td>
+                        <td style="padding: 6px; border: 1px solid black;">Name: 
+
                             @{
-                                var emp = GetEmployee(_selectedReport.Detail.PmReportId, "witnessed_by");
-                                string witnessName = emp != null ? emp.FullName : "";
-                                <input class="print-editable-input" @bind="witnessName" />
+                                var emp = GetEmployee(@_selectedReport.Detail.PmReportId, "witnessed_by");
+                                if (emp != null)
+                                {
+                                    @emp.FullName
+                                }
                             }
-                        </td>
+
+                          
+                            </td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Designation: 
-                            @{                       
-                                var empO = GetEmployee(_selectedReport.Detail.PmReportId, "performed_by");
-                                string perfDesig = empO != null ? empO.Designation : (_selectedReport.Detail.PerformedByDesig ?? "");
-                                <input class="print-editable-input" @bind="_selectedReport.Detail.PerformedByDesig" />
+                        <td style="padding: 6px; border: 1px solid black;">Designation: 
+                            @{                            
+                                var empO = GetEmployee(@_selectedReport.Detail.PmReportId, "performed_by");
+                                if (empO != null)
+                                {
+                                    @empO.Designation
+                                }
                             }
-                        </td>
-                        <td style="padding: 6px; border: 1px solid black;">
-                            Designation: 
-                            @{                                             
-                                var empO2 = GetEmployee(_selectedReport.Detail.PmReportId, "witnessed_by");
-                                string witnessDesig = empO2 != null ? empO2.Designation : (_selectedReport.Detail.WitnessedByDesig ?? "");
-                                <input class="print-editable-input" @bind="_selectedReport.Detail.WitnessedByDesig" />
+
+                            @* @_selectedReport.Detail.PerformedByDesig *@
+                            </td>
+                        <td style="padding: 6px; border: 1px solid black;">Designation: 
+                             @{                            
+                                var empO2 = GetEmployee(@_selectedReport.Detail.PmReportId, "witnessed_by");
+                                if (empO2 != null)
+                                {
+                                    @empO2.Designation
+                                }
                             }
-                        </td>
+
+                            @_selectedReport.Detail.WitnessedByDesig
+                            </td>
                     </tr>
                 </table>
             </div>
@@ -425,64 +382,52 @@
 
 
 @code {
-    [Inject] private Supabase.Client _supabaseClient { get; set; } = default!;
-    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
-    [Inject] private ISnackbar Snackbar { get; set; } = default!;
-
     private DateTime? _fromDate = DateTime.Today.AddMonths(-1);
     private DateTime? _toDate = DateTime.Today;
     private bool _loading = false;
     private bool _isModalOpen = false;
 
+
     private List<Location> _locations = new();
     private List<CalibrationUiView> _gridItems = new();
     private CalibrationUiView? _selectedReport;
+
     private List<EmployeeEngineer> _employees = new();
+
     private List<SupabasePmReport> _pmReports = new();
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            var empResponse = await _supabaseClient
-                .From<EmployeeEngineer>()
-                .Get();
+        var empResponse =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Get();
 
-            _employees = empResponse.Models;
-            await LoadCalibrationData();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Initialization Error: {ex.Message}", Severity.Error);
-        }
+        _employees = empResponse.Models;
+
+        await LoadCalibrationData();
     }
 
-    private void ViewCertificate(CalibrationUiView item)
-    {
-        _selectedReport = item;
-        _isModalOpen = true;
-    }
-
-    private async Task PrintReport()
-    {
-        await JSRuntime.InvokeVoidAsync("window.print");
-    }
-
+    // 1. Core text cleaner: Destroys "NOT FOUND" so the system knows to keep looking
     private static string CleanText(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return "";
         if (input.Trim().Equals("NOT FOUND", StringComparison.OrdinalIgnoreCase)) return "";
 
         string cleaned = input;
+
+        // Aggressively clean certificate slashes like "INST/NOT FOUND/3" -> "INST/3"
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND/", "/", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"/NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND/", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"NOT FOUND", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         if (cleaned == "/") return "";
+
         return cleaned.Trim();
     }
 
+    // 2. Recursive Search: Now forcefully ignores "NOT FOUND" to reach manual keys
     private static string FindJsonValue(JsonElement node, string[] keys)
     {
         if (node.ValueKind == JsonValueKind.Array)
@@ -495,6 +440,7 @@
         }
         else if (node.ValueKind == JsonValueKind.Object)
         {
+            // Level 1: Check prioritized keys
             foreach (var prop in node.EnumerateObject())
             {
                 if (prop.Value.ValueKind == JsonValueKind.Null) continue;
@@ -504,12 +450,17 @@
                     if (prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase))
                     {
                         string rawVal = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() ?? "" : prop.Value.ToString();
+
+                        // Pass through CleanText. If it was "NOT FOUND", it becomes "".
                         string cleanVal = CleanText(rawVal);
+
+                        // Only return if it actually contains valid text (like "Suction Pressure")
                         if (!string.IsNullOrWhiteSpace(cleanVal)) return cleanVal;
                     }
                 }
             }
 
+            // Level 2: Dive deeper into nested objects (like CalibrationData { ... })
             foreach (var prop in node.EnumerateObject())
             {
                 if (prop.Value.ValueKind == JsonValueKind.Object || prop.Value.ValueKind == JsonValueKind.Array)
@@ -529,25 +480,35 @@
             var start = (_fromDate ?? DateTime.Today.AddMonths(-1)).Date;
             var end = (_toDate ?? DateTime.Today).Date.AddDays(1);
 
-            _locations = (await _supabaseClient.From<Location>().Get()).Models;
+            _locations = (await SupabaseClient.From<Location>().Get()).Models;
+
+
             _loading = true;
             StateHasChanged();
 
-            var reportsResponse = await _supabaseClient.From<SupabasePmReport>()
+            // var detailsResponse = await SupabaseClient.From<SupabasePmCalibrationDetail>().Get();
+
+
+            // 1. Fetch reports based on the date range
+            var reportsResponse = await SupabaseClient.From<SupabasePmReport>()
                 .Select("*")
                 .Filter("completion_date", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
                 .Filter("completion_date", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
                 .Get();
 
             var fetchedReports = reportsResponse.Models;
-            _pmReports = fetchedReports;
 
+            _pmReports = fetchedReports; // Store for potential future use
+
+            // 2. Extract the list of Report IDs
             var reportIds = fetchedReports.Select(r => r.Id).ToList();
+
             var fetchedDetails = new List<SupabasePmCalibrationDetail>();
 
+            // 3. Fetch calibration details ONLY if there are reports found to avoid a 400 Bad Request on an empty IN clause
             if (reportIds.Any())
             {
-                var detailsResponse = await _supabaseClient
+                var detailsResponse = await SupabaseClient
                     .From<SupabasePmCalibrationDetail>()
                     .Select("*")
                     .Filter("pm_report_id", Supabase.Postgrest.Constants.Operator.In, reportIds)
@@ -556,102 +517,105 @@
                 fetchedDetails = detailsResponse.Models;
             }
 
+
+
             var jsonOptions = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true };
 
             _gridItems = fetchedDetails.Select(detail =>
+{
+    var parentReport = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId);
+
+    var view = new CalibrationUiView
+    {
+        Detail = detail,
+        FallbackDate = parentReport?.CompletionDate?.DateTime,
+    };
+
+    string ExtractWithNoBlanks(JsonElement root, string[] keys, string dbFallback)
+    {
+        var extracted = FindJsonValue(root, keys);
+        if (!string.IsNullOrWhiteSpace(extracted)) return extracted;
+
+        var fallbackCleaned = CleanText(dbFallback);
+        if (!string.IsNullOrWhiteSpace(fallbackCleaned)) return fallbackCleaned;
+
+        return "";
+    }
+
+    if (!string.IsNullOrWhiteSpace(detail.CalibrationData))
+    {
+        try
+        {
+            string cleanJson = detail.CalibrationData.Trim();
+            if (cleanJson.StartsWith("\"") && cleanJson.EndsWith("\""))
             {
-                var parentReport = fetchedReports.FirstOrDefault(r => r.Id == detail.PmReportId);
-                var view = new CalibrationUiView
-                {
-                    Detail = detail,
-                    FallbackDate = parentReport?.CompletionDate?.DateTime,
-                };
+                cleanJson = JsonSerializer.Deserialize<string>(cleanJson, jsonOptions) ?? "{}";
+                cleanJson = cleanJson.Trim();
+            }
 
-                string ExtractWithNoBlanks(JsonElement root, string[] keys, string dbFallback)
-                {
-                    var extracted = FindJsonValue(root, keys);
-                    if (!string.IsNullOrWhiteSpace(extracted)) return extracted;
+            using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
+            var rootElement = document.RootElement;
 
-                    var fallbackCleaned = CleanText(dbFallback);
-                    if (!string.IsNullOrWhiteSpace(fallbackCleaned)) return fallbackCleaned;
+            // --- STANDARD MAPPINGS ---
+            view.DisplayInstrumentType = ExtractWithNoBlanks(rootElement, new[] { "ManualInstrument", "REInstrumentType", "Instrument", "InstrumentType" }, detail.InstrumentType);
+            view.DisplayUnitId = ExtractWithNoBlanks(rootElement, new[] { "ManualTag", "TagNumber", "ManualUnit", "REUnit", "Unit", "UnitId" }, detail.UnitId);
+            view.DisplayModel = ExtractWithNoBlanks(rootElement, new[] { "ManualMakeModel", "REModel", "MakeModel", "Model" }, detail.Model);
+            view.DisplayRange = ExtractWithNoBlanks(rootElement, new[] { "ManualRange", "RERange", "Range", "InstrumentRange" }, detail.InstrumentRange);
+            view.DisplayCertNo = ExtractWithNoBlanks(rootElement, new[] { "ManualCertNo", "RECertificateNo", "CertNo", "CertificateNo" }, detail.CertNo);
 
-                    return "";
-                }
+            // --- FIX 1: Fix Location Name Overwrite ---
+            view.DisplayLocationName = ExtractWithNoBlanks(rootElement, new[] { "ManualLocation", "LocationName", "Location" }, parentReport?.LocationName ?? "");
 
-                if (!string.IsNullOrWhiteSpace(detail.CalibrationData))
-                {
-                    try
-                    {
-                        string cleanJson = detail.CalibrationData.Trim();
-                        if (cleanJson.StartsWith("\"") && cleanJson.EndsWith("\""))
-                        {
-                            cleanJson = JsonSerializer.Deserialize<string>(cleanJson, jsonOptions) ?? "{}";
-                            cleanJson = cleanJson.Trim();
-                        }
+            // --- FIX 2: Dynamic Installation Resolution based on LocationId ---
+            string installationFallback = detail.Installation ?? "";
 
-                        using var document = System.Text.Json.JsonDocument.Parse(cleanJson);
-                        var rootElement = document.RootElement;
+            // If the detail installation is empty, we derive it from the parent report's LocationId
+            if (string.IsNullOrWhiteSpace(installationFallback) && parentReport?.LocationId != null)
+            {
+                installationFallback = GetInstallationNameFromId(parentReport.LocationId.Value);
+            }
 
-                        view.DisplayInstrumentType = ExtractWithNoBlanks(rootElement, new[] { "ManualInstrument", "REInstrumentType", "Instrument", "InstrumentType" }, detail.InstrumentType ?? "");
-                        view.DisplayUnitId = ExtractWithNoBlanks(rootElement, new[] { "ManualTag", "TagNumber", "ManualUnit", "REUnit", "Unit", "UnitId" }, detail.UnitId ?? "");
-                        view.DisplayModel = ExtractWithNoBlanks(rootElement, new[] { "ManualMakeModel", "REModel", "MakeModel", "Model" }, detail.Model ?? "");
-                        view.DisplayRange = ExtractWithNoBlanks(rootElement, new[] { "ManualRange", "RERange", "Range", "InstrumentRange" }, detail.InstrumentRange ?? "");
-                        view.DisplayCertNo = ExtractWithNoBlanks(rootElement, new[] { "ManualCertNo", "RECertificateNo", "CertNo", "CertificateNo" }, detail.CertNo);
-                        view.DisplayLocationName = ExtractWithNoBlanks(rootElement, new[] { "ManualLocation", "LocationName", "Location" }, parentReport?.LocationName ?? "");
+            view.DisplayInstallation = ExtractWithNoBlanks(rootElement, new[] { "ManualInstallation", "REInstallation", "Installation" }, installationFallback);
 
-                        string installationFallback = detail.Installation ?? "";
-                        if (string.IsNullOrWhiteSpace(installationFallback) && parentReport?.LocationId != null)
-                        {
-                            installationFallback = GetInstallationNameFromId(parentReport.LocationId.Value);
-                        }
+            // --- OPTIONAL: Handle other fields from pm_reports if needed ---
+            // For example, if you want to store Technician Email or Assignment metadata:
+            // view.TechnicianEmail = parentReport?.TechnicianEmail ?? "N/A";
 
-                        view.DisplayInstallation = ExtractWithNoBlanks(rootElement, new[] { "ManualInstallation", "REInstallation", "Installation" }, installationFallback);
+            // --- Payload Processing ---
+            JsonElement payloadElement = rootElement;
+            if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
+            {
+                payloadElement = rootElement[0];
+            }
 
-                        JsonElement payloadElement = rootElement;
-                        if (rootElement.ValueKind == JsonValueKind.Array && rootElement.GetArrayLength() > 0)
-                        {
-                            payloadElement = rootElement[0];
-                        }
+            if (payloadElement.ValueKind == JsonValueKind.Object && payloadElement.TryGetProperty("CalibrationData", out var calDataNode))
+            {
+                if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
+                    view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
+                else
+                    view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(calDataNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
+            }
+            else
+            {
+                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(payloadElement.GetRawText(), jsonOptions) ?? new ParsedPayload();
+            }
+        }
+        catch
+        {
+            view.CalibrationPayload = new ParsedPayload();
+        }
+    }
 
-                        if (payloadElement.ValueKind == JsonValueKind.Object && payloadElement.TryGetProperty("CalibrationData", out var calDataNode))
-                        {
-                            if (calDataNode.TryGetProperty("RECalibration", out var reCalNode))
-                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(reCalNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                            else
-                                view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(calDataNode.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                        }
-                        else
-                        {
-                            view.CalibrationPayload = JsonSerializer.Deserialize<ParsedPayload>(payloadElement.GetRawText(), jsonOptions) ?? new ParsedPayload();
-                        }
+    view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
+                        view.CalibrationPayload.SimulationTable.Any() ||
+                        !string.IsNullOrWhiteSpace(view.CalibrationPayload.SetPoint);
 
-                        if (view.CalibrationPayload?.CalibrationTable != null)
-                        {
-                            foreach (var row in view.CalibrationPayload.CalibrationTable)
-                            {
-                                if (string.IsNullOrWhiteSpace(row.Error))
-                                {
-                                    row.Error = "0.0";
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        view.CalibrationPayload = new ParsedPayload();
-                    }
-                }
+    return view;
+})
+.OrderByDescending(v => v.Detail.ReportDate ?? v.FallbackDate)
+.ToList();
 
-                view.IsController = view.DisplayInstrumentType.Contains("CONTROLLER", StringComparison.OrdinalIgnoreCase) ||
-                                    (view.CalibrationPayload?.SimulationTable != null && view.CalibrationPayload.SimulationTable.Any()) ||
-                                    !string.IsNullOrWhiteSpace(view.CalibrationPayload?.SetPoint);
 
-                view.CustomDateString = view.DateFormatted;
-
-                return view;
-            })
-            .OrderByDescending(v => v.Detail.ReportDate ?? v.FallbackDate)
-            .ToList();
         }
         catch (Exception ex)
         {
@@ -666,45 +630,70 @@
     private string GetInstallationNameFromId(long locationId)
     {
         return _locations.FirstOrDefault(l => l.Id == Convert.ToInt32(locationId))?.InstallationName ?? "N/A";
+
     }
 
-    private EmployeeEngineer? GetEmployee(int pmReportId, string requiredType)
+    private EmployeeEngineer GetEmployee(int pmReportId, string requiredType)
     {
+        // 1. Find the report
         var report = _pmReports.FirstOrDefault(r => r.Id == pmReportId);
-        if (report?.JobCarriedBy == null || report.JobCarriedBy.Count == 0) return null;
 
-        string? targetEmpCode = null;
+        if (report?.JobCarriedBy == null || report.JobCarriedBy.Count == 0)
+            return null;
 
-        if (requiredType.Equals("performed_by", StringComparison.OrdinalIgnoreCase) && report.JobCarriedBy.Count >= 1)
+        // 2. Identify the target EmpCode based on your rule
+        string targetEmpCode = null;
+
+        if (requiredType == "performed_by" && report.JobCarriedBy.Count >= 1)
         {
             targetEmpCode = report.JobCarriedBy[0];
         }
-        else if (requiredType.Equals("witnessed_by", StringComparison.OrdinalIgnoreCase) && report.JobCarriedBy.Count >= 2)
+        else if (requiredType == "witnessed_by" && report.JobCarriedBy.Count >= 2)
         {
             targetEmpCode = report.JobCarriedBy[1];
         }
 
-        if (string.IsNullOrWhiteSpace(targetEmpCode)) return null;
-
-        return _employees.FirstOrDefault(e => e.EmpCode.Equals(targetEmpCode, StringComparison.OrdinalIgnoreCase));
+        // 3. Find and return the EmployeeEngineer object using the correct property
+        return _employees.FirstOrDefault(e => e.EmpCode == targetEmpCode);
     }
+
+    private void ViewCertificate(CalibrationUiView item)
+    {
+        _selectedReport = item;
+        _isModalOpen = true;
+    }
+
+    
+
+    private async Task PrintReport() => await JSRuntime.InvokeVoidAsync("window.print");
 
     [Table("employees_engineers")]
     public class EmployeeEngineer : BaseModel
     {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("emp_code")] public string EmpCode { get; set; } = string.Empty;
-        [Column("full_name")] public string FullName { get; set; } = string.Empty;
-        [Column("section")] public string Section { get; set; } = string.Empty;
-        [Column("designation")] public string Designation { get; set; } = string.Empty;
-        [Column("grade")] public string Grade { get; set; } = string.Empty;
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("emp_code")]
+        public string EmpCode { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("grade")]
+        public string Grade { get; set; }
+
     }
 
     [Table("locations")]
     public class Location : BaseModel
     {
         [PrimaryKey("id")] public long Id { get; set; }
-        [Column("installation_name")] public string InstallationName { get; set; } = string.Empty;
+        [Column("installation_name")] public string InstallationName { get; set; }
     }
 
     [Table("pm_reports")]
@@ -717,7 +706,9 @@
         [Column("technician_email")] public string? TechnicianEmail { get; set; }
         [Column("completion_date")] public DateTimeOffset? CompletionDate { get; set; }
         [Column("assigned_to")] public string? AssignedTo { get; set; }
-        [Column("job_carried_by")] public List<string>? JobCarriedBy { get; set; }
+        // Maps to the 'job_carried_by' text[] column in Supabase
+        [Column("job_carried_by")]
+        public List<string>? JobCarriedBy { get; set; }
         [Column("Report_Prepared_By")] public string? ReportPreparedBy { get; set; }
     }
 
@@ -747,8 +738,11 @@
     {
         public SupabasePmCalibrationDetail Detail { get; set; } = new();
         public DateTime? FallbackDate { get; set; }
+
         public string DateFormatted => Detail.ReportDate?.ToString("dd/MM/yyyy") ?? FallbackDate?.ToString("dd/MM/yyyy") ?? "";
+
         public ParsedPayload CalibrationPayload { get; set; } = new();
+
         public string DisplayLocationName { get; set; } = "";
         public string DisplayInstrumentType { get; set; } = "";
         public string DisplayUnitId { get; set; } = "";
@@ -757,7 +751,6 @@
         public string DisplayInstallation { get; set; } = "";
         public string DisplayCertNo { get; set; } = "";
         public bool IsController { get; set; }
-        public string CustomDateString { get; set; } = "";
     }
 
     public class ParsedPayload
@@ -777,25 +770,6 @@
         [JsonPropertyName("ActualOutput")] public string ActualOutput { get; set; } = "";
         [JsonPropertyName("Error")] public string Error { get; set; } = "";
         [JsonPropertyName("CalRemarks")] public string CalRemarks { get; set; } = "";
-
-        private string? _calculatedError;
-
-        public string CalculatedError
-        {
-            get
-            {
-                // If a value was explicitly set, return it. Otherwise, calculate it.
-                if (!string.IsNullOrEmpty(_calculatedError)) return _calculatedError;
-
-                if (float.TryParse(ExpectedOutput, out float expected) &&
-                    float.TryParse(ActualOutput, out float actual))
-                {
-                    return (expected - actual).ToString("0.##");
-                }
-                return " ";
-            }
-            set => _calculatedError = value;
-        }
     }
 
     public class SimRow
@@ -805,3 +779,4 @@
         [JsonPropertyName("PSRemarks")] public string PSRemarks { get; set; } = "";
     }
 }
+

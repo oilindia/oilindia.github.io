@@ -1,0 +1,2828 @@
+﻿@page "/PMrn12"
+
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Text.Json
+@using Microsoft.JSInterop
+@using System.Text.Json.Serialization
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using static Supabase.Postgrest.Constants
+@using System.Text.Json.Serialization
+
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@* @using System.ComponentModel.DataAnnotations.Schema *@
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using Supabase.Postgrest
+
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JSRuntime
+
+
+
+
+<style>
+
+    /* =========================================================
+           GLOBAL PAGE
+        ========================================================= */
+
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f3f3f3;
+        overflow-x: hidden;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* =========================================================
+           MODAL
+        ========================================================= */
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background: rgba(0,0,0,0.75);
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    /* =========================================================
+           REPORT PAGES
+        ========================================================= */
+
+    .landscape-report,
+    .portrait-report {
+        background: white;
+        margin: 0 auto 30px auto;
+        box-sizing: border-box;
+        color: black;
+        overflow: visible !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        max-width: 100%;
+    }
+
+    .landscape-report {
+        width: 297mm;
+        min-height: 210mm;
+        padding: 12mm;
+    }
+
+    .portrait-report {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 12mm;
+    }
+
+    /* =========================================================
+           TABLES
+        ========================================================= */
+
+    table {
+        width: 100%;
+        border-collapse: collapse !important;
+        border-spacing: 0;
+    }
+
+    .report-table,
+    .oil-header-table,
+    .report-body-table,
+    .job-done-table,
+    .inner-list-table {
+        width: 100%;
+        border-collapse: collapse !important;
+        table-layout: fixed;
+        border: 1px solid black !important;
+    }
+
+        .report-table th,
+        .report-table td,
+        .oil-header-table th,
+        .oil-header-table td,
+        .report-body-table th,
+        .report-body-table td,
+        .job-done-table th,
+        .job-done-table td,
+        .inner-list-table th,
+        .inner-list-table td {
+            border: 1px solid black !important;
+            padding: 6px;
+            font-size: 12px;
+            color: black !important;
+            vertical-align: middle;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .job-done-table th {
+            background: #efefef !important;
+        }
+
+    /* =========================================================
+           TEXT HELPERS
+        ========================================================= */
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .font-bold,
+    .bold-vertical {
+        font-weight: bold;
+    }
+
+    .bold-vertical {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .no-padding {
+        padding: 0 !important;
+    }
+
+    .header-logo-section {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
+    .header-main-title {
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: 1.4;
+    }
+
+    .logo-text-bold {
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    /* =========================================================
+           RESPONSIVE HELPERS
+        ========================================================= */
+
+    #printable-area,
+    #printable-area-ocs {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .mud-data-grid {
+        overflow-x: auto;
+    }
+
+    .mud-table-container {
+        overflow-x: auto !important;
+    }
+
+    /* =========================================================
+           TABLET RESPONSIVE
+        ========================================================= */
+
+    @@media (max-width: 1024px) {
+
+        .modal-overlay {
+            padding: 12px;
+        }
+
+        .landscape-report,
+        .portrait-report {
+            width: 100%;
+            min-height: auto;
+            padding: 20px;
+        }
+
+        .report-table th,
+        .report-table td,
+        .oil-header-table th,
+        .oil-header-table td,
+        .report-body-table th,
+        .report-body-table td,
+        .job-done-table th,
+        .job-done-table td,
+        .inner-list-table th,
+        .inner-list-table td {
+            font-size: 11px;
+            padding: 5px;
+        }
+
+        .header-main-title {
+            font-size: 13px;
+        }
+    }
+
+    /* =========================================================
+           MOBILE RESPONSIVE
+        ========================================================= */
+
+    @@media (max-width: 768px) {
+
+        .modal-overlay {
+            padding: 8px;
+        }
+
+        .landscape-report,
+        .portrait-report {
+            width: 100%;
+            min-height: auto;
+            padding: 12px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .report-table,
+        .oil-header-table,
+        .report-body-table,
+        .job-done-table,
+        .inner-list-table {
+            min-width: 700px;
+        }
+
+            .report-table th,
+            .report-table td,
+            .oil-header-table th,
+            .oil-header-table td,
+            .report-body-table th,
+            .report-body-table td,
+            .job-done-table th,
+            .job-done-table td,
+            .inner-list-table th,
+            .inner-list-table td {
+                font-size: 10px;
+                padding: 4px;
+            }
+
+        .header-main-title {
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        .logo-text-bold {
+            font-size: 10px;
+        }
+
+        .bold-vertical {
+            font-size: 10px;
+        }
+
+        .no-print {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+            .no-print .mud-button-root {
+                width: 100%;
+            }
+
+        .mud-container {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+        }
+    }
+
+    /* =========================================================
+           SMALL MOBILE
+        ========================================================= */
+
+    @@media (max-width: 480px) {
+
+        .modal-overlay {
+            padding: 4px;
+        }
+
+        .landscape-report,
+        .portrait-report {
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .report-table th,
+        .report-table td,
+        .oil-header-table th,
+        .oil-header-table td,
+        .report-body-table th,
+        .report-body-table td,
+        .job-done-table th,
+        .job-done-table td,
+        .inner-list-table th,
+        .inner-list-table td {
+            font-size: 9px;
+            padding: 3px;
+        }
+
+        .header-main-title {
+            font-size: 11px;
+        }
+
+        .logo-text-bold {
+            font-size: 9px;
+        }
+
+        .bold-vertical {
+            font-size: 9px;
+        }
+
+        .report-table,
+        .oil-header-table,
+        .report-body-table,
+        .job-done-table,
+        .inner-list-table {
+            min-width: 650px;
+        }
+    }
+
+    /* =========================================================
+           PRINT
+        ========================================================= */
+
+    @@media print {
+
+        html,
+        body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+            body * {
+                visibility: hidden;
+            }
+
+        #printable-area,
+        #printable-area *,
+        #printable-area-ocs,
+        #printable-area-ocs * {
+            visibility: visible;
+        }
+
+        #printable-area,
+        #printable-area-ocs {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            overflow: visible !important;
+        }
+
+        .modal-overlay {
+            position: static !important;
+            background: white !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        .landscape-report,
+        .portrait-report {
+            box-shadow: none !important;
+            margin: 0 auto !important;
+            page-break-after: always;
+            break-after: page;
+            overflow: visible !important;
+        }
+
+        .landscape-report {
+            width: 100% !important;
+        }
+
+        .portrait-report {
+            width: 100% !important;
+        }
+
+        table {
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        td,
+        th {
+            border: 1px solid black !important;
+            color: black !important;
+            background: white !important;
+        }
+
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        @@page {
+            size: A4;
+            margin: 10mm;
+        }
+    }
+
+</style>
+
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
+
+    <MudPaper Elevation="3" Class="pa-4">
+
+        <h3>PM Completion Reports</h3>
+
+        <!-- FILTER -->
+        <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-radius:18px;">
+
+            <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudDatePicker T="DateTime?"
+                                   Label="From Date"
+                                   @bind-Date="_startDate"
+                                   Editable="true"
+                                   Variant="Variant.Outlined" />
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudDatePicker T="DateTime?"
+                                   Label="To Date"
+                                   @bind-Date="_endDate"
+                                   Editable="true"
+                                   Variant="Variant.Outlined" />
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="LoadData"
+                               Loading="_loading"
+                               FullWidth>
+
+                        Apply Filter
+
+                    </MudButton>
+
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+
+                    <MudPaper Class="pa-3"
+                              Style="background:#f1f5f9;border-radius:14px;">
+
+                        <MudText Typo="Typo.caption">
+                            ACTIVE RANGE
+                        </MudText>
+
+                        <MudText Typo="Typo.subtitle1"
+                                 Style="font-weight:700;">
+
+                            @_startDate?.ToString("dd MMM yyyy")
+                            -
+                            @_endDate?.ToString("dd MMM yyyy")
+
+                        </MudText>
+
+                    </MudPaper>
+
+                </MudItem>
+
+            </MudGrid>
+
+        </MudPaper>
+
+
+        <MudDataGrid T="ReportView"
+                     Items="@_reports"
+                     Loading="@_loading"
+                     Dense="true"
+                     Bordered="true">
+
+            <Columns>
+
+                <TemplateColumn Title="View" HeaderStyle="width: 50px;">
+
+                    <CellTemplate>
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       OnClick="@(() => HandleViewClick(context.Item))" />
+
+                    </CellTemplate>
+
+                </TemplateColumn>
+
+                <PropertyColumn Property="x => x.CompletionDateLocal" Title="Date" />
+                <PropertyColumn Property="x => x.LocationName" Title="Installation" />
+                <PropertyColumn Property="x => x.WorkPermit" Title="Permit #" />
+
+            </Columns>
+
+        </MudDataGrid>
+
+    </MudPaper>
+
+</MudContainer>
+
+
+
+@if (_isGcsModalOpen)
+{
+    <div class="modal-overlay">
+
+        <div class="no-print" style="margin-bottom: 40px;">
+
+            <MudButton OnClick="PrintReport"
+                       Variant="Variant.Filled"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Print">
+
+                PRINT REPORT
+
+            </MudButton>
+
+            <MudButton OnClick="() => _isGcsModalOpen = false"
+                       Variant="Variant.Outlined"
+                       Style="color: white; border-color: white;">
+
+                CLOSE
+
+            </MudButton>
+
+        </div>
+
+        <div id="printable-area">
+
+            <div class="landscape-report">
+
+                <table class="oil-header-table">
+
+                    <tr>
+
+                        <td width="20%" rowspan="3" class="text-center">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="max-height: 50px;">
+
+                            <div class="logo-text-bold">ऑयल इंडिया</div>
+                            <div class="logo-text-bold">OIL INDIA</div>
+
+                        </td>
+
+                        <td class="text-center header-main-title">
+
+                            <div style="font-size: 18px; font-weight: bold;">
+                                ऑयल इंडिया लिमिटेड
+                            </div>
+
+                            <div style="font-size: 16px;">
+                                यंत्रीकरण विभाग
+                            </div>
+
+                            <div style="font-size: 14px; font-weight: bold;">
+                                INSTRUMENTATION DEPARTMENT
+                            </div>
+
+                            <div>दुलियाजान / DULIAJAN</div>
+
+                            <div class="font-bold">
+                                OIL INDIA LIMITED
+                            </div>
+
+                            <div style="font-style: italic; font-size: 11px;">
+                                (केवल आंतरिक उपयोग हेतु / For Internal Use Only)
+                            </div>
+
+                        </td>
+
+                        <td width="20%"
+                            style="padding: 10px; font-size: 12px; border-left: 1px solid black;">
+
+                            <div>
+                                <strong>Ref No:</strong> @_selectedReport.WorkPermit
+                            </div>
+
+                            <div>
+                                <strong>Dated:</strong> @_selectedReport.CompletionDateLocal
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+
+
+
+                </table>
+
+                <table class="report-body-table">
+
+                    <tr>
+
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+                            <strong>Ref no:</strong> @_selectedReport.WorkPermit
+                        </td>
+
+                        <td colspan="4" class="text-left">
+                            <strong>Dated:</strong> @_selectedReport.CompletionDateLocal  @_selectedReport.MultiSelectionPmDates
+                        </td>
+
+                        @* <td>
+                            <strong>PM Date:</strong> @_selectedReport.MultiSelectionPmDates
+                        </td> *@
+
+                    </tr>
+
+                    <tr>
+
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+
+
+                            <strong>Installation Name -</strong>
+                            @{
+                                var localInstallName = GetInstallationName(_selectedReport.LocationId);
+                                if (localInstallName != null)
+                                {
+                                    <span>@localInstallName.InstallationName</span><br>
+                                }
+                            }
+                            
+                              
+
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> @_selectedReport.WorkPermit
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td colspan="5" class="text-left">
+                            <strong>A] Comp.Sl.No :</strong>
+                            @* @_selectedReport.CompSlNo *@
+                             @_JsonToTableRowClassList[0].CompSlNo.ToString()
+                        </td>
+
+                        <td colspan="4" class="text-left">
+
+                            <strong>Make -</strong>
+                            @* @_selectedReport.MakeModel *@
+                             @_JsonToTableRowClassList[0].CompMakeModel.ToString()
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td width="20%" class="text-center font-bold">
+
+                            Visual Checking Points
+
+                        </td>
+
+                        <td colspan="8" class="no-padding">
+
+                            <table class="inner-list-table">
+
+                                @foreach (var point in _selectedReport.VisualPoints)
+                                {
+                                    <tr>
+                                        <td>@point.Id] @point.Description</td>
+                                    </tr>
+                                }
+
+                            </table>
+
+                        </td>
+
+                    </tr>
+
+                </table>
+
+                <table class="job-done-table" style="margin-top: -1px;">
+
+                    <thead>
+
+                        <tr style="background-color: #f2f2f2;">
+
+                            <th width="5%" class="text-center">#</th>
+                            <th width="15%">Unit</th>
+                            <th width="15%">Instrument</th>
+                            <th width="10%">Make & Model</th>
+                            <th width="10%">Range</th>
+                            <th width="15%">Servicing Details</th>
+                            <th width="12%">Cert No.</th>
+                            <th width="18%">Remarks</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @foreach (var item in _currentJobItems)
+                        {
+                            <tr>
+
+                                @if (_currentJobItems.Count > 0 &&
+                                     item == _currentJobItems.First())
+                                {
+                                    <td rowspan="@_currentJobItems.Count"
+                                        class="bold-vertical">
+
+                                        Job Done
+
+                                    </td>
+                                }
+
+                                <td>@item.Unit  @_JsonToTableRowClassList[0].ManualUnit.ToString()</td>
+                                <td>@item.Instrument @_JsonToTableRowClassList[0].ManualInstrument.ToString()</td>
+                                <td>@item.MakeModel @_JsonToTableRowClassList[0].ManualMakeModel.ToString()</td>
+                                <td>@item.Range @_JsonToTableRowClassList[0].ManualRange.ToString()</td>
+                                <td>@item.TestingType </td>
+                                <td>@item.CertNo </td>
+                                <td>@item.Remarks</td>
+
+                            </tr>
+
+                            <tr>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                            <strong>Safety Interlocks :  -</strong>
+                            @item.SafetyInterlocks
+                                </td> 
+                            </tr>
+                            <tr>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                            <strong>Hooter :  -</strong>
+                            @item.Hooter
+                                </td> 
+                            </tr>
+                            <tr>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                                    <strong>Spares Used :  -</strong>
+                                    @item.SparesConsumed
+                                </td>
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+                <div class="report-footer">
+
+                    <div class="remarks-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">REMARKS:</div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. @_selectedReport.Remarks</div>
+                        <div class="remark-item">2. The above PM job is carried out on : @_selectedReport.MultiSelectionPmDates</div>
+                    </div>
+
+                    <div class="carried-out-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
+                            {
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
+                        <div class="approval-box left" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
+                            <div class="signature-line">
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box center" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
+                            <div class="signature-line">
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box right" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
+                            <div class="signature-line">
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+            </div>
+
+           @*  @if (_jobCertificates != null && _jobCertificates.Any())
+            {
+                @foreach (var cert in _jobCertificates)
+                {
+                    ParsedCalibrationData? dataObj = null;
+
+                    if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
+                    {
+                        try
+                        {
+                            dataObj = JsonSerializer.Deserialize<ParsedCalibrationData>(
+                                cert.CalibrationDataJson);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+
+                    bool isController =
+                        dataObj?.SimulationTable != null &&
+                        dataObj.SimulationTable.Any();
+
+                    <div style="page-break-before: always;"></div>
+
+                    <div class="portrait-report">
+
+                        <div class="header-logo-section">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="height: 60px;" />
+
+                            <br />
+
+                            <h3>OIL INDIA LIMITED</h3>
+
+                        </div>
+
+                        <div style="
+                            border: 1px solid black;
+                            border-top: none;
+                            text-align: center;
+                            background-color: #f8f9fa;">
+
+                            <div style="font-weight:bold; padding:4px;">
+
+                                Calibration report for -
+                                @cert.InstrumentType
+
+                            </div>
+
+                        </div>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <tr>
+
+                                <td style="width: 60%;">
+                                    Installation: @cert.Installation
+                                </td>
+
+                                <td style="width: 40%;">
+                                    Document No - @cert.CertNo
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Instrument Type : @cert.InstrumentType
+                                </td>
+
+                                <td>
+                                    Unit : @cert.UnitId
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Model : @cert.Model
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Range: @cert.InstrumentRange
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+
+                                    Calibrator Make/Model :
+                                    @(dataObj?.MasterCalibrator ?? "")
+
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <thead>
+
+                                <tr class="text-center">
+
+                                    <th>Input Process Value</th>
+                                    <th>Measured Value</th>
+                                    <th>Error</th>
+                                    <th>Remarks</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                @if (dataObj?.CalibrationTable != null &&
+                                     dataObj.CalibrationTable.Any())
+                                {
+                                    @for (int i = 0;
+                                        i < dataObj.CalibrationTable.Count;
+                                        i++)
+                                    {
+                                        var row =
+                                            dataObj.CalibrationTable[i];
+
+                                        <tr>
+
+                                            <td>@row.InputValue</td>
+
+                                            <td>@row.ActualOutput</td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(row.Error)
+                                                    ? "0"
+                                                    : row.Error)
+                                            </td>
+
+                                            @if (i == 0)
+                                            {
+                                                <td rowspan="@dataObj.CalibrationTable.Count"
+                                                    class="text-center">
+
+                                                    @(string.IsNullOrWhiteSpace(row.CalRemarks)
+                                                        ? "Error Adjustments carried out"
+                                                        : row.CalRemarks)
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+
+                                        <td>0</td>
+                                        <td>0</td>
+                                        <td>0</td>
+
+                                        <td class="text-center">
+                                            No Data Present
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                        @if (isController)
+                        {
+                            <div style="
+                                border: 1px solid black;
+                                border-top: none;
+                                padding: 5px;">
+
+                                <p class="font-bold"
+                                   style="
+                                    text-decoration: underline;
+                                    margin-bottom: 2px;">
+
+                                    Process Requirement -
+
+                                </p>
+
+                                <p style="font-size: 13px;">
+
+                                    As per process requirement the set point is
+                                    @(dataObj?.SetPoint ?? "3.5kg/cm2")
+
+                                </p>
+
+                                <p class="font-bold" style="margin-top: 5px;">
+
+                                    Controller Parameters:
+
+                                </p>
+
+                                <ul style="
+                                    list-style: none;
+                                    padding-left: 0;
+                                    font-size: 13px;
+                                    margin: 0;">
+
+                                    <li>
+
+                                        Actuator Operation -
+                                        @(dataObj?.ActuatorAction ?? "Reverse action")
+
+                                    </li>
+
+                                    <li>
+
+                                        Proportional Band -
+                                        @(dataObj?.ProportionalBand ?? "5")
+
+                                        |
+
+                                        Reset Time -
+                                        @(dataObj?.ResetTime ?? "1")
+
+                                    </li>
+
+                                </ul>
+
+                            </div>
+
+                            <table class="report-table"
+                                   style="border-top: none;">
+
+                                <thead>
+
+                                    <tr class="text-center">
+
+                                        <th>Simulation Input</th>
+                                        <th>Output Pressure</th>
+                                        <th>Remarks</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @if (dataObj?.SimulationTable != null)
+                                    {
+                                        @for (int j = 0;
+                                            j < dataObj.SimulationTable.Count;
+                                            j++)
+                                        {
+                                            var simRow =
+                                                dataObj.SimulationTable[j];
+
+                                            <tr>
+
+                                                <td class="text-center">
+                                                    @simRow.ProcessInput
+                                                </td>
+
+                                                <td class="text-center">
+                                                    @simRow.OutputPressure
+                                                </td>
+
+                                                @if (j == 0)
+                                                {
+                                                    <td rowspan="@dataObj.SimulationTable.Count"
+                                                        style="font-size: 11px;">
+
+                                                        @simRow.PSRemarks
+
+                                                    </td>
+                                                }
+
+                                            </tr>
+                                        }
+                                    }
+
+                                </tbody>
+
+                            </table>
+                        }
+
+                        <table class="report-table"
+                               style="border-top: none;">
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Observations: OK.
+                                </td>
+
+                            </tr>
+
+                            <tr style="background-color: #f1f1f1;">
+
+                                <td style="width: 50%;">
+                                    Calibration by:
+                                </td>
+
+                                <td style="width: 50%;">
+                                    Engineer:
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Name: @cert.PerformedByName
+                                </td>
+
+                                <td>
+                                    Name: @cert.WitnessedByName
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Designation: Technical Officer
+                                </td>
+
+                                <td>
+                                    Designation: Maintenance Engineer
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                    </div>
+                }
+            }
+ *@
+        
+        
+        </div>
+
+    </div>
+}
+
+
+
+
+@if (_isOcsModalOpen)
+{
+    <div class="modal-overlay">
+
+        <div class="no-print pa-4"
+             style="width:100%; gap:10px;">
+
+            <MudButton OnClick="PrintReport"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print">
+
+                Print OCS Summary
+
+            </MudButton>
+
+            <MudButton OnClick="() => _isOcsModalOpen = false"
+                       Variant="Variant.Filled"
+                       Color="Color.Error">
+
+                Close
+
+            </MudButton>
+
+        </div>
+
+        <div id="printable-area-ocs">
+
+            <div class="landscape-report">
+
+                <table class="oil-header-table">
+
+                    <tr>
+
+                        <td width="20%" rowspan="3" class="text-center">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="max-height: 40px;">
+
+                            <div class="logo-text-bold">
+                                ऑयल इंडिया
+                            </div>
+
+                            <div class="logo-text-bold">
+                                OIL INDIA
+                            </div>
+
+                        </td>
+
+                        <td class="text-center header-main-title">
+
+                            <div>ऑयल इंडिया लिमिटेड</div>
+
+                            <div>यंत्रीकरण विभाग</div>
+
+                            <div>
+                                INSTRUMENTATION DEPARTMENT
+                            </div>
+
+                            <div>दुलियाजान / DULIAJAN</div>
+
+                            <div>
+                                OIL INDIA LIMITED
+                            </div>
+
+                            <div>
+                                (केवल आंतरिक उपयोग हेतु /
+                                For Internal Use Only)
+                            </div>
+
+                        </td>
+
+                        @* <td width="20%">
+
+                            <div>
+                                <strong>Ref No:</strong>
+                                @_selectedReport.WorkPermit
+                            </div>
+
+                            <div>
+                                <strong>Dated:</strong>
+                                @_selectedReport.CompletionDateLocal
+                            </div>
+
+                        </td> *@
+
+                    </tr>
+
+                </table>
+                @*Header for dates and stuff*@
+                <table class="report-table">
+                    <tr>
+
+                        <td colspan="3">
+                            <strong>Ref no:</strong> @_selectedReport.WorkPermit
+                        </td>
+
+                        <td colspan="3" class="text-left">
+                            <strong>Dated:</strong> @_selectedReport.CompletionDateLocal
+                        </td>
+
+                        <td colspan="3">
+                            <strong>PM Date:</strong> @_selectedReport.MultiSelectionPmDates
+                        </td>
+
+                    </tr>
+
+                    <tr>
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+
+                            <strong>Installation Name -</strong>
+                            @_selectedReport.LocationName
+
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> @_selectedReport.WorkPermit
+                        </td>
+
+                    </tr>
+                </table>
+
+
+                @*Table for data *@
+                <table class="report-table">
+
+                    <thead>
+
+                        <tr style="background:#eee;">
+
+                            <th width="40px">Sl.</th>
+                            <th>UNIT</th>
+                            <th>INSTRUMENT</th>
+                            <th>MAKE & MODEL</th>
+                            <th>RANGE</th>
+                            <th>QUANTITY</th>
+
+                            <th>
+                                Calibration/Functionality
+                                Testing/Replaced with
+                                pre Calibrated Instrument
+                            </th>
+
+                            <th>
+                                Calibration Certificate No.
+                                (Attached with report)
+                            </th>
+
+                            <th>REMARKS</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+
+
+
+                        @foreach (var item in _currentJobItems)
+                        {
+                            <tr>
+
+                                <td>@item.SlNo</td>
+
+                                <td>@item.Unit</td>
+
+                                <td>
+                                    @item.Instrument
+                                    <br />
+                                    <small>@item.TagNumber</small>
+                                </td>
+
+                                <td>@item.MakeModel</td>
+                                <td>@item.Range</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.TestingType</td>
+                                <td>@item.CertNo</td>
+                                <td>@item.Remarks</td>
+
+                            </tr>
+                        }
+
+                    </tbody>
+
+                </table>
+
+
+                @* Table for Note and master calibrator *@
+                <table class="report-table">
+                    <tr>
+                        <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
+                            @* 
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">NOTE:</div>
+                            <ol style="margin: 0 0 20px 0; padding-left: 20px; line-height: 1.5;">
+                                <li>All the servo regulators should be drained regularly for better operation.</li>
+                                <li>The above PM job is carried out on 23/01/2026; 27/01/2026 &amp; 29/01/2026</li>
+                            </ol>
+                            *@
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Spares consumed :</div>
+                            <p style="margin: 0; padding-left: 5px; font-weight: normal;">@_selectedReport.SectionDSpares</p>
+                        </td>
+
+                        <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Details of Master Calibrator used :</div>
+                            <ol style="margin: 0; padding-left: 20px; line-height: 1.5;">
+                                @foreach (var calibrator in _masterCalibrators)
+                                {
+                                    <li style="margin-bottom: 10px;">
+                                        @calibrator.Name @calibrator.Model
+                                        <br />
+                                        <span style="color: #555;">
+                                            Calibration validity upto - (@calibrator.ValidityDate.ToString("dd-MM-yyyy"))
+                                        </span>
+                                    </li>
+                                }
+                            </ol>
+                        </td>
+                    </tr>
+                </table>
+
+
+                <div class="report-footer">
+
+                    <div class="remarks-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">NOTE:</div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. @_selectedReport.Remarks</div>
+                        <div class="remark-item">2. The above PM job is carried out on : @_selectedReport.MultiSelectionPmDates</div>
+                    </div>
+
+                    <div class="carried-out-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
+                            {
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
+                        <div class="approval-box left" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
+                            <div class="signature-line">
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box center" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
+                            <div class="signature-line">
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box right" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
+                            <div class="signature-line">
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
+            </div>
+
+
+           @*  @if (_jobCertificates != null && _jobCertificates.Any())
+            {
+                @foreach (var cert in _jobCertificates)
+                {
+                    ParsedCalibrationData? dataObj = null;
+
+                    if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
+                    {
+                        try
+                        {
+                            dataObj = JsonSerializer.Deserialize<ParsedCalibrationData>(
+                                cert.CalibrationDataJson);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+
+                    bool isController =
+                        dataObj?.SimulationTable != null &&
+                        dataObj.SimulationTable.Any();
+
+                    <div style="page-break-before: always;"></div>
+
+                    <div class="portrait-report">
+
+                        <div class="header-logo-section">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="height: 60px;" />
+
+                            <br />
+
+                            <h3>OIL INDIA LIMITED</h3>
+
+                        </div>
+
+                        <div style="
+                            border: 1px solid black;
+                            border-top: none;
+                            text-align: center;
+                            background-color: #f8f9fa;">
+
+                            <div style="font-weight:bold; padding:4px;">
+
+                                Calibration report for -
+                                @cert.InstrumentType
+
+                            </div>
+
+                        </div>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <tr>
+
+                                <td style="width: 60%;">
+                                    Installation: @cert.Installation
+                                </td>
+
+                                <td style="width: 40%;">
+                                    Document No - @cert.CertNo
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Instrument Type : @cert.InstrumentType
+                                </td>
+
+                                <td>
+                                    Unit : @cert.UnitId
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Model : @cert.Model
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Range: @cert.InstrumentRange
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td colspan="2">
+
+                                    Calibrator Make/Model :
+                                    @(dataObj?.MasterCalibrator ?? "")
+
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                        <table class="report-table" style="border-top: none;">
+
+                            <thead>
+
+                                <tr class="text-center">
+
+                                    <th>Input Process Value</th>
+                                    <th>Measured Value</th>
+                                    <th>Error</th>
+                                    <th>Remarks</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                @if (dataObj?.CalibrationTable != null &&
+                                     dataObj.CalibrationTable.Any())
+                                {
+                                    @for (int i = 0;
+                                        i < dataObj.CalibrationTable.Count;
+                                        i++)
+                                    {
+                                        var row =
+                                            dataObj.CalibrationTable[i];
+
+                                        <tr>
+
+                                            <td>@row.InputValue</td>
+
+                                            <td>@row.ActualOutput</td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(row.Error)
+                                                    ? "0"
+                                                    : row.Error)
+                                            </td>
+
+                                            @if (i == 0)
+                                            {
+                                                <td rowspan="@dataObj.CalibrationTable.Count"
+                                                    class="text-center">
+
+                                                    @(string.IsNullOrWhiteSpace(row.CalRemarks)
+                                                        ? "Error Adjustments carried out"
+                                                        : row.CalRemarks)
+
+                                                </td>
+                                            }
+
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+
+                                        <td>0</td>
+                                        <td>0</td>
+                                        <td>0</td>
+
+                                        <td class="text-center">
+                                            No Data Present
+                                        </td>
+
+                                    </tr>
+                                }
+
+                            </tbody>
+
+                        </table>
+
+                        @if (isController)
+                        {
+                            <div style="
+                                border: 1px solid black;
+                                border-top: none;
+                                padding: 5px;">
+
+                                <p class="font-bold"
+                                   style="
+                                    text-decoration: underline;
+                                    margin-bottom: 2px;">
+
+                                    Process Requirement -
+
+                                </p>
+
+                                <p style="font-size: 13px;">
+
+                                    As per process requirement the set point is
+                                    @(dataObj?.SetPoint ?? "3.5kg/cm2")
+
+                                </p>
+
+                                <p class="font-bold" style="margin-top: 5px;">
+
+                                    Controller Parameters:
+
+                                </p>
+
+                                <ul style="
+                                    list-style: none;
+                                    padding-left: 0;
+                                    font-size: 13px;
+                                    margin: 0;">
+
+                                    <li>
+
+                                        Actuator Operation -
+                                        @(dataObj?.ActuatorAction ?? "Reverse action")
+
+                                    </li>
+
+                                    <li>
+
+                                        Proportional Band -
+                                        @(dataObj?.ProportionalBand ?? "5")
+
+                                        |
+
+                                        Reset Time -
+                                        @(dataObj?.ResetTime ?? "1")
+
+                                    </li>
+
+                                </ul>
+
+                            </div>
+
+                            <table class="report-table"
+                                   style="border-top: none;">
+
+                                <thead>
+
+                                    <tr class="text-center">
+
+                                        <th>Simulation Input</th>
+                                        <th>Output Pressure</th>
+                                        <th>Remarks</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody>
+
+                                    @if (dataObj?.SimulationTable != null)
+                                    {
+                                        @for (int j = 0;
+                                            j < dataObj.SimulationTable.Count;
+                                            j++)
+                                        {
+                                            var simRow =
+                                                dataObj.SimulationTable[j];
+
+                                            <tr>
+
+                                                <td class="text-center">
+                                                    @simRow.ProcessInput
+                                                </td>
+
+                                                <td class="text-center">
+                                                    @simRow.OutputPressure
+                                                </td>
+
+                                                @if (j == 0)
+                                                {
+                                                    <td rowspan="@dataObj.SimulationTable.Count"
+                                                        style="font-size: 11px;">
+
+                                                        @simRow.PSRemarks
+
+                                                    </td>
+                                                }
+
+                                            </tr>
+                                        }
+                                    }
+
+                                </tbody>
+
+                            </table>
+                        }
+
+                        <table class="report-table"
+                               style="border-top: none;">
+
+                            <tr>
+
+                                <td colspan="2">
+                                    Observations: OK.
+                                </td>
+
+                            </tr>
+
+                            <tr style="background-color: #f1f1f1;">
+
+                                <td style="width: 50%;">
+                                    Calibration by:
+                                </td>
+
+                                <td style="width: 50%;">
+                                    Engineer:
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Name: @cert.PerformedByName
+                                </td>
+
+                                <td>
+                                    Name: @cert.WitnessedByName
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Designation: Technical Officer
+                                </td>
+
+                                <td>
+                                    Designation: Maintenance Engineer
+                                </td>
+
+                            </tr>
+
+                            <tr>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                                <td>
+                                    Date:
+                                    @(cert.ReportDate?.ToString("dd/MM/yyyy") ?? "")
+                                </td>
+
+                            </tr>
+
+                        </table>
+
+                    </div>
+                }
+            }
+ *@
+        
+
+        </div>
+
+    </div>
+}
+
+
+
+
+
+
+@code {
+
+    // =========================================================
+    // JSON OPTIONS
+    // =========================================================
+
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
+    };
+
+    // =========================================================
+    // VARIABLES
+    // =========================================================
+
+    private DateTime? _startDate = DateTime.Today.AddMonths(-1);
+
+    private DateTime? _endDate = DateTime.Today;
+
+    private List<SectionItem> _currentJobItems = new();
+
+    private List<ReportView> _reports = new();
+
+    private List<Location> _locations = new();
+
+    private List<CalibrationDetail> _jobCertificates = new();
+
+    private List<MasterCalibrator> _masterCalibrators = new();
+
+    private List<MyArray> _JsonToTableRowClassList = new();
+
+    private ReportView _selectedReport = new();
+
+    private bool _loading = true;
+
+    private bool _isGcsModalOpen = false;
+
+    private bool _isOcsModalOpen = false;
+
+    private List<EmployeeEngineer> _employees = new();
+
+    private List<EmployeeExecutive> _executives = new();
+
+    // =========================================================
+    // INITIALIZE
+    // =========================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var empResponse =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Get();
+
+            _employees = empResponse.Models;
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Initialization Error: {ex}");
+        }
+    }
+
+    // =========================================================
+    // HANDLE VIEW CLICK
+    // =========================================================
+
+    private async Task HandleViewClick(ReportView report)
+    {
+        try
+        {
+            _selectedReport = report;
+
+            _currentJobItems.Clear();
+
+            _jobCertificates.Clear();
+
+            _JsonToTableRowClassList.Clear();
+
+            _isGcsModalOpen = false;
+            _isOcsModalOpen = false;
+
+            Console.WriteLine($"Loading report ID: {report.Id}");
+
+            var reportRes =
+                await SupabaseClient
+                    .From<PmReport>()
+                    .Filter(
+                        "id",
+                        Operator.Equals,
+                        report.Id)
+                    .Single();
+
+            if (reportRes == null)
+            {
+                Snackbar.Add(
+                    "Report not found.",
+                    Severity.Error);
+
+                return;
+            }
+
+            // =====================================================
+            // PARSE SECTION ITEMS
+            // =====================================================
+
+            var sectionA =
+                ParseJsonSection(reportRes.SectionA);
+
+            var sectionB =
+                ParseJsonSection(reportRes.SectionB);
+
+            var sectionD =
+                ParseJsonSection(reportRes.SectionDSpares);
+
+            _currentJobItems.AddRange(sectionA);
+            _currentJobItems.AddRange(sectionB);
+            _currentJobItems.AddRange(sectionD);
+
+            Console.WriteLine(
+                $"TOTAL ITEMS: {_currentJobItems.Count}");
+
+            // =====================================================
+            // PARSE TABLE DATA
+            // =====================================================
+
+            try
+            {
+                string jsonPayload =
+                    reportRes.SectionA?.ToString()?.Trim()
+                    ?? "[]";
+
+                if (jsonPayload.StartsWith("\"") &&
+                    jsonPayload.EndsWith("\""))
+                {
+                    jsonPayload =
+                        JsonSerializer.Deserialize<string>(
+                            jsonPayload)
+                        ?? "[]";
+                }
+
+                _JsonToTableRowClassList =
+                    JsonSerializer.Deserialize<List<MyArray>>(
+                        jsonPayload,
+                        _jsonOptions)
+                    ?? new List<MyArray>();
+
+                Console.WriteLine(
+                    $"TABLE ROWS: {_JsonToTableRowClassList.Count}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Table Parse Error: {ex}");
+            }
+
+            // =====================================================
+            // FETCH CERTIFICATES
+            // =====================================================
+
+            var certRes =
+                await SupabaseClient
+                    .From<CalibrationDetail>()
+                    .Filter(
+                        "job_id",
+                        Operator.Equals,
+                        report.JobId.ToString())
+                    .Get();
+
+            _jobCertificates = certRes.Models;
+
+            foreach (var cert in _jobCertificates)
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(
+                        cert.CalibrationDataJson))
+                    {
+                        cert.ParsedData =
+                            JsonSerializer.Deserialize<
+                                ParsedCalibrationData>(
+                                cert.CalibrationDataJson,
+                                _jsonOptions)
+                            ?? new ParsedCalibrationData();
+                    }
+                    else
+                    {
+                        cert.ParsedData =
+                            new ParsedCalibrationData();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Certificate Parse Error ({cert.CertNo}): {ex}");
+
+                    cert.ParsedData =
+                        new ParsedCalibrationData();
+                }
+            }
+
+            // =====================================================
+            // OPEN MODAL
+            // =====================================================
+
+            if (report.LocationName.Contains(
+                "GCS",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                _isGcsModalOpen = true;
+            }
+            else
+            {
+                _isOcsModalOpen = true;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"HandleViewClick Error: {ex}");
+
+            Snackbar.Add(
+                $"Data Load Error: {ex.Message}",
+                Severity.Error);
+        }
+    }
+
+    // =========================================================
+    // JSON PARSER
+    // =========================================================
+
+    private List<SectionItem> ParseJsonSection(object? jsonField)
+    {
+        var result = new List<SectionItem>();
+
+        try
+        {
+            if (jsonField == null)
+            {
+                return result;
+            }
+
+            string rawJson =
+                jsonField.ToString()?.Trim()
+                ?? "[]";
+
+            if (string.IsNullOrWhiteSpace(rawJson) ||
+                rawJson == "null")
+            {
+                return result;
+            }
+
+            // Escaped JSON Fix
+            if (rawJson.StartsWith("\"") &&
+                rawJson.EndsWith("\""))
+            {
+                try
+                {
+                    rawJson =
+                        JsonSerializer.Deserialize<string>(
+                            rawJson)
+                        ?? "[]";
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"JSON Unescape Error: {ex}");
+                }
+            }
+
+            Console.WriteLine(rawJson);
+
+            using var document =
+                JsonDocument.Parse(rawJson);
+
+            if (document.RootElement.ValueKind !=
+                JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var item in document
+                         .RootElement
+                         .EnumerateArray())
+            {
+                try
+                {
+                    var parsedItem =
+                        JsonSerializer.Deserialize<SectionItem>(
+                            item.GetRawText(),
+                            _jsonOptions);
+
+                    if (parsedItem != null)
+                    {
+                        result.Add(parsedItem);
+                    }
+                }
+                catch (Exception itemEx)
+                {
+                    Console.WriteLine(
+                        $"ITEM PARSE FAILED: {itemEx}");
+
+                    Console.WriteLine(
+                        item.GetRawText());
+                }
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"ParseJsonSection Error: {ex}");
+
+            return result;
+        }
+    }
+
+    // =========================================================
+    // LOAD DATA
+    // =========================================================
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+
+            var start =
+                (_startDate ?? DateTime.Today.AddMonths(-1))
+                .Date;
+
+            var end =
+                (_endDate ?? DateTime.Today)
+                .Date
+                .AddDays(1);
+
+            var response =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Where(x =>
+                        x.Section == "FIELD MAINTENANCE")
+                    .Get();
+
+            _employees = response.Models;
+
+            var executiveResponse =
+                await SupabaseClient
+                    .From<EmployeeExecutive>()
+                    .Where(x =>
+                        x.Department == "FIELD MAINTENANCE")
+                    .Get();
+
+            _executives = executiveResponse.Models;
+
+            var locRes =
+                await SupabaseClient
+                    .From<Location>()
+                    .Get();
+
+            _locations = locRes.Models;
+
+            var res =
+                await SupabaseClient
+                    .From<PmReport>()
+                    .Select("*")
+                    .Filter(
+                        "completion_date",
+                        Operator.GreaterThanOrEqual,
+                        start.ToString("yyyy-MM-dd"))
+                    .Filter(
+                        "completion_date",
+                        Operator.LessThanOrEqual,
+                        end.ToString("yyyy-MM-dd"))
+                    .Get();
+
+            var masterCalibrators =
+                await SupabaseClient
+                    .From<MasterCalibrator>()
+                    .Get();
+
+            _masterCalibrators =
+                masterCalibrators.Models
+                    .OrderBy(c => c.ValidityDate)
+                    .ToList();
+
+            _reports =
+                res.Models.Select(r => new ReportView
+                {
+                    Id = r.Id,
+                    JobId = r.JobId,
+                    LocationId = r.LocationId,
+                    WorkPermit = r.WorkPermit,
+                    CompletionDate = r.CompletionDate,
+
+                    JobCarriedByEmpCodes =
+                        r.JobCarriedByEmpCodes,
+
+                    ReportPreparedBy =
+                        r.ReportPreparedBy,
+
+                    ReportSupervisedBy =
+                        r.ReportSupervisedBy,
+
+                    ReportVerifiedBy =
+                        r.ReportVerifiedBy,
+
+                    SectionDSpares =
+                        r.SectionDSpares,
+
+                    MultiSelectionPmDates =
+                        r.MultiSelectionPmDates,
+
+                    LocationName =
+                        _locations.FirstOrDefault(
+                            l => l.Id == r.LocationId)
+                        ?.InstallationName ?? "",
+
+                    VisualPoints =
+                        new List<VisualPoint>
+                        {
+                            new()
+                            {
+                                Id = "1",
+                                Description =
+                                    "Checked all tripping parameters and their settings."
+                            },
+                            new()
+                            {
+                                Id = "2",
+                                Description =
+                                    "Panel inside wiring checked and found ok."
+                            },
+                            new()
+                            {
+                                Id = "3",
+                                Description =
+                                    "Air Filter Regulators draining and servicing done."
+                            }
+                        }
+
+                }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(
+                $"Fetch Error: {ex.Message}",
+                Severity.Error);
+
+            Console.WriteLine(
+                $"LoadData Error: {ex}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // =========================================================
+    // PRINT
+    // =========================================================
+
+    private async Task PrintReport()
+    {
+        StateHasChanged();
+
+        await Task.Delay(500);
+
+        await JSRuntime.InvokeVoidAsync("blazorPrint");
+    }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
+
+    private Location GetInstallationName(long locID)
+    {
+        if (locID <= 0)
+            return null;
+
+        return _locations.FirstOrDefault(
+            l => l.Id == locID);
+    }
+
+
+    private EmployeeEngineer GetEmployee(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode))
+            return null;
+
+        return _employees.FirstOrDefault(
+            e => e.EmpCode == empCode);
+    }
+
+    private EmployeeExecutive GetExecutive(string empCode)
+    {
+        if (string.IsNullOrWhiteSpace(empCode))
+            return null;
+
+        return _executives.FirstOrDefault(
+            e => e.Id.ToString() == empCode);
+    }
+
+    // =========================================================
+    // MODELS
+    // =========================================================
+
+    public class SectionItem
+    {
+        [JsonPropertyName("SlNo")]
+        public string? SlNo { get; set; }
+
+        [JsonPropertyName("CompSlNo")]
+        public string? CompSlNo { get; set; }
+
+        [JsonPropertyName("CompMakeModel")]
+        public string? CompMakeModel { get; set; }
+
+        // FIXED
+        [JsonPropertyName("CheckTripping")]
+        public bool? CheckTripping { get; set; }
+
+        [JsonPropertyName("CheckTubing")]
+        public bool? CheckTubing { get; set; }
+
+        [JsonPropertyName("CheckAFR")]
+        public bool? CheckAFR { get; set; }
+
+        [JsonPropertyName("SafetyInterlocks")]
+        public string? SafetyInterlocks { get; set; }
+
+        [JsonPropertyName("Hooter")]
+        public string? Hooter { get; set; }
+
+        [JsonPropertyName("SparesConsumed")]
+        public string? SparesConsumed { get; set; }
+
+        [JsonPropertyName("Installation")]
+        public string? Installation { get; set; }
+
+        [JsonPropertyName("Unit")]
+        public string? Unit { get; set; }
+
+        [JsonPropertyName("ManualUnit")]
+        public string? ManualUnit { get; set; }
+
+        [JsonPropertyName("Instrument")]
+        public string? Instrument { get; set; }
+
+        [JsonPropertyName("ManualInstrument")]
+        public string? ManualInstrument { get; set; }
+
+        [JsonPropertyName("TagNumber")]
+        public string? TagNumber { get; set; }
+
+        [JsonPropertyName("ManualTag")]
+        public string? ManualTag { get; set; }
+
+        [JsonPropertyName("MakeModel")]
+        public string? MakeModel { get; set; }
+
+        [JsonPropertyName("ManualMakeModel")]
+        public string? ManualMakeModel { get; set; }
+
+        [JsonPropertyName("Range")]
+        public string? Range { get; set; }
+
+        [JsonPropertyName("ManualRange")]
+        public string? ManualRange { get; set; }
+
+        // FIXED
+        [JsonPropertyName("Quantity")]
+        public int? Quantity { get; set; }
+
+        [JsonPropertyName("TestingType")]
+        public string? TestingType { get; set; }
+
+        [JsonPropertyName("CertNo")]
+        public string? CertNo { get; set; }
+
+        [JsonPropertyName("Remarks")]
+        public string? Remarks { get; set; }
+
+        [JsonPropertyName("ManualRemarks")]
+        public string? ManualRemarks { get; set; }
+
+        [JsonPropertyName("CalibrationData")]
+        public CalibrationData? CalibrationData { get; set; }
+    }
+
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("emp_code")]
+        public string EmpCode { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("section")]
+        public string Section { get; set; }
+        [Column("designation")]
+        public string Designation { get; set; }
+
+        [Column("grade")]
+        public string Grade { get; set; }
+
+    }
+
+    [Table("employees_executives")]
+    public class EmployeeExecutive : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string FullName { get; set; }
+
+        [Column("Department")]
+        public string Department { get; set; }
+        [Column("designation")]
+        public string Designation { get; set; }
+
+    }
+
+    [Table("pm_reports")]
+    public class PmReport : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public int Id { get; set; }
+
+        [Column("job_id")]
+        public Guid JobId { get; set; }
+
+        [Column("location_id")]
+        public long LocationId { get; set; }
+
+        [Column("work_permit")]
+        public string? WorkPermit { get; set; }
+
+        [Column("completion_date")]
+        public DateTime CompletionDate { get; set; }
+
+        [Column("section_a_controllers")]
+        public object? SectionA { get; set; }
+
+        [Column("section_b_transmitters")]
+        public object? SectionB { get; set; }
+
+        [Column("section_d_spares")]
+        public object? SectionDSpares { get; set; }
+
+        [Column("remarks")]
+        public string Remarks { get; set; } = "";
+
+        [Column("pm_dates")]
+        public string? MultiSelectionPmDates { get; set; }
+
+        [Column("Job_Carried_By")]
+        public List<string>? JobCarriedByEmpCodes { get; set; }
+
+        [Column("Report_Prepared_By")]
+        public string? ReportPreparedBy { get; set; }
+
+        [Column("Report_Supervised_By")]
+        public string? ReportSupervisedBy { get; set; }
+
+        [Column("Report_Verified_By")]
+        public string? ReportVerifiedBy { get; set; }
+    }
+
+    [Table("master_calibrators")]
+    public class MasterCalibrator : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("name")]
+        public string Name { get; set; }
+
+        [Column("model")]
+        public string Model { get; set; }
+
+        [Column("serial_number")]
+        public string SerialNumber { get; set; }
+
+        [Column("validity_date")]
+        public DateTime ValidityDate { get; set; }
+    }
+
+    [Table("pm_calibration_details")]
+    public class CalibrationDetail : BaseModel
+    {
+        [PrimaryKey("id")]
+        public int Id { get; set; }
+
+        [Column("job_id")]
+        public Guid JobId { get; set; }
+
+        [Column("cert_no")]
+        public string CertNo { get; set; } = "";
+
+        [Column("calibration_data")]
+        public string CalibrationDataJson { get; set; } = "[]";
+
+        [JsonIgnore]
+        public ParsedCalibrationData? ParsedData { get; set; }
+    }
+
+    public class ParsedCalibrationData
+    {
+        public string MasterCalibrator { get; set; } = "";
+
+        public List<CalRow> CalibrationTable { get; set; } = new();
+
+        public List<SimRow>? SimulationTable { get; set; }
+    }
+
+    public class CalRow
+    {
+        public string? InputValue { get; set; }
+
+        public string? InputPercentage { get; set; }
+
+        public string? ExpectedOutput { get; set; }
+
+        public string? ActualOutput { get; set; }
+
+        public string? Error { get; set; }
+
+        public string? CalRemarks { get; set; }
+    }
+
+    public class SimRow
+    {
+        public string? ProcessInput { get; set; }
+
+        public string? OutputPressure { get; set; }
+
+        public string? PSRemarks { get; set; }
+    }
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id")]
+        public long Id { get; set; }
+
+        [Column("installation_name")]
+        public string? InstallationName { get; set; }
+    }
+
+    public class ReportView : PmReport
+    {
+        public string CompletionDateLocal =>
+            CompletionDate == DateTime.MinValue
+                ? ""
+                : CompletionDate
+                    .ToLocalTime()
+                    .ToString("dd/MM/yyyy");
+
+        public string LocationName { get; set; } = "";
+
+        public List<VisualPoint> VisualPoints { get; set; } = new();
+    }
+
+    public class VisualPoint
+    {
+        public string Id { get; set; } = "";
+
+        public string Description { get; set; } = "";
+    }
+
+    public class CalibrationData
+    {
+        public string? REInstallation { get; set; }
+
+        public object? REUnit { get; set; }
+
+        public string? RERange { get; set; }
+
+        public string? REModel { get; set; }
+
+        public string? REInstrumentType { get; set; }
+
+        public object? RETestType { get; set; }
+
+        public string? RECertificateNo { get; set; }
+
+        public string? RERemarks { get; set; }
+
+        public string? REMasterCalibrator { get; set; }
+
+        public RECalibration? RECalibration { get; set; }
+    }
+
+    public class RECalibration
+    {
+        public string? MasterCalibrator { get; set; }
+
+        public List<CalibrationTable> CalibrationTable { get; set; } = new();
+    }
+
+    public class CalibrationTable
+    {
+        public string? InputValue { get; set; }
+
+        public string? InputPercentage { get; set; }
+
+        public string? ExpectedOutput { get; set; }
+
+        public string? ActualOutput { get; set; }
+
+        public string? Error { get; set; }
+
+        public string? CalRemarks { get; set; }
+    }
+
+    public class MyArray
+    {
+        public string? SlNo { get; set; }
+
+        public string? Installation { get; set; }
+
+        public string? CompSlNo { get; set; }
+
+        public string? CompMakeModel { get; set; }
+
+        public string? Unit { get; set; }
+
+        public string? ManualUnit { get; set; }
+
+        public string? Instrument { get; set; }
+
+        public string? ManualInstrument { get; set; }
+
+        public string? TagNumber { get; set; }
+
+        public string? ManualTag { get; set; }
+
+        public string? MakeModel { get; set; }
+
+        public string? ManualMakeModel { get; set; }
+
+        public string? Range { get; set; }
+
+        public string? ManualRange { get; set; }
+
+        public int? Quantity { get; set; }
+
+        public string? TestingType { get; set; }
+
+        public string? CertNo { get; set; }
+
+        public string? Remarks { get; set; }
+
+        public string? ManualRemarks { get; set; }
+
+        public CalibrationData? CalibrationData { get; set; }
+    }
+}
+
+
+

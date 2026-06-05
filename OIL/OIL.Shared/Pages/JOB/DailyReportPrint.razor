@@ -590,6 +590,9 @@ else
     </div>
 }
 
+
+
+
 @code {
     private DateTime? _prevDate = DateTime.Today.AddDays(-1);
     private DateTime? _todayDate = DateTime.Today;
@@ -618,18 +621,36 @@ else
             _locations = (await SupabaseClient.From<Location>().Get()).Models;
             _markers = (await SupabaseClient.From<Marker>().Get()).Models;
 
-            var todayStr = _todayDate?.ToString("yyyy-MM-dd");
-            var prevStr = _prevDate?.ToString("yyyy-MM-dd");
+
+            // Construct unambiguous IST boundaries explicitly for the API request
+            string prevStartStr = $"{_prevDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
+            string prevEndStr = $"{_prevDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
+
+            string todayStartStr = $"{_todayDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
+            string todayEndStr = $"{_todayDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
 
             var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
-                .Get()).Models;
+            .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStartStr)
+            .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, prevEndStr)
+            .Get()).Models;
 
             var rawTodayEntries = (await SupabaseClient.From<Assignment>()
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStartStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayEndStr)
                 .Get()).Models;
+
+            // var todayStr = _todayDate?.ToString("yyyy-MM-dd");
+            // var prevStr = _prevDate?.ToString("yyyy-MM-dd");
+
+            // var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
+            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
+            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
+            //     .Get()).Models;
+
+            // var rawTodayEntries = (await SupabaseClient.From<Assignment>()
+            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
+            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
+            //     .Get()).Models;
 
             if (!string.IsNullOrEmpty(selectedFieldType))
             {
@@ -648,6 +669,29 @@ else
             StateHasChanged();
         }
     }
+
+    private void ExecuteTimeCalculations()
+    {
+        string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+        TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+        DateTime currentIstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+
+        foreach (var assignment in _todayEntries)
+        {
+            if (assignment.CreatedAtIst.HasValue)
+            {
+                // Calculation Example 1: Finding exact duration elapsed in standard hours
+                double hoursElapsed = (currentIstTime - assignment.CreatedAtIst.Value).TotalHours;
+
+                // Calculation Example 2: Dynamically checking shift validation rules
+                if (assignment.CreatedAtIst.Value.Hour >= 22 || assignment.CreatedAtIst.Value.Hour < 6)
+                {
+                    // Logic for Night Shift validation adjustments...
+                }
+            }
+        }
+    }
+
 
     private async Task SaveChanges()
     {
@@ -733,7 +777,24 @@ else
     public class Assignment : BaseModel
     {
         [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("created_at")] public DateTime? CreatedAt { get; set; } // Kept as UTC for DB sync
+
+        // Cross-platform safe property for displaying and calculating in IST
+        public DateTime? CreatedAtIst
+        {
+            get
+            {
+                if (!CreatedAt.HasValue) return null;
+
+                // Handle cross-platform differences between Windows & Linux/Docker host timezone IDs
+                string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+                TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+
+                // Explicitly mark incoming DB time as UTC, then convert
+                DateTime utcTime = DateTime.SpecifyKind(CreatedAt.Value, DateTimeKind.Utc);
+                return TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
+            }
+        }
         [Column("driver_id")] public long? DriverId { get; set; }
         [Column("shift_name")] public string ShiftName { get; set; }
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();

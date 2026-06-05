@@ -1,4 +1,4 @@
-﻿@page "/PMrn"
+﻿@page "/PMrn_editable"
 
 @using MudBlazor
 @using Supabase
@@ -27,9 +27,11 @@
 
 
 <style>
+
     /* =========================================================
                GLOBAL PAGE
-       ========================================================= */
+            ========================================================= */
+
     html,
     body {
         margin: 0;
@@ -50,7 +52,8 @@
 
     /* =========================================================
                MODAL
-       ========================================================= */
+            ========================================================= */
+
     .modal-overlay {
         position: fixed;
         inset: 0;
@@ -64,7 +67,8 @@
 
     /* =========================================================
                REPORT PAGES
-       ========================================================= */
+            ========================================================= */
+
     .landscape-report,
     .portrait-report {
         background: white;
@@ -90,7 +94,8 @@
 
     /* =========================================================
                TABLES
-       ========================================================= */
+            ========================================================= */
+
     table {
         width: 100%;
         border-collapse: collapse !important;
@@ -108,40 +113,33 @@
         border: 1px solid black !important;
     }
 
-    .report-table th,
-    .report-table td,
-    .oil-header-table th,
-    .oil-header-table td,
-    .report-body-table th,
-    .report-body-table td,
-    .job-done-table th,
-    .job-done-table td,
-    .inner-list-table th,
-    .inner-list-table td {
-        border: 1px solid black !important;
-        padding: 6px;
-        font-size: 12px;
-        vertical-align: middle;
-        word-break: break-word;
-        overflow-wrap: break-word;
-    }
+        .report-table th,
+        .report-table td,
+        .oil-header-table th,
+        .oil-header-table td,
+        .report-body-table th,
+        .report-body-table td,
+        .job-done-table th,
+        .job-done-table td,
+        .inner-list-table th,
+        .inner-list-table td {
+            border: 1px solid black !important;
+            padding: 6px;
+            font-size: 12px;
+            color: black !important;
+            vertical-align: middle;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
 
-    /* Isolated color override away from input fields */
-    .report-table td,
-    .oil-header-table td,
-    .report-body-table td,
-    .job-done-table td,
-    .inner-list-table td {
-        color: #000000;
-    }
-
-    .job-done-table th {
-        background: #efefef !important;
-    }
+        .job-done-table th {
+            background: #efefef !important;
+        }
 
     /* =========================================================
                TEXT HELPERS
-       ========================================================= */
+            ========================================================= */
+
     .text-center {
         text-align: center;
     }
@@ -185,7 +183,8 @@
 
     /* =========================================================
                RESPONSIVE HELPERS
-       ========================================================= */
+            ========================================================= */
+
     #printable-area,
     #printable-area-ocs {
         width: 100%;
@@ -202,8 +201,10 @@
 
     /* =========================================================
                TABLET RESPONSIVE
-       ========================================================= */
+            ========================================================= */
+
     @@media (max-width: 1024px) {
+
         .modal-overlay {
             padding: 12px;
         }
@@ -236,8 +237,10 @@
 
     /* =========================================================
                MOBILE RESPONSIVE
-       ========================================================= */
+            ========================================================= */
+
     @@media (max-width: 768px) {
+
         .modal-overlay {
             padding: 8px;
         }
@@ -259,19 +262,19 @@
             min-width: 700px;
         }
 
-        .report-table th,
-        .report-table td,
-        .oil-header-table th,
-        .oil-header-table td,
-        .report-body-table th,
-        .report-body-table td,
-        .job-done-table th,
-        .job-done-table td,
-        .inner-list-table th,
-        .inner-list-table td {
-            font-size: 10px;
-            padding: 4px;
-        }
+            .report-table th,
+            .report-table td,
+            .oil-header-table th,
+            .oil-header-table td,
+            .report-body-table th,
+            .report-body-table td,
+            .job-done-table th,
+            .job-done-table td,
+            .inner-list-table th,
+            .inner-list-table td {
+                font-size: 10px;
+                padding: 4px;
+            }
 
         .header-main-title {
             font-size: 12px;
@@ -292,9 +295,9 @@
             gap: 10px;
         }
 
-        .no-print .mud-button-root {
-            width: 100%;
-        }
+            .no-print .mud-button-root {
+                width: 100%;
+            }
 
         .mud-container {
             padding-left: 8px !important;
@@ -308,8 +311,10 @@
 
     /* =========================================================
                SMALL MOBILE
-       ========================================================= */
+            ========================================================= */
+
     @@media (max-width: 480px) {
+
         .modal-overlay {
             padding: 4px;
         }
@@ -357,8 +362,10 @@
 
     /* =========================================================
                PRINT
-       ========================================================= */
+            ========================================================= */
+
     @@media print {
+
         html,
         body {
             background: white !important;
@@ -368,9 +375,9 @@
             height: auto !important;
         }
 
-        body * {
-            visibility: hidden;
-        }
+            body * {
+                visibility: hidden;
+            }
 
         #printable-area,
         #printable-area *,
@@ -443,214 +450,317 @@
             margin: 10mm;
         }
     }
+
+
+.editable-field{
+    border:none;
+    background:transparent;
+    width:100%;
+    font:inherit;
+    color:inherit;
+    padding:2px;
+}
+.editable-field:focus{
+    outline:1px solid #1976d2;
+    background:#fffde7;
+}
+
 </style>
 
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
+
     <MudPaper Elevation="3" Class="pa-4">
+
         <h3>PM Completion Reports</h3>
 
+        <!-- FILTER -->
         <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-radius:18px;">
+
             <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+
                 <MudItem xs="12" sm="6" md="3">
+
                     <MudDatePicker T="DateTime?"
                                    Label="From Date"
                                    @bind-Date="_startDate"
                                    Editable="true"
                                    Variant="Variant.Outlined" />
+
                 </MudItem>
 
                 <MudItem xs="12" sm="6" md="3">
+
                     <MudDatePicker T="DateTime?"
                                    Label="To Date"
                                    @bind-Date="_endDate"
                                    Editable="true"
                                    Variant="Variant.Outlined" />
+
                 </MudItem>
 
                 <MudItem xs="12" sm="6" md="3">
+
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                OnClick="LoadData"
                                Loading="_loading"
                                FullWidth>
+
                         Apply Filter
+
                     </MudButton>
+
                 </MudItem>
 
                 <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Class="pa-3" Style="background:#f1f5f9;border-radius:14px;">
-                        <MudText Typo="Typo.caption">ACTIVE RANGE</MudText>
-                        <MudText Typo="Typo.subtitle1" Style="font-weight:700;">
-                            @_startDate?.ToString("dd MMM yyyy") - @_endDate?.ToString("dd MMM yyyy")
+
+                    <MudPaper Class="pa-3"
+                              Style="background:#f1f5f9;border-radius:14px;">
+
+                        <MudText Typo="Typo.caption">
+                            ACTIVE RANGE
                         </MudText>
+
+                        <MudText Typo="Typo.subtitle1"
+                                 Style="font-weight:700;">
+
+                            @_startDate?.ToString("dd MMM yyyy")
+                            -
+                            @_endDate?.ToString("dd MMM yyyy")
+
+                        </MudText>
+
                     </MudPaper>
+
                 </MudItem>
+
             </MudGrid>
+
         </MudPaper>
 
-        <MudDataGrid T="ReportView" Items="@_reports" Loading="@_loading" Dense="true" Bordered="true">
+
+        <MudDataGrid T="ReportView"
+                     Items="@_reports"
+                     Loading="@_loading"
+                     Dense="true"
+                     Bordered="true">
+
             <Columns>
+
                 <TemplateColumn Title="View" HeaderStyle="width: 50px;">
+
                     <CellTemplate>
+
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility"
                                        Color="Color.Info"
                                        OnClick="@(() => HandleViewClick(context.Item))" />
+
                     </CellTemplate>
+
                 </TemplateColumn>
+
                 <PropertyColumn Property="x => x.CompletionDateLocal" Title="Date" />
                 <PropertyColumn Property="x => x.LocationName" Title="Installation" />
                 <PropertyColumn Property="x => x.WorkPermit" Title="Permit #" />
+
             </Columns>
+
         </MudDataGrid>
+
     </MudPaper>
+
 </MudContainer>
+
+
 
 @if (_isGcsModalOpen)
 {
-    <style>
-        /* Isolated Modal Styles */
-        .editable-cell {
-            width: 100%;
-            border: 1px dashed #b0bec5 !important;
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            font-family: inherit;
-            font-size: inherit;
-            padding: 4px;
-            text-align: inherit;
-            min-height: 24px;
-            resize: vertical;
-            display: block;
-            position: relative;
-            z-index: 5;
-        }
-
-        .editable-cell:focus {
-            outline: 2px solid #1976d2 !important;
-            background-color: #ffffff !important;
-        }
-
-        input.editable-cell::-webkit-outer-spin-button,
-        input.editable-cell::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        input.editable-cell {
-            -moz-appearance: textfield;
-        }
-
-        @@media print {
-            .editable-cell {
-                border: none !important;
-                background-color: transparent !important;
-                padding: 0 !important;
-                overflow: visible !important;
-                white-space: pre-wrap !important;
-            }
-        }
-    </style>
-
     <div class="modal-overlay">
+
         <div class="no-print" style="margin-bottom: 40px;">
-            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Print">
+
+            <MudButton OnClick="PrintReport"
+                       Variant="Variant.Filled"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Print">
+
                 PRINT REPORT
+
             </MudButton>
-            <MudButton OnClick="() => _isGcsModalOpen = false" Variant="Variant.Outlined" Style="color: white; border-color: white; margin-left: 10px;">
+
+            <MudButton OnClick="() => _isGcsModalOpen = false"
+                       Variant="Variant.Outlined"
+                       Style="color: white; border-color: white;">
+
                 CLOSE
+
             </MudButton>
+
         </div>
 
         <div id="printable-area">
+
             <div class="landscape-report">
+
                 <table class="oil-header-table">
+
                     <tr>
+
                         <td width="20%" rowspan="3" class="text-center">
-                            <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 50px;">
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="max-height: 50px;">
+
                             <div class="logo-text-bold">ऑयल इंडिया</div>
                             <div class="logo-text-bold">OIL INDIA</div>
+
                         </td>
+
                         <td class="text-center header-main-title">
-                            <div style="font-size: 18px; font-weight: bold;">ऑयल इंडिया लिमिटेड</div>
-                            <div style="font-size: 16px;">यंत्रीकरण विभाग</div>
-                            <div style="font-size: 14px; font-weight: bold;">INSTRUMENTATION DEPARTMENT</div>
+
+                            <div style="font-size: 18px; font-weight: bold;">
+                                ऑयल इंडिया लिमिटेड
+                            </div>
+
+                            <div style="font-size: 16px;">
+                                यंत्रीकरण विभाग
+                            </div>
+
+                            <div style="font-size: 14px; font-weight: bold;">
+                                INSTRUMENTATION DEPARTMENT
+                            </div>
+
                             <div>दुलियाजान / DULIAJAN</div>
-                            <div class="font-bold">OIL INDIA LIMITED</div>
-                            <div style="font-style: italic; font-size: 11px;">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
-                        </td>
-                        <td width="25%" style="padding: 10px; font-size: 12px; border-left: 1px solid black;">
-                            <div style="display: flex; align-items: center; margin-bottom: 4px;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">Ref No:</strong>
-                                <input type="text" class="editable-cell" @bind="_selectedReport.WorkPermit" @bind:event="oninput" />
+
+                            <div class="font-bold">
+                                OIL INDIA LIMITED
                             </div>
-                            <div style="display: flex; align-items: center;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">Dated:</strong>
-                                <input type="text" class="editable-cell" @bind="_selectedReport.CompletionDateLocal" @bind:event="oninput" />
+
+                            <div style="font-style: italic; font-size: 11px;">
+                                (केवल आंतरिक उपयोग हेतु / For Internal Use Only)
                             </div>
+
                         </td>
+
+                        <td width="20%"
+                            style="padding: 10px; font-size: 12px; border-left: 1px solid black;">
+
+                            <div>
+                                <strong>Ref No:</strong> <input class="editable-field" @bind="_selectedReport.WorkPermit" />
+                            </div>
+
+                            <div>
+                                <strong>Dated:</strong> <input class="editable-field" value="@_selectedReport.CompletionDateLocal" />
+                            </div>
+
+                        </td>
+
                     </tr>
+
+
+
+
                 </table>
 
-                <table class="report-body-table" style="margin-top: -1px;">
+                <table class="report-body-table">
+
                     <tr>
-                        <td colspan="5" class="text-left">
-                            <div style="display: flex; align-items: center;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">Ref no:</strong>
-                                <input type="text" class="editable-cell" @bind="_selectedReport.WorkPermit" @bind:event="oninput" />
-                            </div>
+
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+                            <strong>Ref no:</strong> <input class="editable-field" @bind="_selectedReport.WorkPermit" />
                         </td>
+
                         <td colspan="4" class="text-left">
-                            <strong>Dated:</strong>
-                            <textarea class="editable-cell" @bind="_uiBodyDatedText" @bind:event="oninput"></textarea>
+                            <strong>Dated:</strong> <input class="editable-field" value="@_selectedReport.CompletionDateLocal" />  <input class="editable-field" @bind="_selectedReport.MultiSelectionPmDates" />
                         </td>
+
+                        @* <td>
+                            <strong>PM Date:</strong> <input class="editable-field" @bind="_selectedReport.MultiSelectionPmDates" />
+                        </td> *@
+
                     </tr>
+
                     <tr>
-                        <td colspan="5" class="text-left">
+
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+
+
                             <strong>Installation Name -</strong>
-                            <textarea class="editable-cell" @bind="_uiInstallationName" @bind:event="oninput"></textarea>
-                        </td>
-                        <td colspan="4" class="text-left">
-                            <div style="display: flex; align-items: center;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">Notification Number:</strong>
-                                <input type="text" class="editable-cell" @bind="_selectedReport.WorkPermit" @bind:event="oninput" />
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="5" class="text-left">
-                            <div style="display: flex; align-items: center;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">A] Comp.Sl.No :</strong>
-                                <textarea class="editable-cell" @bind="_JsonToTableRowClassList[0].CompSlNo" @bind:event="oninput"></textarea>
-                            </div>
-                        </td>
-                        <td colspan="4" class="text-left">
-                            <div style="display: flex; align-items: center;">
-                                <strong style="white-space: nowrap; margin-right: 4px;">Make -</strong>
-                                <textarea class="editable-cell" @bind="_JsonToTableRowClassList[0].CompMakeModel" @bind:event="oninput"></textarea>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td width="20%" class="text-center font-bold">Visual Checking Points</td>
-                        <td colspan="8" class="no-padding">
-                            <table class="inner-list-table" style="border: none !important;">
-                                @for (int i = 0; i < _uiVisualPoints.Count; i++)
+                            @{
+                                var localInstallName = GetInstallationName(_selectedReport.LocationId);
+                                if (localInstallName != null)
                                 {
-                                    var index = i;
+                                    <span>@localInstallName.InstallationName</span><br>
+                                }
+                            }
+
+                            
+                              
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> <input class="editable-field" @bind="_selectedReport.WorkPermit" />
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td colspan="5" class="text-left">
+                            <strong>A] Comp.Sl.No :</strong>
+                            @* @_selectedReport.CompSlNo *@
+                            @_JsonToTableRowClassList[0].CompSlNo.ToString()
+                        </td>
+
+                        <td colspan="4" class="text-left">
+
+                            <strong>Make -</strong>
+                            @* @_selectedReport.MakeModel *@
+                            @_JsonToTableRowClassList[0].CompMakeModel.ToString()
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td width="20%" class="text-center font-bold">
+
+                            Visual Checking Points
+
+                        </td>
+
+                        <td colspan="8" class="no-padding">
+
+                            <table class="inner-list-table">
+
+                                @foreach (var point in _selectedReport.VisualPoints)
+                                {
                                     <tr>
-                                        <td style="border-left: none !important; border-right: none !important; border-top: none !important;">
-                                            <textarea class="editable-cell" @bind="_uiVisualPoints[index]" @bind:event="oninput"></textarea>
-                                        </td>
+                                        <td>@point.Id] @point.Description</td>
                                     </tr>
                                 }
+
                             </table>
+
                         </td>
+
                     </tr>
+
                 </table>
 
                 <table class="job-done-table" style="margin-top: -1px;">
+
                     <thead>
+
                         <tr style="background-color: #f2f2f2;">
+
                             <th width="5%" class="text-center">#</th>
                             <th width="15%">Unit</th>
                             <th width="15%">Instrument</th>
@@ -659,242 +769,371 @@
                             <th width="15%">Servicing Details</th>
                             <th width="12%">Cert No.</th>
                             <th width="18%">Remarks</th>
+
                         </tr>
+
                     </thead>
+
                     <tbody>
+
                         @foreach (var item in _currentJobItems)
                         {
                             <tr>
-                                @if (_currentJobItems.Count > 0 && item == _currentJobItems.First())
+
+                                @if (_currentJobItems.Count > 0 &&
+                                     item == _currentJobItems.First())
                                 {
-                                    <td rowspan="@(_currentJobItems.Count * 4)" class="bold-vertical">Job Done</td>
+                                    <td rowspan="@_currentJobItems.Count"
+                                        class="bold-vertical">
+
+                                        Job Done
+
+                                    </td>
                                 }
-                                <td><textarea class="editable-cell text-center" @bind="_uiItemUnit[item]" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="_uiItemInstrument[item]" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="_uiItemMakeModel[item]" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="_uiItemRange[item]" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="item.TestingType" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="item.CertNo" @bind:event="oninput"></textarea></td>
-                                <td><textarea class="editable-cell text-center" @bind="item.Remarks" @bind:event="oninput"></textarea></td>
+
+                                <td>@item.Unit  @_JsonToTableRowClassList[0].ManualUnit.ToString()</td>
+                                <td>@item.Instrument @_JsonToTableRowClassList[0].ManualInstrument.ToString()</td>
+                                <td>@item.MakeModel @_JsonToTableRowClassList[0].ManualMakeModel.ToString()</td>
+                                <td>@item.Range @_JsonToTableRowClassList[0].ManualRange.ToString()</td>
+                                <td>@item.TestingType </td>
+                                <td>@item.CertNo </td>
+                                <td>@item.Remarks</td>
+
                             </tr>
+
                             <tr>
-                                <td colspan="7" class="text-left">
-                                    <strong>Safety Interlocks : -</strong>
-                                    <textarea class="editable-cell" @bind="item.SafetyInterlocks" @bind:event="oninput"></textarea>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                                    <strong>Safety Interlocks :  -</strong>
+                                    @item.SafetyInterlocks
                                 </td>
                             </tr>
                             <tr>
-                                <td colspan="7" class="text-left">
-                                    <strong>Hooter : -</strong>
-                                    <textarea class="editable-cell" @bind="item.Hooter" @bind:event="oninput"></textarea>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                                    <strong>Hooter :  -</strong>
+                                    @item.Hooter
                                 </td>
                             </tr>
                             <tr>
-                                <td colspan="7" class="text-left">
-                                    <strong>Spares Used : -</strong>
-                                    <textarea class="editable-cell" @bind="item.SparesConsumed" @bind:event="oninput"></textarea>
+                                <td colspan="9" class="text-left" style="padding-right: 10%;">
+                                    <strong>Spares Used :  -</strong>
+                                    @item.SparesConsumed
                                 </td>
                             </tr>
                         }
+
                     </tbody>
+
                 </table>
 
-                <div class="report-footer" style="margin-top: 20px;">
+                <div class="report-footer">
+
                     <div class="remarks-section mb-4">
                         <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">REMARKS:</div>
-                        <div class="remark-item" style="display: flex; flex-direction: column; margin-bottom: 10px;">
-                            <span>1. All the servo regulators should be drained regularly for better operation.</span>
-                            <textarea class="editable-cell mt-1" @bind="_selectedReport.Remarks" @bind:event="oninput"></textarea>
-                        </div>
-                        <div class="remark-item" style="display: flex; flex-direction: column;">
-                            <span>2. The above PM job is carried out on :</span>
-                            <textarea class="editable-cell mt-1" @bind="_selectedReport.MultiSelectionPmDates" @bind:event="oninput"></textarea>
-                        </div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. <textarea class="editable-field" @bind="_selectedReport.Remarks"></textarea></div>
+                        <div class="remark-item">2. The above PM job is carried out on : <input class="editable-field" @bind="_selectedReport.MultiSelectionPmDates" /></div>
                     </div>
 
                     <div class="carried-out-section mb-4">
                         <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
-                        <div style="display: flex; gap: 20px;">
-                            @for (int i = 0; i < _uiJobCarriedByText.Count; i++)
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
                             {
-                                var index = i;
-                                <div class="employee-signature-block" style="flex: 1; text-align: center;">
-                                    <div class="signature-space" style="height: 35px;"></div>
-                                    <textarea class="editable-cell text-center font-weight-bold" @bind="_uiJobCarriedByText[index]" @bind:event="oninput"></textarea>
-                                </div>
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
                             }
-                        </div>
+                        }
                     </div>
 
-                    <div class="approval-section" style="display: flex; justify-content: space-between; width: 100%; margin-top: 40px;">
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
                         <div class="approval-box left" style="width: 30%;">
-                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 20px;">Report prepared by</div>
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
                             <div class="signature-line">
-                                <textarea class="editable-cell text-center" @bind="_uiPreparedByText" @bind:event="oninput"></textarea>
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
                             </div>
                         </div>
 
                         <div class="approval-box center" style="width: 30%;">
-                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 20px;">Job supervised by</div>
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
                             <div class="signature-line">
-                                <textarea class="editable-cell text-center" @bind="_uiSupervisedByText" @bind:event="oninput"></textarea>
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
                             </div>
                         </div>
 
                         <div class="approval-box right" style="width: 30%;">
-                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 20px;">Report verified by</div>
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
                             <div class="signature-line">
-                                <textarea class="editable-cell text-center" @bind="_uiVerifiedByText" @bind:event="oninput"></textarea>
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
                             </div>
                         </div>
+
                     </div>
                 </div>
+
+
             </div>
+
+            
+        
+        
         </div>
+
     </div>
 }
 
+
+
+
 @if (_isOcsModalOpen)
 {
-    <style>
-        .editable-cell {
-            width: 100%;
-            border: 1px dashed #b0bec5 !important;
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            font-family: inherit;
-            font-size: inherit;
-            padding: 4px;
-            text-align: inherit;
-            min-height: 24px;
-            resize: vertical;
-            display: block;
-            position: relative;
-            z-index: 5;
-        }
-
-        .editable-cell:focus {
-            outline: 2px solid #1976d2 !important;
-            background-color: #ffffff !important;
-        }
-
-        @@media print {
-            .editable-cell {
-                border: none !important;
-                background-color: transparent !important;
-                padding: 0 !important;
-                overflow: visible !important;
-                white-space: pre-wrap !important;
-            }
-        }
-    </style>
-
     <div class="modal-overlay">
-        <div class="no-print pa-4" style="width:100%; gap:10px; display: flex;">
-            <MudButton OnClick="PrintReport" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print">
+
+        <div class="no-print pa-4"
+             style="width:100%; gap:10px;">
+
+            <MudButton OnClick="PrintReport"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Print">
+
                 Print OCS Summary
+
             </MudButton>
-            <MudButton OnClick="() => _isOcsModalOpen = false" Variant="Variant.Filled" Color="Color.Error">
+
+            <MudButton OnClick="() => _isOcsModalOpen = false"
+                       Variant="Variant.Filled"
+                       Color="Color.Error">
+
                 Close
+
             </MudButton>
+
         </div>
 
         <div id="printable-area-ocs">
+
             <div class="landscape-report">
+
                 <table class="oil-header-table">
+
                     <tr>
+
                         <td width="20%" rowspan="3" class="text-center">
-                            <img src="_content/OIL.Shared/imgs/oil.png" alt="OIL INDIA" style="max-height: 40px;">
-                            <div class="logo-text-bold">ऑयल इंडिया</div>
-                            <div class="logo-text-bold">OIL INDIA</div>
+
+                            <img src="_content/OIL.Shared/imgs/oil.png"
+                                 alt="OIL INDIA"
+                                 style="max-height: 40px;">
+
+                            <div class="logo-text-bold">
+                                ऑयल इंडिया
+                            </div>
+
+                            <div class="logo-text-bold">
+                                OIL INDIA
+                            </div>
+
                         </td>
+
                         <td class="text-center header-main-title">
+
                             <div>ऑयल इंडिया लिमिटेड</div>
+
                             <div>यंत्रीकरण विभाग</div>
-                            <div>INSTRUMENTATION DEPARTMENT</div>
+
+                            <div>
+                                INSTRUMENTATION DEPARTMENT
+                            </div>
+
                             <div>दुलियाजान / DULIAJAN</div>
-                            <div>OIL INDIA LIMITED</div>
-                            <div>(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</div>
+
+                            <div>
+                                OIL INDIA LIMITED
+                            </div>
+
+                            <div>
+                                (केवल आंतरिक उपयोग हेतु /
+                                For Internal Use Only)
+                            </div>
+
                         </td>
+
+                        @* <td width="20%">
+
+                            <div>
+                                <strong>Ref No:</strong>
+                                <input class="editable-field" @bind="_selectedReport.WorkPermit" />
+                            </div>
+
+                            <div>
+                                <strong>Dated:</strong>
+                                <input class="editable-field" value="@_selectedReport.CompletionDateLocal" />
+                            </div>
+
+                        </td> *@
+
+                    </tr>
+
+                </table>
+                @*Header for dates and stuff*@
+                <table class="report-table">
+                    <tr>
+
+                        <td colspan="3">
+                            <strong>Ref no:</strong> <input class="editable-field" @bind="_selectedReport.WorkPermit" />
+                        </td>
+
+                        <td colspan="3" class="text-left">
+                            <strong>Dated:</strong> <input class="editable-field" value="@_selectedReport.CompletionDateLocal" />
+                        </td>
+
+                        <td colspan="3">
+                            <strong>PM Date:</strong> <input class="editable-field" @bind="_selectedReport.MultiSelectionPmDates" />
+                        </td>
+
+                    </tr>
+
+                    <tr>
+                        <td colspan="5"
+                            class="text-left"
+                            style="padding-right: 10%;">
+
+                            <strong>Installation Name -</strong>
+                            @_selectedReport.LocationName
+
+                        </td>
+
+                        <td colspan="4">
+                            <strong>Notification Number:</strong> <input class="editable-field" @bind="_selectedReport.WorkPermit" />
+                        </td>
+
                     </tr>
                 </table>
 
-                @* Header for dates and stuff *@
-                <table class="report-table">
-                    <tr>
-                        <td colspan="3"><strong>Ref no:</strong> <input type="text" class="editable-cell" @bind-value="_selectedReport.WorkPermit" /></td>
-                        <td colspan="3" class="text-left"><strong>Dated:</strong> <input type="text" class="editable-cell" @bind-value="_selectedReport.CompletionDateLocal" /></td>
-                        <td colspan="3"><strong>PM Date:</strong> <input type="text" class="editable-cell" @bind-value="_selectedReport.MultiSelectionPmDates" /></td>
-                    </tr>
-                    <tr>
-                        <td colspan="5" class="text-left" style="padding-right: 10%;"><strong>Installation Name -</strong> <input type="text" class="editable-cell" @bind-value="_selectedReport.LocationName" /></td>
-                        <td colspan="4"><strong>Notification Number:</strong> <input type="text" class="editable-cell" @bind-value="_selectedReport.WorkPermit" /></td>
-                    </tr>
-                </table>
 
-                @* Table for data *@
+                @*Table for data *@
                 <table class="report-table">
+
                     <thead>
+
                         <tr style="background:#eee;">
-                            <th>Sl.</th>
+
+                            <th width="40px">Sl.</th>
                             <th>UNIT</th>
                             <th>INSTRUMENT</th>
                             <th>MAKE & MODEL</th>
                             <th>RANGE</th>
                             <th>QUANTITY</th>
-                            <th>Calibration/Functionality...</th>
-                            <th>Calibration Certificate No.</th>
+
+                            <th>
+                                Calibration/Functionality
+                                Testing/Replaced with
+                                pre Calibrated Instrument
+                            </th>
+
+                            <th>
+                                Calibration Certificate No.
+                                (Attached with report)
+                            </th>
+
                             <th>REMARKS</th>
+
                         </tr>
+
                     </thead>
+
                     <tbody>
+
+
+
+
                         @foreach (var item in _currentJobItems)
                         {
                             <tr>
-                                <td><input type="text" class="editable-cell" @bind-value="item.SlNo" /></td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.Unit" /></td>
+
+                                <td>@item.SlNo</td>
+
+                                <td>@item.Unit</td>
+
                                 <td>
-                                    <input type="text" class="editable-cell" @bind-value="item.Instrument" />
-                                    <input type="text" class="editable-cell" @bind-value="item.TagNumber" placeholder="Tag Number" />
+                                    @item.Instrument
+                                    <br />
+                                    <small>@item.TagNumber</small>
                                 </td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.MakeModel" /></td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.Range" /></td>
-                                <td>
-                                    @* Safely handle nullable int *@
-                                    <input type="number" class="editable-cell"
-                                           value="@item.Quantity"
-                                           @onchange="@((ChangeEventArgs e) => item.Quantity = int.TryParse(e.Value?.ToString(), out int res) ? res : null)" />
-                                </td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.TestingType" /></td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.CertNo" /></td>
-                                <td><input type="text" class="editable-cell" @bind-value="item.Remarks" /></td>
+
+                                <td>@item.MakeModel</td>
+                                <td>@item.Range</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.TestingType</td>
+                                <td>@item.CertNo</td>
+                                <td>@item.Remarks</td>
+
                             </tr>
                         }
+
                     </tbody>
+
                 </table>
 
-                @* Table for Note and master calibrator - FIXED OBJECT BINDING *@
+
+                @* Table for Note and master calibrator *@
                 <table class="report-table">
                     <tr>
                         <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
-                            <div style="font-weight: bold; text-decoration: underline;">Spares consumed :</div>
-                            <input type="text" class="editable-cell"
-                                   value="@(_selectedReport.SectionDSpares?.ToString())"
-                                   @onchange="@((ChangeEventArgs e) => _selectedReport.SectionDSpares = e.Value?.ToString())" />
+                            @*
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">NOTE:</div>
+                            <ol style="margin: 0 0 20px 0; padding-left: 20px; line-height: 1.5;">
+                                <li>All the servo regulators should be drained regularly for better operation.</li>
+                                <li>The above PM job is carried out on 23/01/2026; 27/01/2026 &amp; 29/01/2026</li>
+                            </ol>
+                            *@
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Spares consumed :</div>
+                            <p style="margin: 0; padding-left: 5px; font-weight: normal;"><textarea class="editable-field"
+          value="@(_selectedReport.SectionDSpares?.ToString() ?? "")"
+          @oninput="@(e =>
+              _selectedReport.SectionDSpares =
+                  e.Value?.ToString())">
+</textarea></p>
                         </td>
+
                         <td style="width: 50%; vertical-align: top; padding: 12px; border: 1px solid #ccc;">
-                            <div style="font-weight: bold; text-decoration: underline;">Details of Master Calibrator used :</div>
-                            <ol>
+                            <div style="font-weight: bold; text-decoration: underline; margin-bottom: 8px;">Details of Master Calibrator used :</div>
+                            <ol style="margin: 0; padding-left: 20px; line-height: 1.5;">
                                 @foreach (var calibrator in _masterCalibrators)
                                 {
                                     <li style="margin-bottom: 10px;">
-                                        <input type="text" class="editable-cell" @bind-value="calibrator.Name" style="width: 45%;" />
-                                        <input type="text" class="editable-cell" @bind-value="calibrator.Model" style="width: 45%;" />
+                                        @calibrator.Name @calibrator.Model
                                         <br />
-                                        Calibration validity upto -
-                                        <input type="date" class="editable-cell"
-                                               value="@calibrator.ValidityDate.ToString("yyyy-MM-dd")"
-                                               @onchange="@((ChangeEventArgs e) => calibrator.ValidityDate = DateTime.Parse(e.Value.ToString()))" />
+                                        <span style="color: #555;">
+                                            Calibration validity upto - (@calibrator.ValidityDate.ToString("dd-MM-yyyy"))
+                                        </span>
                                     </li>
                                 }
                             </ol>
@@ -903,93 +1142,94 @@
                 </table>
 
 
-<div class="report-footer">
-    <div class="remarks-section mb-4">
-        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">NOTE:</div>
-        <div class="remark-item d-flex align-items-center">
-            <span>1. All the servo regulators should be drained regularly for better operation.&nbsp;</span>
-            <input type="text" class="editable-cell" @bind-value="_selectedReport.Remarks" style="flex-grow: 1;" />
-        </div>
-        <div class="remark-item d-flex align-items-center mt-2">
-            <span>2. The above PM job is carried out on :&nbsp;</span>
-            <input type="text" class="editable-cell" @bind-value="_selectedReport.MultiSelectionPmDates" style="flex-grow: 1;" />
-        </div>
-    </div>
+                <div class="report-footer">
 
-    <div class="carried-out-section mb-4">
-        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
-        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
-        {
-            @for (int i = 0; i < _selectedReport.JobCarriedByEmpCodes.Count; i++)
-            {
-                var index = i; 
-                var empCode = _selectedReport.JobCarriedByEmpCodes[index];
-                var emp = GetEmployee(empCode);
-                if (emp != null)
-                {
-                    <div class="employee-signature-block" style="margin-bottom: 25px;">
-                        <div class="signature-space" style="height: 35px;"></div>
-                        <div class="employee-name">
-                            <input type="text" class="editable-cell" @bind-value="emp.FullName" style="width: 30%; display: inline-block;" /> - 
-                            <input type="text" class="editable-cell" @bind-value="emp.Designation" style="width: 30%; display: inline-block;" /> 
-                            (<input type="text" class="editable-cell" @bind-value="emp.Grade" style="width: 15%; display: inline-block;" />)
-                        </div>
+                    <div class="remarks-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">NOTE:</div>
+                        <div class="remark-item">1. All the servo regulators should be drained regularly for better operation. <textarea class="editable-field" @bind="_selectedReport.Remarks"></textarea></div>
+                        <div class="remark-item">2. The above PM job is carried out on : <input class="editable-field" @bind="_selectedReport.MultiSelectionPmDates" /></div>
                     </div>
-                }
-            }
-        }
-    </div>
 
-    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
-        <div class="approval-box left" style="width: 30%;">
-            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
-            <div class="signature-line">
-                @{
-                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
-                    if (preparedBy != null)
-                    {
-                        <input type="text" class="editable-cell" @bind-value="preparedBy.FullName" /><br>
-                        <input type="text" class="editable-cell" @bind-value="preparedBy.Designation" style="font-size: 0.85em; color: #555;" />
-                    }
-                }
+                    <div class="carried-out-section mb-4">
+                        <div style="text-decoration: underline; font-weight: bold; margin-bottom: 10px;">Job carried out by -</div>
+                        @if (_selectedReport.JobCarriedByEmpCodes != null && _selectedReport.JobCarriedByEmpCodes.Any())
+                        {
+                            @foreach (var empCode in _selectedReport.JobCarriedByEmpCodes)
+                            {
+                                var emp = GetEmployee(empCode);
+                                if (emp != null)
+                                {
+                                    <div class="employee-signature-block" style="margin-bottom: 25px;">
+                                        <div class="signature-space" style="height: 35px;"></div>
+                                        <div class="employee-name">@emp.FullName - @emp.Designation (@emp.Grade)</div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <div class="approval-section d-flex justify-content-between" style="width: 100%; margin-top: 40px;">
+
+                        <div class="approval-box left" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report prepared by</div>
+                            <div class="signature-line">
+                                @{
+                                    var preparedBy = GetEmployee(_selectedReport.ReportPreparedBy);
+                                    if (preparedBy != null)
+                                    {
+                                        <span>@preparedBy.FullName</span><br>
+                                        <span>@preparedBy.Designation (@preparedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box center" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
+                            <div class="signature-line">
+                                @{
+                                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
+                                    if (supervisedBy != null)
+                                    {
+                                        <span>@supervisedBy.FullName</span><br>
+                                        <span>@supervisedBy.Designation (@supervisedBy.Grade)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="approval-box right" style="width: 30%;">
+                            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
+                            <div class="signature-line">
+                                @{
+                                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
+                                    if (verifiedBy != null)
+                                    {
+                                        <span>@verifiedBy.FullName</span><br>
+                                        <span>(@verifiedBy.Designation)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+
             </div>
+
+
+           
+        
+
         </div>
 
-        <div class="approval-box center" style="width: 30%;">
-            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Job supervised by</div>
-            <div class="signature-line">
-                @{
-                    var supervisedBy = GetEmployee(_selectedReport.ReportSupervisedBy);
-                    if (supervisedBy != null)
-                    {
-                        <input type="text" class="editable-cell" @bind-value="supervisedBy.FullName" /><br>
-                        <input type="text" class="editable-cell" @bind-value="supervisedBy.Designation" style="font-size: 0.85em; color: #555;" />
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="approval-box right" style="width: 30%;">
-            <div style="text-decoration: underline; font-weight: bold; margin-bottom: 35px;">Report verified by</div>
-            <div class="signature-line">
-                @{
-                    var verifiedBy = GetExecutive(_selectedReport.ReportVerifiedBy);
-                    if (verifiedBy != null)
-                    {
-                        <input type="text" class="editable-cell" @bind-value="verifiedBy.FullName" /><br>
-                        <input type="text" class="editable-cell" @bind-value="verifiedBy.Designation" style="font-size: 0.85em; color: #555;" />
-                    }
-                }
-            </div>
-        </div>
-    </div>
-</div>
-                    
-            
-            </div>
-        </div>
     </div>
 }
+
+
+
+
 
 
 @code {
@@ -1007,38 +1247,36 @@
     };
 
     // =========================================================
-    // VARIABLES & REACTIVE UI-STATE EXPRESSIONS
+    // VARIABLES
     // =========================================================
 
     private DateTime? _startDate = DateTime.Today.AddMonths(-1);
+
     private DateTime? _endDate = DateTime.Today;
+
     private List<SectionItem> _currentJobItems = new();
+
     private List<ReportView> _reports = new();
+
     private List<Location> _locations = new();
+
     private List<CalibrationDetail> _jobCertificates = new();
+
     private List<MasterCalibrator> _masterCalibrators = new();
+
     private List<MyArray> _JsonToTableRowClassList = new();
+
     private ReportView _selectedReport = new();
+
     private bool _loading = true;
+
     private bool _isGcsModalOpen = false;
+
     private bool _isOcsModalOpen = false;
+
     private List<EmployeeEngineer> _employees = new();
+
     private List<EmployeeExecutive> _executives = new();
-
-    // Dedicated UI-State Properties for Decoupled Two-Way Binding
-    private string _uiInstallationName = "";
-    private string _uiBodyDatedText = "";
-    private List<string> _uiVisualPoints = new();
-    private List<string> _uiJobCarriedByText = new();
-    private string _uiPreparedByText = "";
-    private string _uiSupervisedByText = "";
-    private string _uiVerifiedByText = "";
-
-    // Dictionaries for matrix string properties
-    private Dictionary<SectionItem, string> _uiItemUnit = new();
-    private Dictionary<SectionItem, string> _uiItemInstrument = new();
-    private Dictionary<SectionItem, string> _uiItemMakeModel = new();
-    private Dictionary<SectionItem, string> _uiItemRange = new();
 
     // =========================================================
     // INITIALIZE
@@ -1048,9 +1286,10 @@
     {
         try
         {
-            var empResponse = await SupabaseClient
-                .From<EmployeeEngineer>()
-                .Get();
+            var empResponse =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Get();
 
             _employees = empResponse.Models;
 
@@ -1063,7 +1302,7 @@
     }
 
     // =========================================================
-    // HANDLE VIEW CLICK (REACTIVE DATA STATE HYDRATION)
+    // HANDLE VIEW CLICK
     // =========================================================
 
     private async Task HandleViewClick(ReportView report)
@@ -1071,8 +1310,11 @@
         try
         {
             _selectedReport = report;
+
             _currentJobItems.Clear();
+
             _jobCertificates.Clear();
+
             _JsonToTableRowClassList.Clear();
 
             _isGcsModalOpen = false;
@@ -1080,64 +1322,89 @@
 
             Console.WriteLine($"Loading report ID: {report.Id}");
 
-            var reportRes = await SupabaseClient
-                .From<PmReport>()
-                .Filter("id", Operator.Equals, report.Id)
-                .Single();
+            var reportRes =
+                await SupabaseClient
+                    .From<PmReport>()
+                    .Filter(
+                        "id",
+                        Operator.Equals,
+                        report.Id)
+                    .Single();
 
             if (reportRes == null)
             {
-                Snackbar.Add("Report not found.", Severity.Error);
+                Snackbar.Add(
+                    "Report not found.",
+                    Severity.Error);
+
                 return;
             }
 
-            // Parse Sections
-            var sectionA = ParseJsonSection(reportRes.SectionA);
-            var sectionB = ParseJsonSection(reportRes.SectionB);
-            var sectionD = ParseJsonSection(reportRes.SectionDSpares);
+            // =====================================================
+            // PARSE SECTION ITEMS
+            // =====================================================
+
+            var sectionA =
+                ParseJsonSection(reportRes.SectionA);
+
+            var sectionB =
+                ParseJsonSection(reportRes.SectionB);
+
+            var sectionD =
+                ParseJsonSection(reportRes.SectionDSpares);
 
             _currentJobItems.AddRange(sectionA);
             _currentJobItems.AddRange(sectionB);
             _currentJobItems.AddRange(sectionD);
 
-            // Parse Table Configuration Row Info
+            Console.WriteLine(
+                $"TOTAL ITEMS: {_currentJobItems.Count}");
+
+            // =====================================================
+            // PARSE TABLE DATA
+            // =====================================================
+
             try
             {
-                string jsonPayload = reportRes.SectionA?.ToString()?.Trim() ?? "[]";
+                string jsonPayload =
+                    reportRes.SectionA?.ToString()?.Trim()
+                    ?? "[]";
 
-                if (jsonPayload.StartsWith("\"") && jsonPayload.EndsWith("\""))
+                if (jsonPayload.StartsWith("\"") &&
+                    jsonPayload.EndsWith("\""))
                 {
-                    jsonPayload = JsonSerializer.Deserialize<string>(jsonPayload) ?? "[]";
+                    jsonPayload =
+                        JsonSerializer.Deserialize<string>(
+                            jsonPayload)
+                        ?? "[]";
                 }
 
-                _JsonToTableRowClassList = JsonSerializer.Deserialize<List<MyArray>>(jsonPayload, _jsonOptions)
+                _JsonToTableRowClassList =
+                    JsonSerializer.Deserialize<List<MyArray>>(
+                        jsonPayload,
+                        _jsonOptions)
                     ?? new List<MyArray>();
+
+                Console.WriteLine(
+                    $"TABLE ROWS: {_JsonToTableRowClassList.Count}");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Table Parse Error: {ex}");
             }
 
-            // Hydrate Row-Level Matrix Text Expressions
-            var manualRow = _JsonToTableRowClassList.FirstOrDefault() ?? new MyArray();
-            _uiItemUnit.Clear();
-            _uiItemInstrument.Clear();
-            _uiItemMakeModel.Clear();
-            _uiItemRange.Clear();
+            // =====================================================
+            // FETCH CERTIFICATES
+            // =====================================================
 
-            foreach (var item in _currentJobItems)
-            {
-                _uiItemUnit[item] = $"{item.Unit} {manualRow.ManualUnit}".Trim();
-                _uiItemInstrument[item] = $"{item.Instrument} {manualRow.ManualInstrument}".Trim();
-                _uiItemMakeModel[item] = $"{item.MakeModel} {manualRow.ManualMakeModel}".Trim();
-                _uiItemRange[item] = $"{item.Range} {manualRow.ManualRange}".Trim();
-            }
-
-            // Fetch Certificates
-            var certRes = await SupabaseClient
-                .From<CalibrationDetail>()
-                .Filter("job_id", Operator.Equals, report.JobId.ToString())
-                .Get();
+            var certRes =
+                await SupabaseClient
+                    .From<CalibrationDetail>()
+                    .Filter(
+                        "job_id",
+                        Operator.Equals,
+                        report.JobId.ToString())
+                    .Get();
 
             _jobCertificates = certRes.Models;
 
@@ -1145,54 +1412,39 @@
             {
                 try
                 {
-                    if (!string.IsNullOrWhiteSpace(cert.CalibrationDataJson))
+                    if (!string.IsNullOrWhiteSpace(
+                        cert.CalibrationDataJson))
                     {
-                        cert.ParsedData = JsonSerializer.Deserialize<ParsedCalibrationData>(cert.CalibrationDataJson, _jsonOptions)
+                        cert.ParsedData =
+                            JsonSerializer.Deserialize<
+                                ParsedCalibrationData>(
+                                cert.CalibrationDataJson,
+                                _jsonOptions)
                             ?? new ParsedCalibrationData();
                     }
                     else
                     {
-                        cert.ParsedData = new ParsedCalibrationData();
+                        cert.ParsedData =
+                            new ParsedCalibrationData();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Certificate Parse Error ({cert.CertNo}): {ex}");
-                    cert.ParsedData = new ParsedCalibrationData();
+                    Console.WriteLine(
+                        $"Certificate Parse Error ({cert.CertNo}): {ex}");
+
+                    cert.ParsedData =
+                        new ParsedCalibrationData();
                 }
             }
 
-            // Hydrate Autonomous String State Properties
-            _uiInstallationName = GetInstallationName(report.LocationId)?.InstallationName ?? "";
-            _uiBodyDatedText = $"{report.CompletionDateLocal} {report.MultiSelectionPmDates}".Trim();
+            // =====================================================
+            // OPEN MODAL
+            // =====================================================
 
-            _uiVisualPoints = report.VisualPoints?.Select(p => $"{p.Id}] {p.Description}").ToList()
-                            ?? new List<string>();
-
-            _uiJobCarriedByText.Clear();
-            if (report.JobCarriedByEmpCodes != null)
-            {
-                foreach (var empCode in report.JobCarriedByEmpCodes)
-                {
-                    var emp = GetEmployee(empCode);
-                    if (emp != null)
-                    {
-                        _uiJobCarriedByText.Add($"{emp.FullName} - {emp.Designation} ({emp.Grade})");
-                    }
-                }
-            }
-
-            var preparedBy = GetEmployee(report.ReportPreparedBy);
-            _uiPreparedByText = preparedBy != null ? $"{preparedBy.FullName}\n{preparedBy.Designation} ({preparedBy.Grade})" : "";
-
-            var supervisedBy = GetEmployee(report.ReportSupervisedBy);
-            _uiSupervisedByText = supervisedBy != null ? $"{supervisedBy.FullName}\n{supervisedBy.Designation} ({supervisedBy.Grade})" : "";
-
-            var verifiedBy = GetExecutive(report.ReportVerifiedBy);
-            _uiVerifiedByText = verifiedBy != null ? $"{verifiedBy.FullName}\n({verifiedBy.Designation})" : "";
-
-            // Evaluate Navigation/Display State Trigger
-            if (report.LocationName.Contains("GCS", StringComparison.OrdinalIgnoreCase))
+            if (report.LocationName.Contains(
+                "GCS",
+                StringComparison.OrdinalIgnoreCase))
             {
                 _isGcsModalOpen = true;
             }
@@ -1206,7 +1458,10 @@
         catch (Exception ex)
         {
             Console.WriteLine($"HandleViewClick Error: {ex}");
-            Snackbar.Add($"Data Load Error: {ex.Message}", Severity.Error);
+
+            Snackbar.Add(
+                $"Data Load Error: {ex.Message}",
+                Severity.Error);
         }
     }
 
@@ -1217,45 +1472,86 @@
     private List<SectionItem> ParseJsonSection(object? jsonField)
     {
         var result = new List<SectionItem>();
+
         try
         {
-            if (jsonField == null) return result;
+            if (jsonField == null)
+            {
+                return result;
+            }
 
-            string rawJson = jsonField.ToString()?.Trim() ?? "[]";
-            if (string.IsNullOrWhiteSpace(rawJson) || rawJson == "null") return result;
+            string rawJson =
+                jsonField.ToString()?.Trim()
+                ?? "[]";
 
-            if (rawJson.StartsWith("\"") && rawJson.EndsWith("\""))
+            if (string.IsNullOrWhiteSpace(rawJson) ||
+                rawJson == "null")
+            {
+                return result;
+            }
+
+            // Escaped JSON Fix
+            if (rawJson.StartsWith("\"") &&
+                rawJson.EndsWith("\""))
             {
                 try
                 {
-                    rawJson = JsonSerializer.Deserialize<string>(rawJson) ?? "[]";
+                    rawJson =
+                        JsonSerializer.Deserialize<string>(
+                            rawJson)
+                        ?? "[]";
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"JSON Unescape Error: {ex}");
+                    Console.WriteLine(
+                        $"JSON Unescape Error: {ex}");
                 }
             }
 
-            using var document = JsonDocument.Parse(rawJson);
-            if (document.RootElement.ValueKind != JsonValueKind.Array) return result;
+            Console.WriteLine(rawJson);
 
-            foreach (var item in document.RootElement.EnumerateArray())
+            using var document =
+                JsonDocument.Parse(rawJson);
+
+            if (document.RootElement.ValueKind !=
+                JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var item in document
+                         .RootElement
+                         .EnumerateArray())
             {
                 try
                 {
-                    var parsedItem = JsonSerializer.Deserialize<SectionItem>(item.GetRawText(), _jsonOptions);
-                    if (parsedItem != null) result.Add(parsedItem);
+                    var parsedItem =
+                        JsonSerializer.Deserialize<SectionItem>(
+                            item.GetRawText(),
+                            _jsonOptions);
+
+                    if (parsedItem != null)
+                    {
+                        result.Add(parsedItem);
+                    }
                 }
                 catch (Exception itemEx)
                 {
-                    Console.WriteLine($"ITEM PARSE FAILED: {itemEx}");
+                    Console.WriteLine(
+                        $"ITEM PARSE FAILED: {itemEx}");
+
+                    Console.WriteLine(
+                        item.GetRawText());
                 }
             }
+
             return result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ParseJsonSection Error: {ex}");
+            Console.WriteLine(
+                $"ParseJsonSection Error: {ex}");
+
             return result;
         }
     }
@@ -1269,70 +1565,130 @@
         try
         {
             _loading = true;
-            var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
-            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
 
-            var response = await SupabaseClient
-                .From<EmployeeEngineer>()
-                .Where(x => x.Section == "FIELD MAINTENANCE")
-                .Get();
+            var start =
+                (_startDate ?? DateTime.Today.AddMonths(-1))
+                .Date;
+
+            var end =
+                (_endDate ?? DateTime.Today)
+                .Date
+                .AddDays(1);
+
+            var response =
+                await SupabaseClient
+                    .From<EmployeeEngineer>()
+                    .Where(x =>
+                        x.Section == "FIELD MAINTENANCE")
+                    .Get();
 
             _employees = response.Models;
 
-            var executiveResponse = await SupabaseClient
-                .From<EmployeeExecutive>()
-                .Where(x => x.Department == "FIELD MAINTENANCE")
-                .Get();
+            var executiveResponse =
+                await SupabaseClient
+                    .From<EmployeeExecutive>()
+                    .Where(x =>
+                        x.Department == "FIELD MAINTENANCE")
+                    .Get();
 
             _executives = executiveResponse.Models;
 
-            var locRes = await SupabaseClient
-                .From<Location>()
-                .Get();
+            var locRes =
+                await SupabaseClient
+                    .From<Location>()
+                    .Get();
 
             _locations = locRes.Models;
 
-            var res = await SupabaseClient
-                .From<PmReport>()
-                .Select("*")
-                .Filter("completion_date", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
-                .Filter("completion_date", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd"))
-                .Get();
+            var res =
+                await SupabaseClient
+                    .From<PmReport>()
+                    .Select("*")
+                    .Filter(
+                        "completion_date",
+                        Operator.GreaterThanOrEqual,
+                        start.ToString("yyyy-MM-dd"))
+                    .Filter(
+                        "completion_date",
+                        Operator.LessThanOrEqual,
+                        end.ToString("yyyy-MM-dd"))
+                    .Get();
 
-            var masterCalibrators = await SupabaseClient
-                .From<MasterCalibrator>()
-                .Get();
+            var masterCalibrators =
+                await SupabaseClient
+                    .From<MasterCalibrator>()
+                    .Get();
 
-            _masterCalibrators = masterCalibrators.Models
-                .OrderBy(c => c.ValidityDate)
-                .ToList();
+            _masterCalibrators =
+                masterCalibrators.Models
+                    .OrderBy(c => c.ValidityDate)
+                    .ToList();
 
-            _reports = res.Models.Select(r => new ReportView
-            {
-                Id = r.Id,
-                JobId = r.JobId,
-                LocationId = r.LocationId,
-                WorkPermit = r.WorkPermit,
-                CompletionDate = r.CompletionDate,
-                JobCarriedByEmpCodes = r.JobCarriedByEmpCodes,
-                ReportPreparedBy = r.ReportPreparedBy,
-                ReportSupervisedBy = r.ReportSupervisedBy,
-                ReportVerifiedBy = r.ReportVerifiedBy,
-                SectionDSpares = r.SectionDSpares,
-                MultiSelectionPmDates = r.MultiSelectionPmDates,
-                LocationName = _locations.FirstOrDefault(l => l.Id == r.LocationId)?.InstallationName ?? "",
-                VisualPoints = new List<VisualPoint>
+            _reports =
+                res.Models.Select(r => new ReportView
                 {
-                    new() { Id = "1", Description = "Checked all tripping parameters and their settings." },
-                    new() { Id = "2", Description = "Panel inside wiring checked and found ok." },
-                    new() { Id = "3", Description = "Air Filter Regulators draining and servicing done." }
-                }
-            }).ToList();
+                    Id = r.Id,
+                    JobId = r.JobId,
+                    LocationId = r.LocationId,
+                    WorkPermit = r.WorkPermit,
+                    CompletionDate = r.CompletionDate,
+
+                    JobCarriedByEmpCodes =
+                        r.JobCarriedByEmpCodes,
+
+                    ReportPreparedBy =
+                        r.ReportPreparedBy,
+
+                    ReportSupervisedBy =
+                        r.ReportSupervisedBy,
+
+                    ReportVerifiedBy =
+                        r.ReportVerifiedBy,
+
+                    SectionDSpares =
+                        r.SectionDSpares,
+
+                    MultiSelectionPmDates =
+                        r.MultiSelectionPmDates,
+
+                    LocationName =
+                        _locations.FirstOrDefault(
+                            l => l.Id == r.LocationId)
+                        ?.InstallationName ?? "",
+
+                    VisualPoints =
+                        new List<VisualPoint>
+                        {
+                            new()
+                            {
+                                Id = "1",
+                                Description =
+                                    "Checked all tripping parameters and their settings."
+                            },
+                            new()
+                            {
+                                Id = "2",
+                                Description =
+                                    "Panel inside wiring checked and found ok."
+                            },
+                            new()
+                            {
+                                Id = "3",
+                                Description =
+                                    "Air Filter Regulators draining and servicing done."
+                            }
+                        }
+
+                }).ToList();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Fetch Error: {ex.Message}", Severity.Error);
-            Console.WriteLine($"LoadData Error: {ex}");
+            Snackbar.Add(
+                $"Fetch Error: {ex.Message}",
+                Severity.Error);
+
+            Console.WriteLine(
+                $"LoadData Error: {ex}");
         }
         finally
         {
@@ -1341,36 +1697,48 @@
     }
 
     // =========================================================
-    // PRINT ACTION EXECUTION
+    // PRINT
     // =========================================================
 
     private async Task PrintReport()
     {
         StateHasChanged();
+
         await Task.Delay(500);
+
         await JSRuntime.InvokeVoidAsync("blazorPrint");
     }
 
     // =========================================================
-    // DATA MAPPING HELPERS
+    // HELPERS
     // =========================================================
 
     private Location GetInstallationName(long locID)
     {
-        if (locID <= 0) return null;
-        return _locations.FirstOrDefault(l => l.Id == locID);
+        if (locID <= 0)
+            return null;
+
+        return _locations.FirstOrDefault(
+            l => l.Id == locID);
     }
+
 
     private EmployeeEngineer GetEmployee(string empCode)
     {
-        if (string.IsNullOrWhiteSpace(empCode)) return null;
-        return _employees.FirstOrDefault(e => e.EmpCode == empCode);
+        if (string.IsNullOrWhiteSpace(empCode))
+            return null;
+
+        return _employees.FirstOrDefault(
+            e => e.EmpCode == empCode);
     }
 
     private EmployeeExecutive GetExecutive(string empCode)
     {
-        if (string.IsNullOrWhiteSpace(empCode)) return null;
-        return _executives.FirstOrDefault(e => e.Id.ToString() == empCode);
+        if (string.IsNullOrWhiteSpace(empCode))
+            return null;
+
+        return _executives.FirstOrDefault(
+            e => e.Id.ToString() == empCode);
     }
 
     // =========================================================
@@ -1627,23 +1995,12 @@
 
     public class ReportView : PmReport
     {
-        public string CompletionDateLocal
-        {
-            get => CompletionDate == DateTime.MinValue
+        public string CompletionDateLocal =>
+            CompletionDate == DateTime.MinValue
                 ? ""
-                : CompletionDate.ToLocalTime().ToString("dd/MM/yyyy");
-
-            // Allows frameworks to bind to it without altering the output
-            set { }
-        }
-
-
-        // public string CompletionDateLocal =>
-        //     CompletionDate == DateTime.MinValue
-        //         ? ""
-        //         : CompletionDate
-        //             .ToLocalTime()
-        //             .ToString("dd/MM/yyyy");
+                : CompletionDate
+                    .ToLocalTime()
+                    .ToString("dd/MM/yyyy");
 
         public string LocationName { get; set; } = "";
 

@@ -1390,7 +1390,14 @@ else
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
             _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
-            _dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
+
+            _dbEngineers = (await SupabaseClient
+    .From<Engineer>()
+    .Where(x => x.Section == "FIELD MAINTENANCE")
+    .Order(x => x.FullName, Supabase.Postgrest.Constants.Ordering.Ascending) // Adds the ASC order
+    .Get()).Models;
+
+            //_dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
             _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
 
 
@@ -1428,20 +1435,28 @@ else
     {
         try
         {
+            _isSaving = true;
             if (_selectedDriver == null || !_selectedJobs.Any()) return;
+
+            // 1. Calculate explicit IST time for string generations (like DocNumber)
+            string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+            TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            DateTime currentIstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
 
             // 1. Prepare and Save Assignment to Database
             var item = new Assignment
             {
                 Id = Guid.NewGuid(),
-                CreatedAt = _selectedDate ?? DateTime.Today,
+                // Ensure this saves as UTC. If utilizing _selectedDate, force it to UTC.
+                CreatedAt = _selectedDate?.ToUniversalTime() ?? DateTime.UtcNow,
                 DriverId = _selectedDriver.Id,
                 ShiftName = _selectedShift,
                 job_assignment_table_JobAssignedBy = _fullName,
                 JobAction = "assigned",
                 JobIds = _selectedJobs.Select(x => x.Id).ToList(),
                 PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
-                DocNumber = $"OIL-{_selectedShift[0]}-{DateTime.Now:ddMMyy-HHmm}"
+                // Inject the explicit IST calculation here
+                DocNumber = $"OIL-{_selectedShift[0]}-{currentIstTime:ddMMyy-HHmm}"
             };
 
             await SupabaseClient.From<Assignment>().Insert(item);
@@ -1490,11 +1505,15 @@ else
             _selectedJobs = new List<Job>();
             _selectedEngineers = new List<Engineer>();
 
+            _isSaving = false;
             Snackbar.Add("Job Plotted", Severity.Success);
+
+
             StateHasChanged();
         }
         catch (Exception ex)
         {
+            _isSaving = false;
             Console.WriteLine($"Method Error: {ex.Message}");
             Snackbar.Add($"Error : {ex.Message}", Severity.Error);
         }
@@ -1630,12 +1649,20 @@ else
                 x => (x.JobName ?? "N/A", x.JobDescription ?? "")
             );
 
+            // Explicitly fetch the fallback IST time in case the DB value is null
+            string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+            TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+            DateTime fallbackIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+
             // 3. Construct your UI Card Model safely
             ActiveJobData = new JobCardModel
             {
                 JobassignedBy = item.job_assignment_table_JobAssignedBy ?? "",
                 DocNumber = item.DocNumber,
-                Date = item.CreatedAt ?? DateTime.Now,
+
+                // Render the UI explicitly in IST
+                Date = item.CreatedAt ?? fallbackIst,
+                //Date = item.CreatedAt ?? DateTime.Now,
                 Vehicle = item.DriverId == default ? "No Driver" : (GetDriverName(item.DriverId) ?? "Unknown Driver"),
 
                 JCLocations = item.JobIds?.Select(id => new JobLocations
@@ -1814,7 +1841,7 @@ else
             Snackbar.Add($"Error : {ex.Message}", Severity.Error);
         }
 
-       
+
     }
 
     private async Task UpdateAssignment()
@@ -2078,7 +2105,7 @@ else
 
         [Column("location_id")] public long JobLocationId { get; set; }
 
-        
+
 
         // ADD THIS: The related Location object
         // (Replace 'LocationModel' with your actual location class name)
@@ -2087,12 +2114,36 @@ else
     }
     [Table("employees_engineers")] public class Engineer : BaseModel { [PrimaryKey("id")] public long Id { get; set; } [Column("full_name")] public string FullName { get; set; } = ""; [Column("emp_code")] public string EmployeeCode { get; set; } = ""; [Column("section")] public string Section { get; set; } = ""; [Column("designation")] public string Designation { get; set; } = ""; }
 
-    
+
     [Table("job_assignments")]
     public class Assignment : BaseModel
     {
         [PrimaryKey("id", false)] public Guid Id { get; set; }
-        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        
+        private DateTime? _createdAt;
+
+        [Column("created_at")]
+        public DateTime? CreatedAt
+        {
+            get
+            {
+                if (!_createdAt.HasValue) return null;
+
+                string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+                TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+
+                // Ensure the stored time is treated as UTC before conversion
+                DateTime utcTime = DateTime.SpecifyKind(_createdAt.Value, DateTimeKind.Utc);
+                return TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
+            }
+            set
+            {
+                // Ensure we always store it back to the field as UTC
+                _createdAt = value?.ToUniversalTime();
+            }
+        }
+
+
         [Column("driver_id")] public long? DriverId { get; set; }
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
 
