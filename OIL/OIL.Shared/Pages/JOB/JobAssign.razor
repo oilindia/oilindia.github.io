@@ -365,6 +365,15 @@ else
     @* --- SECTION 1: UPPER PANEL (Responsive Grid) --- *@
     <MudGrid Justify="Justify.Center" Class="align-center mt-2 mt-md-6">
 
+
+        @* New Date Picker *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-success); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Date</b></MudText>
+                <MudDatePicker Label="Select Date" @bind-Date="_selectedDate" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" />
+            </MudPaper>
+        </MudItem>
+
         @* New Shift Dropdown *@
         <MudItem xs="12" sm="6" md="2">
             <MudPaper Elevation="4" Class="pa-4 pa-md-6" Style="border-top: 6px solid var(--mud-palette-warning); min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
@@ -1360,6 +1369,8 @@ else
 
     public JobCardModel ActiveJobData { get; set; } = new();
 
+    private DateTime? _selectedDate = DateTime.Today;
+
     // 1. Fetch lookup tables ONCE at the start of your data loading process
     // 1. Update the dictionary to hold both properties
     private Dictionary<string, (string Name, string Description)> _jobDictionary = new();
@@ -1423,7 +1434,7 @@ else
             var item = new Assignment
             {
                 Id = Guid.NewGuid(),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = _selectedDate ?? DateTime.Today,
                 DriverId = _selectedDriver.Id,
                 ShiftName = _selectedShift,
                 job_assignment_table_JobAssignedBy = _fullName,

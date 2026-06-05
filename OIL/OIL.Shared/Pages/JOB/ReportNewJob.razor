@@ -33,6 +33,15 @@
                         </MudItem>
 
                         <MudItem xs="12" md="4">
+                            <MudDatePicker Label="Job Date"
+                                           @bind-Date="_newJob.CreatedAt"
+                                           Variant="Variant.Outlined"
+                                           Required="true"
+                                           Editable="true"
+                                           Placeholder="Select Date" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
                             <MudSelect T="string" Label="Job Type" @bind-Value="_newJob.JobType" Variant="Variant.Outlined" Required="true">
                                 <MudSelectItem Value="@("breakdown")">Breakdown</MudSelectItem>
                                 <MudSelectItem Value="@("preventive")">Preventive</MudSelectItem>
@@ -154,8 +163,8 @@
                                        Value="@_selectedTagNumber"
                                        ValueChanged="OnTagNumberChanged"
                                        Variant="Variant.Outlined"
-                                       Required="false" @* Changed from Required="!_isManualTagNumber" *@
-                                       Clearable="true" @* Added to allow users to clear an accidentally selected item *@
+                                       Required="false" 
+                                       Clearable="true" 
                                        Disabled="@(_selectedLocation == null || _isManualLocation || (string.IsNullOrEmpty(_selectedInstrumentType) && !_isManualInstrumentType))">
                                 @foreach (var val in _tagNumberOptions)
                                 {
@@ -167,7 +176,7 @@
                             {
                                 <MudTextField T="string" Class="mt-2" Label="Specify Tag Number"
                                               @bind-Value="_manualTagNumberText" Variant="Variant.Outlined"
-                                              Required="false" @* Changed from Required="true" *@ />
+                                              Required="false" />
                             }
                         </MudItem>
 
@@ -358,7 +367,7 @@
     private readonly LocationTable _manualLocationPlaceholder = new() { Id = -1, InstallationName = "Other (Manual Entry)" };
     private readonly string _manualTextPlaceholder = "__MANUAL_ENTRY_SELECTED__";
 
-    private JobModel _newJob = new() { Priority = "Normal", Status = "pending", JobType = "breakdown" };
+    private JobModel _newJob = new() { Priority = "Normal", Status = "pending", JobType = "breakdown", CreatedAt = DateTime.Now };
     private JobModel _selectedJob = new();
 
     private List<JobModel> _displayJobs = new();
@@ -727,7 +736,7 @@
 
             var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
             _newJob.Id = Guid.NewGuid();
-            _newJob.CreatedAt = DateTime.UtcNow;
+            _newJob.CreatedAt = _newJob.CreatedAt;
             _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
 
             _newJob.ReportedById = _email?.ToString() ?? "unknown";
