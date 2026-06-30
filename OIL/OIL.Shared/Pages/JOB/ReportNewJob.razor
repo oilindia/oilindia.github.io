@@ -473,7 +473,16 @@
             var userEmail = authState.User.Identity?.Name;
             bool isAdmin = authState.User.IsInRole("Admin") || authState.User.IsInRole("Manager");
 
-            _allLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
+            // _allLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
+
+            _allLocations = (await SupabaseClient.From<LocationTable>()
+    .Order(x => x.InstallationName, Supabase.Postgrest.Constants.Ordering.Ascending)
+    .Get()).Models;
+
+    //         _allLocations = (await SupabaseClient.From<LocationTable>()
+    // .Order("installation_name", Supabase.Postgrest.Constants.Ordering.Ascending)
+    // .Get()).Models;
+
             _filteredLocations = _allLocations;
 
             var request = SupabaseClient.From<JobModel>();

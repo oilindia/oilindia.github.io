@@ -74,14 +74,23 @@
                   Virtualize="false">
 
             <HeaderContent>
+                <MudTh Class="job-col-name">Date</MudTh>
                 <MudTh Class="job-col-name">Job Name</MudTh>
                 <MudTh Class="job-col-type">Type</MudTh>
+                <MudTh Class="job-col-type">Person</MudTh>
+                <MudTh Class="job-col-type">Driver/Vehicle</MudTh>
+
                 <MudTh Class="job-col-description">Description</MudTh>
                 <MudTh Class="job-col-location">Location</MudTh>
                 <MudTh Class="job-col-action">Action</MudTh>
             </HeaderContent>
 
             <RowTemplate>
+                <MudTd DataLabel="Date" Class="job-name-cell">
+                    @context.CreatedAt.ToString("dd-MM-yyyy")
+                </MudTd>
+
+
                 <MudTd DataLabel="Job Name" Class="job-name-cell">
                     @context.JobName
                 </MudTd>
@@ -92,6 +101,16 @@
                              Size="Size.Small">
                         @context.JobType.ToUpper()
                     </MudChip>
+                </MudTd>
+
+                <!-- NEW PERSON CELL MAPPING -->
+                <MudTd DataLabel="Person" Class="job-person-cell">
+                    @GetPersonnelNames(context.Id)
+                </MudTd>
+                <!-- END NEW PERSON CELL -->
+                <!-- DISPLAYS COMBINED DRIVER NAME & VEHICLE NUMBER -->
+                <MudTd DataLabel="Driver/Vehicle" Class="job-driver-cell">
+                    @GetDriverAndVehicleInfo(context.Id)
                 </MudTd>
 
                 <MudTd DataLabel="Description" Class="job-description-cell">
@@ -135,8 +154,12 @@
                 </MudTd>
 
                 <MudTd DataLabel="Location" Class="job-location-cell">
-                    @context.LocationId
+                    @GetLocationName(context.LocationId)
                 </MudTd>
+
+                @* <MudTd DataLabel="Location" Class="job-location-cell">
+                    @context.LocationId
+                </MudTd> *@
 
                 <MudTd DataLabel="Action" Class="job-action-cell">
                     <MudButton Variant="Variant.Filled"
@@ -391,7 +414,7 @@
 
 
 
-    @code {
+@code {
 
     [Table("employees_engineers")]
     public class EmployeeEngineer : BaseModel
@@ -424,6 +447,7 @@
         [Column("location_id")] public long? LocationId { get; set; }
         [Column("status")] public string Status { get; set; } = "pending";
 
+        [Column("created_at")] public DateTime CreatedAt { get; set; } 
         // Matches your 'description' column in SQL
         [Column("description")] public string Description { get; set; } = "";
 
@@ -444,6 +468,17 @@
         [Column("storage_path")] public string StoragePath { get; set; } = "";
     }
 
+    // CREATE THIS MODEL
+    [Table("drivers")]
+    public class Driver : BaseModel
+    {
+        [PrimaryKey("id", false)] public long Id { get; set; }
+        [Column("full_name")] public string? FullName { get; set; }
+        [Column("vehicle_number")] public string? VehicleNumber { get; set; }
+        
+    }
+
+
     [Table("job_assignments")]
     public class JobAssignment : BaseModel
     {
@@ -452,6 +487,9 @@
 
         // Add this property to map the int8[] column
         [Column("personnel_ids")] public List<long>? PersonnelIds { get; set; }
+
+        // ADD THIS PROPERTY
+        [Column("driver_id")] public long? DriverId { get; set; }
 
         [Column("job_action")] public string? JobAction { get; set; }
         [Column("job_action_time")] public DateTime? JobActionTime { get; set; }
@@ -484,8 +522,16 @@
     public class Location : BaseModel
     {
         [PrimaryKey("id", false)] public long Id { get; set; }
+
+        [Column("installation_name")] public string? InstallationName { get; set; }
+
         [Column("installation_type")] public string? InstallationType { get; set; }
     }
+
+
+    private Dictionary<long, string> _locationLookup = new();
+    private Dictionary<Guid, string> _jobPersonnelLookup = new();
+    private Dictionary<Guid, string> _jobDriverLookup = new();
 
     private List<Job> _pendingJobs = new();
     private List<ChecklistItem> _allMasterTasks = new();
@@ -567,36 +613,61 @@
         }
     }
 
+
     private async Task LoadInitialData()
     {
         try
         {
             _loading = true;
 
-            // Step 1: Check if the user is an Employee/Engineer
-            var empRes = await SupabaseClient.From<EmployeeEngineer>()
-                .Where(x => x.FullName == _fullName)
-                .Get();
+            // 1. Fetch all master data concurrently
+            var locationsTask = SupabaseClient.From<Location>().Get();
+            var engineersTask = SupabaseClient.From<EmployeeEngineer>().Get();
+            var executivesTask = SupabaseClient.From<Executive>().Get();
+            var checklistsTask = SupabaseClient.From<ChecklistItem>().Get();
+            var driversTask = SupabaseClient.From<Driver>().Get();
 
-            var currentEmployee = empRes.Models.FirstOrDefault();
+            // Await all 5 parallel tasks together
+            await Task.WhenAll(locationsTask, engineersTask, executivesTask, checklistsTask, driversTask);
 
+            // 2. Build Base Lookups
+            _locationLookup = locationsTask.Result.Models.ToDictionary(
+                l => l.Id,
+                l => l.InstallationName ?? "Unnamed Installation"
+            );
+
+            var allEngineers = engineersTask.Result.Models;
+            var engineerLookup = allEngineers.ToDictionary(
+                e => e.Id,
+                e => e.FullName ?? "Unknown Engineer"
+            );
+
+            // Map the ID directly to the whole Driver object for multi-field access
+            var driverLookup = driversTask.Result.Models.ToDictionary(d => d.Id);
+
+            _allMasterTasks = checklistsTask.Result.Models;
+
+            // 3. Identify User Role (In-memory search)
+            var currentEmployee = allEngineers.FirstOrDefault(x => x.FullName == _fullName);
+            var currentExec = executivesTask.Result.Models.FirstOrDefault(x => x.FullName == _fullName);
+
+            List<JobAssignment> relevantAssignments = new();
+
+            // --- ENGINEER LOGIC ---
             if (currentEmployee != null)
             {
-                // --- ENGINEER LOGIC ---
-
-                // Fetch Job Assignments where the personnel_ids array contains the user's ID
                 var assignmentsRes = await SupabaseClient.From<JobAssignment>()
                     .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
                     .Get();
 
-                // Flatten the lists of job_ids from all matching assignments
-                var assignedJobIds = assignmentsRes.Models
-                    .Where(a => a.JobIds != null && a.status != "deleted")
+                relevantAssignments = assignmentsRes.Models.Where(a => a.status != "deleted").ToList();
+
+                var assignedJobIds = relevantAssignments
+                    .Where(a => a.JobIds != null)
                     .SelectMany(a => a.JobIds!)
                     .Distinct()
                     .ToList();
 
-                // Fetch the actual Job records
                 if (assignedJobIds.Any())
                 {
                     var jobsRes = await SupabaseClient.From<Job>()
@@ -611,51 +682,237 @@
                     _pendingJobs = new List<Job>();
                 }
             }
-            else
+            // --- EXECUTIVE LOGIC ---
+            else if (currentExec != null)
             {
-                // Step 2: If not an Engineer, check if the user is an Executive
-                var execRes = await SupabaseClient.From<Executive>()
-                    .Where(x => x.FullName == _fullName)
+                var jobsRes = await SupabaseClient.From<Job>()
+                    .Where(x => x.Status == "assigned")
                     .Get();
 
-                var currentExec = execRes.Models.FirstOrDefault();
+                _pendingJobs = jobsRes.Models;
 
-                if (currentExec != null)
+                if (_pendingJobs.Any())
                 {
-                    // --- EXECUTIVE LOGIC ---
-
-                    // Fetch ALL jobs where status is assigned
-                    var jobsRes = await SupabaseClient.From<Job>()
-                        .Where(x => x.Status == "assigned")
-                        .Get();
-
-                    _pendingJobs = jobsRes.Models;
+                    var allAssignmentsRes = await SupabaseClient.From<JobAssignment>().Get();
+                    relevantAssignments = allAssignmentsRes.Models.Where(a => a.status != "deleted").ToList();
                 }
-                else
+            }
+            // --- NOT FOUND ---
+            else
+            {
+                _pendingJobs = new List<Job>();
+                Snackbar.Add("Could not locate your profile in the system.", Severity.Warning);
+                return;
+            }
+
+            // 4. Map Personnel AND Drivers to Jobs for the UI Table
+            _jobPersonnelLookup.Clear();
+            _jobDriverLookup.Clear();
+
+            foreach (var job in _pendingJobs)
+            {
+                var linkedAssignments = relevantAssignments
+                    .Where(a => a.JobIds != null && a.JobIds.Contains(job.Id))
+                    .ToList();
+
+                var namesForThisJob = new List<string>();
+                var driversForThisJob = new List<string>();
+
+                foreach (var assignment in linkedAssignments)
                 {
-                    // --- NOT FOUND IN EITHER TABLE ---
-                    _pendingJobs = new List<Job>();
-                    Snackbar.Add("Could not locate your profile in the system.", Severity.Warning);
-                    _loading = false;
-                    return;
+                    // Map Personnel
+                    if (assignment.PersonnelIds != null)
+                    {
+                        foreach (var personId in assignment.PersonnelIds)
+                        {
+                            if (engineerLookup.TryGetValue(personId, out var engineerName))
+                            {
+                                namesForThisJob.Add(engineerName);
+                            }
+                        }
+                    }
+
+                    // Map Driver + Vehicle Number combined text
+                    if (assignment.DriverId.HasValue)
+                    {
+                        if (driverLookup.TryGetValue(assignment.DriverId.Value, out var driver))
+                        {
+                            var driverName = driver.FullName ?? "Unknown Driver";
+                            var vehicleNo = !string.IsNullOrWhiteSpace(driver.VehicleNumber) ? driver.VehicleNumber : "No Vehicle Assigned";
+
+                            driversForThisJob.Add($"{driverName} ({vehicleNo})");
+                        }
+                    }
                 }
+
+                // Save Distinct Engineers
+                var distinctNames = namesForThisJob.Distinct().ToList();
+                _jobPersonnelLookup[job.Id] = distinctNames.Any()
+                    ? string.Join(", ", distinctNames)
+                    : "Unassigned";
+
+                // Save Distinct Drivers
+                var distinctDrivers = driversForThisJob.Distinct().ToList();
+                _jobDriverLookup[job.Id] = distinctDrivers.Any()
+                    ? string.Join(", ", distinctDrivers)
+                    : "No Driver";
             }
 
             Console.WriteLine($"_pendingJobs: {_pendingJobs?.Count ?? 0}");
-
-            // Load checklists as usual
-            var master = await SupabaseClient.From<ChecklistItem>().Get();
-            _allMasterTasks = master.Models;
-
-            _loading = false;
         }
         catch (Exception e)
         {
-            _loading = false;
             Console.WriteLine($"Method Error: {e.Message}");
             Snackbar.Add($"Error : {e.Message}", Severity.Error);
         }
+        finally
+        {
+            _loading = false;
+        }
     }
+
+    // Simple lookup helper to consume inside the table layout safely
+    private string GetDriverAndVehicleInfo(Guid jobId) =>
+        _jobDriverLookup.TryGetValue(jobId, out var driverText) ? driverText : "No Driver";
+
+
+
+    // private async Task LoadInitialData()
+    // {
+    //     try
+    //     {
+    //         _loading = true;
+
+    //         var locationsTask = SupabaseClient.From<Location>().Get();
+
+    //         await Task.WhenAll(locationsTask);
+
+    //         // Build the O(1) lookup dictionary (Key: Id, Value: InstallationName)
+    //         _locationLookup = locationsTask.Result.Models
+    //             .ToDictionary(
+    //                 l => l.Id,
+    //                 l => l.InstallationName ?? "Unnamed Installation"
+    //             );
+
+
+    //         var engineersTask = SupabaseClient.From<EmployeeEngineer>().Get();
+    //         // 3. Build Engineer Lookup
+    //         // 3. Build Engineer Lookup
+    //     var engineers = engineersTask.Result.Models.ToDictionary(
+    //         e => e.Id, 
+    //         e => e.FullName ?? "Unknown Engineer"
+    //     );
+
+
+
+    //         // Step 1: Check if the user is an Employee/Engineer
+    //         var empRes = await SupabaseClient.From<EmployeeEngineer>()
+    //             .Where(x => x.FullName == _fullName)
+    //             .Get();
+
+    //         var currentEmployee = empRes.Models.FirstOrDefault();
+
+    //         if (currentEmployee != null)
+    //         {
+    //             // --- ENGINEER LOGIC ---
+
+    //             // Fetch Job Assignments where the personnel_ids array contains the user's ID
+    //             var assignmentsRes = await SupabaseClient.From<JobAssignment>()
+    //                 .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
+    //                 .Get();
+
+    //             // Flatten the lists of job_ids from all matching assignments
+    //             var assignedJobIds = assignmentsRes.Models
+    //                 .Where(a => a.JobIds != null && a.status != "deleted")
+    //                 .SelectMany(a => a.JobIds!)
+    //                 .Distinct()
+    //                 .ToList();
+
+
+
+
+
+
+    //             // Fetch the actual Job records
+    //             if (assignedJobIds.Any())
+    //             {
+    //                 var jobsRes = await SupabaseClient.From<Job>()
+    //                     .Where(x => x.Status == "assigned")
+    //                     .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+    //                     .Get();
+
+    //                 _pendingJobs = jobsRes.Models;
+    //             }
+    //             else
+    //             {
+    //                 _pendingJobs = new List<Job>();
+    //             }
+    //         }
+    //         else
+    //         {
+    //             // Step 2: If not an Engineer, check if the user is an Executive
+    //             var execRes = await SupabaseClient.From<Executive>()
+    //                 .Where(x => x.FullName == _fullName)
+    //                 .Get();
+
+    //             var currentExec = execRes.Models.FirstOrDefault();
+
+    //             if (currentExec != null)
+    //             {
+    //                 // --- EXECUTIVE LOGIC ---
+
+    //                 // Fetch ALL jobs where status is assigned
+    //                 var jobsRes = await SupabaseClient.From<Job>()
+    //                     .Where(x => x.Status == "assigned")
+    //                     .Get();
+
+    //                 _pendingJobs = jobsRes.Models;
+    //             }
+    //             else
+    //             {
+    //                 // --- NOT FOUND IN EITHER TABLE ---
+    //                 _pendingJobs = new List<Job>();
+    //                 Snackbar.Add("Could not locate your profile in the system.", Severity.Warning);
+    //                 _loading = false;
+    //                 return;
+    //             }
+
+
+
+
+    //         }
+
+
+            
+
+    //         Console.WriteLine($"_pendingJobs: {_pendingJobs?.Count ?? 0}");
+
+    //         // Load checklists as usual
+    //         var master = await SupabaseClient.From<ChecklistItem>().Get();
+    //         _allMasterTasks = master.Models;
+
+    //         _loading = false;
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         _loading = false;
+    //         Console.WriteLine($"Method Error: {e.Message}");
+    //         Snackbar.Add($"Error : {e.Message}", Severity.Error);
+    //     }
+    // }
+
+    // Quick helper method to resolve names safely in the UI markup
+    private string GetLocationName(long? locationId)
+    {
+        if (locationId.HasValue && _locationLookup.TryGetValue(locationId.Value, out var name))
+        {
+            return name;
+        }
+        return "Unknown Location";
+    }
+    private string GetPersonnelNames(Guid jobId) =>
+    _jobPersonnelLookup.TryGetValue(jobId, out var names)
+        ? names : "Unassigned";
 
     // private async Task LoadInitialData()
     // {

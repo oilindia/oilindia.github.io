@@ -520,7 +520,7 @@ else
                     <th style="width: 80px;">NOTIF. NO.</th>
                     <th style="width: 140px;">INSTALLATION</th>
                     <th style="width: 100px;">EQUIPMENT</th>
-                    <th style="width: 80px;">DEVICE</th>
+                    @* <th style="width: 80px;">DEVICE</th> *@
                     <th class="text-left">FIELD REPORT</th>
                     <th style="width: 80px;">VEHICLE</th>
                     <th style="width: 150px;">PERSON</th>
@@ -555,7 +555,7 @@ else
                                 <td class="text-left">@GetLocationName(job.LocationId)</td>
                                 <td>@GetEquipmentName(job.LocTagNumber)</td>
 
-                                <td><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td>
+                                @* <td><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td> *@
                                 <td class="text-left"><textarea class="editable-cell text-left" @bind="job.Description"></textarea></td>
 
                                 <td class="text-left">@GetDriverVehicleNumber(assignment.DriverId)</td>
