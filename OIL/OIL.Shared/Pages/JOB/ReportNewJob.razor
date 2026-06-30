@@ -556,27 +556,78 @@
 
     // --- CASCADING ACTION STATE MACHINE HANDLERS ---
 
-    private async Task OnLocationChanged(LocationTable loc) {
+
+    private async Task OnLocationChanged(LocationTable loc)
+    {
         _selectedLocation = loc;
         _isManualLocation = (loc?.Id == -1);
         _newJob.LocationId = _isManualLocation ? null : loc?.Id;
 
-        // Clear children
+        // --- 1. STRIP EXISTING LOCATION PREFIX FROM TITLE ---
+        string currentCleanTitle = _newJob.JobName ?? "";
+        string matchedOldLocation = "";
+
+        foreach (var l in _allLocations)
+        {
+            if (!string.IsNullOrEmpty(l.InstallationName) && currentCleanTitle.StartsWith($"{l.InstallationName} : "))
+            {
+                matchedOldLocation = l.InstallationName;
+                currentCleanTitle = currentCleanTitle.Substring($"{l.InstallationName} : ".Length);
+                break;
+            }
+        }
+        if (string.IsNullOrEmpty(matchedOldLocation) && !string.IsNullOrEmpty(_manualLocationText) && currentCleanTitle.StartsWith($"{_manualLocationText} : "))
+        {
+            matchedOldLocation = _manualLocationText;
+            currentCleanTitle = currentCleanTitle.Substring($"{_manualLocationText} : ".Length);
+        }
+
+        // --- 2. GENERATE FULL COMBINED JOB TITLE ---
+        string locName = _isManualLocation ? _manualLocationText : (loc?.InstallationName ?? "");
+        string fullJobTitle = currentCleanTitle;
+
+        if (!string.IsNullOrEmpty(locName))
+        {
+            fullJobTitle = $"{locName} : {currentCleanTitle}";
+            _newJob.JobName = fullJobTitle;
+
+            // --- 3. COPY FULL TITLE INTO THE DETAILED DESCRIPTION ---
+            string currentDesc = _newJob.Description ?? "";
+
+            // Clean out any previous dynamically added title from the description to prevent duplication
+            if (!string.IsNullOrEmpty(matchedOldLocation) && currentDesc.Contains(" : "))
+            {
+                var lines = currentDesc.Split(new[] { Environment.NewLine }, StringSplitOptions.None)
+                                       .Where(line => !line.StartsWith($"{matchedOldLocation} : "));
+                currentDesc = string.Join(Environment.NewLine, lines).Trim();
+            }
+
+            // Prepend the exact full job title string at the top of the description box
+            _newJob.Description = string.IsNullOrEmpty(currentDesc)
+                ? fullJobTitle
+                : $"{fullJobTitle}{Environment.NewLine}{currentDesc}";
+        }
+        else
+        {
+            _newJob.JobName = currentCleanTitle;
+        }
+
+        // --- 4. CLEAR CASCADING DROPDOWNS & FETCH MARKERS ---
         _currentLocationMarkers.Clear();
         ClearGCSInstrumentState();
         ClearDeviceLocationState();
         ClearInstrumentTypeState();
         ClearTagNumberState();
 
-        if (loc != null && !_isManualLocation) {
-            try {
-                // Fetch context tags matching the active Location configuration key
+        if (loc != null && !_isManualLocation)
+        {
+            try
+            {
                 var response = await SupabaseClient.From<PidMarkerTable>()
                     .Filter("location_id", Supabase.Postgrest.Constants.Operator.Equals, loc.Id.ToString())
                     .Get();
                 _currentLocationMarkers = response.Models;
 
-                // Load initial state options
                 BuildGCSInstrumentOptions();
                 BuildDeviceLocationOptions();
             }
@@ -584,6 +635,35 @@
         }
         StateHasChanged();
     }
+
+    // private async Task OnLocationChanged(LocationTable loc) {
+    //     _selectedLocation = loc;
+    //     _isManualLocation = (loc?.Id == -1);
+    //     _newJob.LocationId = _isManualLocation ? null : loc?.Id;
+
+    //     // Clear children
+    //     _currentLocationMarkers.Clear();
+    //     ClearGCSInstrumentState();
+    //     ClearDeviceLocationState();
+    //     ClearInstrumentTypeState();
+    //     ClearTagNumberState();
+
+    //     if (loc != null && !_isManualLocation) {
+    //         try {
+    //             // Fetch context tags matching the active Location configuration key
+    //             var response = await SupabaseClient.From<PidMarkerTable>()
+    //                 .Filter("location_id", Supabase.Postgrest.Constants.Operator.Equals, loc.Id.ToString())
+    //                 .Get();
+    //             _currentLocationMarkers = response.Models;
+
+    //             // Load initial state options
+    //             BuildGCSInstrumentOptions();
+    //             BuildDeviceLocationOptions();
+    //         }
+    //         catch (Exception ex) { Snackbar.Add("Error downloading markers: " + ex.Message, Severity.Error); }
+    //     }
+    //     StateHasChanged();
+    // }
 
     private void OnGCSInstrumentChanged(string value) {
         _selectedGCSInstrument = value;
@@ -713,6 +793,27 @@
     private async Task SubmitJob()
     {
         if (_isProcessing) return;
+
+        if (_form == null || !_success) return;
+
+        // Ensure the manual location text is accurately bound to the prefix if applicable
+        if (_isManualLocation && !string.IsNullOrEmpty(_manualLocationText))
+        {
+            string expectedPrefix = $"{_manualLocationText} : ";
+            if (!_newJob.JobName.StartsWith(expectedPrefix))
+            {
+                // Remove any generic or stale location prefix if it exists
+                string rawTitle = _newJob.JobName;
+                if (rawTitle.Contains(" : "))
+                {
+                    rawTitle = rawTitle.Split(new[] { " : " }, StringSplitOptions.None).LastOrDefault() ?? "";
+                }
+                _newJob.JobName = $"{_manualLocationText} : {rawTitle.Trim()}";
+            }
+        }
+
+
+
         _isProcessing = true;
         try
         {

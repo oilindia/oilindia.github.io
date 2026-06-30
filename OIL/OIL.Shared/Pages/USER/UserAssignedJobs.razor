@@ -673,6 +673,7 @@
                     var jobsRes = await SupabaseClient.From<Job>()
                         .Where(x => x.Status == "assigned")
                         .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
+                        .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
                         .Get();
 
                     _pendingJobs = jobsRes.Models;
@@ -687,6 +688,7 @@
             {
                 var jobsRes = await SupabaseClient.From<Job>()
                     .Where(x => x.Status == "assigned")
+                    .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
                     .Get();
 
                 _pendingJobs = jobsRes.Models;

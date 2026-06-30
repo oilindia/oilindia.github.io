@@ -24,6 +24,7 @@
                 <PropertyColumn Property="x => x.InstallationName" Title="Installation" />
                 <PropertyColumn Property="x => x.FieldType" Title="Field Type" />
                 <PropertyColumn Property="x => x.InstallationType" Title="Type" />
+                <PropertyColumn Property="x => x.DistanceFhqKm" Title="Distance to FHQ (km)" />
                 <TemplateColumn Title="Status">
                     <CellTemplate>
                         <MudChip T="bool" Color="@(context.Item.IsActive == true ? Color.Success : Color.Default)" Size="Size.Small">
@@ -48,27 +49,30 @@
 @if (_isModalOpen)
 {
     <div style="position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 20px;">
-        <MudPaper Style="width: 700px; max-width: 95%; padding: 24px;" Elevation="25">
+        <MudPaper Style="width: 750px; max-width: 95%; padding: 24px;" Elevation="25">
             <MudText Typo="Typo.h6" Class="mb-4">@(_editingLoc.Id == 0 ? "New Location Entry" : "Edit Location Details")</MudText>
 
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField @bind-Value="_editingLoc.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Required="true" Placeholder="e.g. Hatiali EPS, Bhogpara OCS" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.InstallationType" Label="Installation Type" Variant="Variant.Outlined" Placeholder="e.g. Plant, Station" />
+                    <MudTextField @bind-Value="_editingLoc.InstallationType" Label="Installation Type" Variant="Variant.Outlined" Placeholder="e.g. EPS, QPS, OCS, WHS" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.AreaName" Label="Area Name" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_editingLoc.AreaName" Label="Area Name" Variant="Variant.Outlined" Placeholder="e.g. Chabua" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.SubArea" Label="Sub-Area" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_editingLoc.SubArea" Label="Sub-Area" Variant="Variant.Outlined" Placeholder="e.g. Sector A" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.FieldType" Label="Field Type" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="_editingLoc.FieldType" Label="Field Type" Variant="Variant.Outlined" Placeholder="e.g. Western Fields" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.ImageUrl" Label="Image URL" Variant="Variant.Outlined" HelperText="Path to location drawing or photo" />
+                    <MudNumericField @bind-Value="_editingLoc.DistanceFhqKm" Label="Distance to FHQ (km)" Variant="Variant.Outlined" HideSpinButtons="true" Placeholder="e.g. 42.5" Format="N2" Culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_editingLoc.ImageUrl" Label="Image/Drawing URL" Variant="Variant.Outlined" Placeholder="e.g. https://supabase.co/.../bhogpara.png" HelperText="Storage bucket URL for location PID drawings or photography" />
                 </MudItem>
                 <MudItem xs="12">
                     <MudSwitch @bind-Value="_editingLoc.IsActive" Label="Location is Active" Color="Color.Success" />
@@ -87,8 +91,8 @@
     [Table("locations")]
     public class Location : BaseModel
     {
-        // Removed the 'false' parameter so the manually assigned ID is sent during Insert
-        [PrimaryKey("id")] public long Id { get; set; }
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
 
         [Column("sub_area")] public string? SubArea { get; set; }
         [Column("area_name")] public string? AreaName { get; set; }
@@ -96,7 +100,7 @@
         [Column("field_type")] public string? FieldType { get; set; }
         [Column("image_url")] public string? ImageUrl { get; set; }
         [Column("installation_type")] public string? InstallationType { get; set; }
-        [Column("is_active")] public bool? IsActive { get; set; } = true;
+        [Column("is_active")] public bool? IsActive { get; set; }
         [Column("distance_fhq_km")] public float? DistanceFhqKm { get; set; }
     }
 
@@ -130,18 +134,29 @@
 
     private void OpenAddModal()
     {
-        _editingLoc = new Location { IsActive = true };
+        // Properties are fully set matching table schemas and default sample dataset behaviors
+        _editingLoc = new Location
+        {
+            Id = 0,
+            SubArea = null,
+            AreaName = null,
+            InstallationName = string.Empty,
+            FieldType = "Western Fields", // Set default baseline value from dataset trends
+            InstallationType = string.Empty,
+            ImageUrl = null,
+            IsActive = true, // Defaulting to active status
+            DistanceFhqKm = null
+        };
         _isModalOpen = true;
     }
 
     private void OpenEditModal(Location l)
     {
-        // Clone object to avoid live-updating the grid before saving
         _editingLoc = new Location
         {
             Id = l.Id,
-            SubArea = l.SubArea,
-            AreaName = l.AreaName,
+            SubArea = l.SubArea == "null" ? null : l.SubArea, // Handle database string literal 'null' anomalies smoothly
+            AreaName = l.AreaName == "null" ? null : l.AreaName,
             InstallationName = l.InstallationName,
             FieldType = l.FieldType,
             ImageUrl = l.ImageUrl,
@@ -162,31 +177,18 @@
 
         try
         {
+            // Clean string values before posting back to prevent literal "null" entries
+            _editingLoc.SubArea = string.IsNullOrWhiteSpace(_editingLoc.SubArea) ? null : _editingLoc.SubArea;
+            _editingLoc.AreaName = string.IsNullOrWhiteSpace(_editingLoc.AreaName) ? null : _editingLoc.AreaName;
+            _editingLoc.ImageUrl = string.IsNullOrWhiteSpace(_editingLoc.ImageUrl) ? null : _editingLoc.ImageUrl;
+
             if (_editingLoc.Id == 0)
             {
-                // Fetch the row with the maximum ID
-                // Removed .Select("id") to ensure the JSON deserializes perfectly into the Location model
-                var maxIdResult = await SupabaseClient.From<Location>()
-                    .Order("id", Supabase.Postgrest.Constants.Ordering.Descending)
-                    .Limit(1)
-                    .Get();
-
-                long nextId = 1;
-                if (maxIdResult.Models != null && maxIdResult.Models.Any())
-                {
-                    nextId = maxIdResult.Models.First().Id + 1;
-                }
-
-                // Assign the correctly calculated next ID
-                _editingLoc.Id = nextId;
-
-                // Insert operation
                 await SupabaseClient.From<Location>().Insert(_editingLoc);
-                Snackbar.Add($"Location added successfully with ID: {nextId}", Severity.Success);
+                Snackbar.Add("Location added successfully", Severity.Success);
             }
             else
             {
-                // UPDATE operation for existing locations
                 await SupabaseClient.From<Location>().Update(_editingLoc);
                 Snackbar.Add("Location data updated", Severity.Info);
             }
@@ -199,54 +201,6 @@
             Snackbar.Add($"Save Failed: {ex.Message}", Severity.Error);
         }
     }
-
-    // private async Task SaveLoc()
-    // {
-    //     if (string.IsNullOrWhiteSpace(_editingLoc.InstallationName))
-    //     {
-    //         Snackbar.Add("Installation Name is required.", Severity.Warning);
-    //         return;
-    //     }
-
-    //     try
-    //     {
-    //         if (_editingLoc.Id == 0)
-    //         {
-    //             // 1. Fetch the maximum ID currently in the table
-    //             var maxIdResult = await SupabaseClient.From<Location>()
-    //                 .Select("id")
-    //                 .Order(x => x.Id, Supabase.Postgrest.Constants.Ordering.Descending)
-    //                 .Limit(1)
-    //                 .Get();
-
-    //             long nextId = 1; // Default if table is completely empty
-    //             if (maxIdResult.Models.Any())
-    //             {
-    //                 nextId = maxIdResult.Models.First().Id + 1;
-    //             }
-
-    //             // 2. Assign the new manually calculated ID
-    //             _editingLoc.Id = nextId;
-
-    //             // 3. Insert operation
-    //             await SupabaseClient.From<Location>().Insert(_editingLoc);
-    //             Snackbar.Add($"Location added successfully with ID: {nextId}", Severity.Success);
-    //         }
-    //         else
-    //         {
-    //             // UPDATE operation for existing locations
-    //             await SupabaseClient.From<Location>().Update(_editingLoc);
-    //             Snackbar.Add("Location data updated", Severity.Info);
-    //         }
-
-    //         _isModalOpen = false;
-    //         await LoadData();
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         Snackbar.Add($"Save Failed: {ex.Message}", Severity.Error);
-    //     }
-    // }
 
     private async Task ConfirmDelete(Location l)
     {

@@ -4,7 +4,7 @@
 @using Dapper
 @using Microsoft.Extensions.Configuration
 @inject IConfiguration Config
-
+@using static Supabase.Postgrest.Constants;
 
 @using MudBlazor
 @using Supabase
@@ -428,6 +428,10 @@ else
                             <div class="d-flex flex-column">
                                 <MudText Typo="Typo.body1">@j.JobName</MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@j.JobDescription</MudText>
+                                <!-- Added created_at date display below -->
+                                <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-disabled);" Class="mt-1">
+                                    Created: @j.CreatedAt?.ToString("dd-MMM-yyyy HH:mm")
+                                </MudText>
                             </div>
                         </MudSelectItem>
                     }
@@ -1389,7 +1393,19 @@ else
         try
         {
             _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
+
+            // Calculate the cutoff date for 7 days ago
+            // Use 'o' for round-trip date/time pattern (ISO 8601)
+            string sevenDaysAgoIso = DateTime.UtcNow.AddDays(-7).ToString("o");
+
+            _dbJobs = (await SupabaseClient.From<Job>()
+     .Where(x => x.JobStatus == "pending")
+     .Filter("created_at", Operator.GreaterThan, sevenDaysAgoIso) // Pass column name as a string
+     .Order("created_at", Ordering.Descending)                 // Pass column name as a string
+     .Get()).Models;
+
+
+            //_dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
 
             _dbEngineers = (await SupabaseClient
     .From<Engineer>()
