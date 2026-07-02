@@ -521,24 +521,53 @@
     }
 
     private async Task FilterLocations() {
-        var query = SupabaseClient.From<LocationTable>();
+        
+        // Apply the sorting directly to the base query
+        var query = SupabaseClient.From<LocationTable>()
+            .Order(x => x.InstallationName, Supabase.Postgrest.Constants.Ordering.Ascending);
+
         var filters = new Dictionary<string, string>();
 
-        if (!string.IsNullOrEmpty(_selectedFieldArea) && _selectedFieldArea != "All") 
+        if (!string.IsNullOrEmpty(_selectedFieldArea) && _selectedFieldArea != "All")
             filters.Add("field_type", _selectedFieldArea);
-            
+
         if (!string.IsNullOrEmpty(_selectedInstType) && _selectedInstType != "All")
             filters.Add("installation_type", _selectedInstType);
 
-        if (filters.Any()) {
+        if (filters.Any())
+        {
             var result = await query.Match(filters).Get();
             _filteredLocations = result.Models;
-        } else {
+        }
+        else
+        {
+            // This will also be sorted because you correctly applied
+            // the Order clause to _allLocations in LoadData()
             _filteredLocations = _allLocations;
         }
 
         ResetAllCascadingFormDropdowns();
         StateHasChanged();
+        
+        
+        // var query = SupabaseClient.From<LocationTable>();
+        // var filters = new Dictionary<string, string>();
+
+        // if (!string.IsNullOrEmpty(_selectedFieldArea) && _selectedFieldArea != "All") 
+        //     filters.Add("field_type", _selectedFieldArea);
+            
+        // if (!string.IsNullOrEmpty(_selectedInstType) && _selectedInstType != "All")
+        //     filters.Add("installation_type", _selectedInstType);
+
+        // if (filters.Any()) {
+        //     var result = await query.Match(filters).Get();
+        //     _filteredLocations = result.Models;
+        // } else {
+        //     _filteredLocations = _allLocations;
+        // }
+
+        // ResetAllCascadingFormDropdowns();
+        // StateHasChanged();
     }
 
     private void ResetAllCascadingFormDropdowns() {
