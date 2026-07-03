@@ -403,7 +403,7 @@ namespace OIL.Shared.Services
     }
 
 
-    [Supabase.Postgrest.Attributes.Table("employees_fm")]
+    [Supabase.Postgrest.Attributes.Table("employees_engineers")]
     public class Employee_FM : BaseModel
     {
         [Key]
@@ -455,6 +455,61 @@ namespace OIL.Shared.Services
         [ForeignKey("ReportsToId")]
         public virtual Employee_FM? Manager { get; set; }
     }
+
+
+
+    //[Supabase.Postgrest.Attributes.Table("employees_fm")]
+    //public class Employee_FM : BaseModel
+    //{
+    //    [Key]
+    //    [Supabase.Postgrest.Attributes.Column("id")]
+    //    public long Id { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("reports_to_id")]
+    //    public long? ReportsToId { get; set; }
+
+    //    [EmailAddress]
+    //    [Supabase.Postgrest.Attributes.Column("email")]
+    //    public string? Email { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("emp_code")]
+    //    public string? EmpCode { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("designation")]
+    //    public string? Designation { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("grade")]
+    //    public string? Grade { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("full_name")]
+    //    public string? FullName { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("gender")]
+    //    public string? Gender { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("mobile")]
+    //    public long? Mobile { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("department")]
+    //    public string? Department { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("section")]
+    //    public string? Section { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("created_at")]
+    //    public DateTimeOffset? CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    //    [Supabase.Postgrest.Attributes.Column("annual_cost")]
+    //    public long? AnnualCost { get; set; }
+
+    //    [Supabase.Postgrest.Attributes.Column("personal_code")]
+    //    [StringLength(255)] // Maps to character varying
+    //    public string? PersonalCode { get; set; }
+
+    //    // Navigation property for self-referencing relationship
+    //    [ForeignKey("ReportsToId")]
+    //    public virtual Employee_FM? Manager { get; set; }
+    //}
 
 
 

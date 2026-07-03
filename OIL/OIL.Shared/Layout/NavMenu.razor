@@ -5,52 +5,54 @@
             @* --- GLOBAL LINKS (Everyone) --- *@
             <MudText Typo="Typo.caption" Class="px-4 mt-2">USER</MudText>
 
-           <MudNavGroup Title="Dept All" Icon="@Icons.Material.Filled.Home">
+            <MudNavGroup Title="Dept All" Icon="@Icons.Material.Filled.Home">
 
-            <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
+                <MudNavLink Href="/homeDB" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home Dashboard</MudNavLink>
 
-            <MudNavGroup Title="Field Maintenance Dept." Icon="@Icons.Material.Filled.DepartureBoard">
+                <MudNavGroup Title="Field Maintenance Dept." Icon="@Icons.Material.Filled.DepartureBoard">
 
-                <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
+                    <MudNavLink Href="/fmorganodpt" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink>
 
-                <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
+                    <MudNavLink Href="/policies" Icon="@Icons.Material.Filled.Policy">Department Policies</MudNavLink>
 
-                <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
+                    <MudNavLink Href="dms" Icon="@Icons.Material.Filled.DocumentScanner">Document Management (DMS)</MudNavLink>
 
-            </MudNavGroup>
-            @* <MudNavLink Href="/coststatic" Icon="@Icons.Material.Filled.Money">FY26 Cost</MudNavLink>
+                </MudNavGroup>
+                @* <MudNavLink Href="/coststatic" Icon="@Icons.Material.Filled.Money">FY26 Cost</MudNavLink>
 
             <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM Dashboard</MudNavLink> *@
 
-            @*   <MudNavLink Href="/Pdb" Icon="@Icons.Material.Filled.Dashboard">Our Presence</MudNavLink> *@
-            <MudNavGroup Title="PID all" Icon="@Icons.Material.Filled.Sensors">
+                @*   <MudNavLink Href="/Pdb" Icon="@Icons.Material.Filled.Dashboard">Our Presence</MudNavLink> *@
+                <MudNavGroup Title="PID all" Icon="@Icons.Material.Filled.Sensors">
 
-                <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID (Digital Assets Mapping)</MudNavLink>
+                    <MudNavLink Href="pidmain" Icon="@Icons.Material.Filled.Map">P&ID (Digital Assets Mapping)</MudNavLink>
 
-                <MudNavLink Href="pidmainup" Icon="@Icons.Material.Filled.ControlPoint">P&ID (Update Marker)</MudNavLink>
+                    <MudNavLink Href="pidmainup" Icon="@Icons.Material.Filled.ControlPoint">P&ID (Update Marker)</MudNavLink>
 
-            </MudNavGroup>
+                    <MudNavLink Href="allassets" Icon="@Icons.Material.Filled.Note">P&ID (All Assets)</MudNavLink>
 
-            @* <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink> *@
+                </MudNavGroup>
 
-            @* <MudNavLink Href="/locatoionmap" Icon="@Icons.Material.Filled.Map">Sites Locations Map</MudNavLink> *@
+                @* <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">My Profile</MudNavLink> *@
+
+                @* <MudNavLink Href="/locatoionmap" Icon="@Icons.Material.Filled.Map">Sites Locations Map</MudNavLink> *@
 
 
-            <MudNavGroup Title="AI Assistance" Icon="@Icons.Material.Filled.Computer">
-                <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">Field Maintenance Assistance ChatBot</MudNavLink>
+                <MudNavGroup Title="AI Assistance" Icon="@Icons.Material.Filled.Computer">
+                    <MudNavLink Href="/chatbot" Icon="@Icons.Material.Filled.Chat">Field Maintenance Assistance ChatBot</MudNavLink>
 
-                <MudNavLink Href="/ai-insights" Icon="@Icons.Material.Filled.Analytics">AI Insights on our Data</MudNavLink>               
-               
-            </MudNavGroup>
+                    <MudNavLink Href="/ai-insights" Icon="@Icons.Material.Filled.Analytics">AI Insights on our Data</MudNavLink>
+
+                </MudNavGroup>
 
 
             </MudNavGroup>
 
 
             <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Report">
-            <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
-            <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
-            <MudNavLink Href="/jobhistory" Icon="@Icons.Material.Filled.Dataset">Job Hisotry</MudNavLink>
+                <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
+                <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
+                <MudNavLink Href="/jobhistory" Icon="@Icons.Material.Filled.Dataset">Job Hisotry</MudNavLink>
             </MudNavGroup>
 
             <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.AutoMode">
@@ -66,6 +68,18 @@
 
             </MudNavGroup>
 
+
+            <MudNavGroup Title="STORE" Icon="@Icons.Material.Filled.ShoppingCart">
+                <MudNavLink Href="/storenewitemissue">Issue/Return Spare</MudNavLink>
+                <MudNavLink Href="/storeMIGO">MIGO Report</MudNavLink>
+
+
+
+
+
+                <MudNavLink Href="/storereconcilespare">Reconcile Spare</MudNavLink>
+                <MudNavLink Href="/storematerialmaster">Material Master</MudNavLink>
+            </MudNavGroup>
 
 
             @* --- ADMIN & MANAGER SECTION --- *@

@@ -1,0 +1,53 @@
+Report C: Fast-Moving vs Slow-Moving Spares Analysis
+Identifies which warehouse items are high-demand versus items sitting idle in storage bins.
+
+SQL
+select 
+  mm.material as material_code,
+  mm.material_description,
+  mm.stock_quantity_on_period_end as current_stock,
+  sum(mii.quantity_issued) as units_consumed_this_period,
+  count(mii.id) as frequency_of_demand
+from public.store_material_masterdata mm
+left join public.material_issuance_items mii on mii.material_id = mm.id
+group by mm.id, mm.material, mm.material_description, mm.stock_quantity_on_period_end
+order by frequency_of_demand desc;
+
+
+
+
+Report B: Live Store Consumption Audit Trail (Who took what?)
+A chronological list of stock movements, which can be hooked up directly to a "Store Ledger Admin Dashboard".
+
+SQL
+select 
+  mi.created_at as issuance_date,
+  mi.issued_by_email,
+  j.job_name,
+  mm.material as material_code,
+  mm.material_description,
+  mii.quantity_issued,
+  mii.unit_cost_at_issue,
+  mii.total_cost
+from public.material_issuance_items mii
+join public.material_issuances mi on mii.issuance_id = mi.id
+join public.store_material_masterdata mm on mii.material_id = mm.id
+join public.jobs j on mi.job_id = j.id
+order by mi.created_at desc;
+
+
+
+Report A: Total Cost of Materials Burden per Job
+Shows exactly how much money in spare parts has been consumed by each unique maintenance ticket.
+
+SQL
+select 
+  j.id as job_id,
+  j.job_name,
+  count(mii.id) as total_distinct_parts_issued,
+  sum(mii.quantity_issued) as total_items_issued,
+  sum(mii.total_cost) as aggregate_parts_cost
+from public.jobs j
+join public.material_issuances mi on mi.job_id = j.id
+join public.material_issuance_items mii on mii.issuance_id = mi.id
+group by j.id, j.job_name;

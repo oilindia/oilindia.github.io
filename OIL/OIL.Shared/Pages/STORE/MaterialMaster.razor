@@ -1,0 +1,268 @@
+﻿@page "/storematerialmaster"
+@using System.IO
+@using MiniExcelLibs
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JS
+@using MiniExcelLibs.Attributes
+
+<MudOverlay @bind-Visible="_loading" DarkBackground="true" ZIndex="9999">
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+    <MudText Class="mt-4 text-white">Processing...</MudText>
+</MudOverlay>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-4"><b>Store Material Masterdata</b></MudText>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudToolBar DisableGutters="true" Class="gap-4">
+            <MudFileUpload T="IBrowserFile" FilesChanged="UploadExcel" Accept=".xlsx,.xls">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" Disabled="_loading">Upload & Sync</MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadExcel" Disabled="_loading">Download Template</MudButton>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Search by Material, Desc, or Plant..." 
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" />
+        </MudToolBar>
+    </MudPaper>
+
+    <MudTable Items="@_materials" Dense="true" Hover="true" FixedHeader="true" Height="600px" 
+              Loading="_loading" Filter="new Func<MaterialStock, bool>(FilterFunc)">
+        <HeaderContent>
+            <MudTh>Material</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Plant</MudTh>
+            <MudTh>Qty End</MudTh>
+            <MudTh>Value End</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Material</MudTd>
+            <MudTd>@context.MaterialDescription</MudTd>
+            <MudTd>@context.Plant</MudTd>
+            <MudTd>@context.StockQuantityOnPeriodEnd</MudTd>
+            <MudTd>@context.StockValueOnPeriodEnd</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private List<MaterialStock> _materials = new();
+    private bool _loading = true;
+    private string _currentUserId = "Admin"; 
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private bool FilterFunc(MaterialStock item)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return item.Material.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+               (item.MaterialDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+               item.Plant.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task LoadData() {
+        _loading = true;
+        try {
+            var response = await SupabaseClient.From<MaterialStock>().Get();
+            _materials = response.Models;
+        } catch (Exception ex) { Snackbar.Add($"Error loading: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task UploadExcel(IBrowserFile file) {
+        _loading = true;
+        try {
+            using var memoryStream = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+            var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
+            
+            var existingData = await SupabaseClient.From<MaterialStock>().Get();
+            var existingDict = existingData.Models.ToDictionary(m => m.Material);
+            
+            var processedMaterials = new HashSet<string>();
+
+            foreach (var newRow in uploadedRows) {
+                // Prevent processing duplicates from the Excel file
+                if (!processedMaterials.Add(newRow.Material)) continue;
+
+                if (existingDict.TryGetValue(newRow.Material, out var existing)) {
+                    if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
+                        await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
+                        newRow.Id = existing.Id;
+                        await SupabaseClient.From<MaterialStock>().Update(newRow);
+                    }
+                } else {
+                    newRow.Id = null; // Forces DB auto-increment
+                    await SupabaseClient.From<MaterialStock>().Insert(newRow);
+                    await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
+                }
+            }
+            Snackbar.Add("Data synced successfully!", Severity.Success);
+            await LoadData();
+        } catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task DownloadExcel() {
+        _loading = true;
+        try {
+            var stream = new MemoryStream();
+            stream.SaveAs(_materials);
+            await JS.InvokeVoidAsync("downloadFile", "MasterData.xlsx", Convert.ToBase64String(stream.ToArray()));
+        } catch (Exception ex) { Snackbar.Add($"Download Error: {ex.Message}", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private MaterialHistory MapToHistory(MaterialStock m, string action)
+    {
+        return new MaterialHistory
+        {
+            Id = null,
+            Material = m.Material,
+            MaterialDescription = m.MaterialDescription,
+            ValuationType = m.ValuationType,
+            Plant = m.Plant,
+            StorageLocation = m.StorageLocation,
+            Batch = m.Batch,
+            CompanyCode = m.CompanyCode,
+            ValuationArea = m.ValuationArea,
+            ValuationClass = m.ValuationClass,
+            GLAccount = m.GLAccount,
+            MaterialType = m.MaterialType,
+            MaterialGroup = m.MaterialGroup,
+            BaseUnitOfMeasure = m.BaseUnitOfMeasure,
+            Currency = m.Currency,
+            StockQuantityOnPeriodEnd = m.StockQuantityOnPeriodEnd,
+            StockValueOnPeriodEnd = m.StockValueOnPeriodEnd,
+            StockQuantityOnPeriodStart = m.StockQuantityOnPeriodStart,
+            TotalGoodsReceiptQuantity = m.TotalGoodsReceiptQuantity,
+            TotalGoodsIssueQuantity = m.TotalGoodsIssueQuantity,
+            Action = action,
+            ChangedAt = DateTime.UtcNow,
+            ChangedBy = _currentUserId
+        };
+    }
+
+    [Table("store_material_masterdata")]
+    public class MaterialStock : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long? Id { get; set; }
+
+        [ExcelColumnName("Material")]
+        [Column("material")]
+        public string Material { get; set; } = "";
+
+        [ExcelColumnName("Material Description")]
+        [Column("material_description")]
+        public string? MaterialDescription { get; set; }
+
+        [ExcelColumnName("Valuation Type")]
+        [Column("valuation_type")]
+        public string? ValuationType { get; set; }
+
+        [ExcelColumnName("Plant")]
+        [Column("plant")]
+        public string Plant { get; set; } = "";
+
+        [ExcelColumnName("Storage Location")]
+        [Column("storage_location")]
+        public string StorageLocation { get; set; } = "";
+
+        [ExcelColumnName("Batch")]
+        [Column("batch")]
+        public string Batch { get; set; } = "";
+
+        [ExcelColumnName("Company Code")]
+        [Column("company_code")]
+        public string? CompanyCode { get; set; }
+
+        [ExcelColumnName("Valuation Area")]
+        [Column("valuation_area")]
+        public string? ValuationArea { get; set; }
+
+        [ExcelColumnName("Valuation Class")]
+        [Column("valuation_class")]
+        public string? ValuationClass { get; set; }
+
+        [ExcelColumnName("G/L Account")]
+        [Column("gl_account")]
+        public string? GLAccount { get; set; }
+
+        [ExcelColumnName("Material Type")]
+        [Column("material_type")]
+        public string? MaterialType { get; set; }
+
+        [ExcelColumnName("Material Group")]
+        [Column("material_group")]
+        public string? MaterialGroup { get; set; }
+
+        [ExcelColumnName("Base Unit of Measure")]
+        [Column("base_unit_of_measure")]
+        public string? BaseUnitOfMeasure { get; set; }
+
+        [ExcelColumnName("Currency")]
+        [Column("currency")]
+        public string? Currency { get; set; }
+
+        [ExcelColumnName("Stock Quantity on Period End")]
+        [Column("stock_quantity_on_period_end")]
+        public decimal? StockQuantityOnPeriodEnd { get; set; }
+
+        [ExcelColumnName("Stock Value on Period End")]
+        [Column("stock_value_on_period_end")]
+        public decimal? StockValueOnPeriodEnd { get; set; }
+
+        [ExcelColumnName("Stock Quantity on Period Start")]
+        [Column("stock_quantity_on_period_start")]
+        public decimal? StockQuantityOnPeriodStart { get; set; }
+
+        [ExcelColumnName("Total Goods Receipt Quantity")]
+        [Column("total_goods_receipt_quantity")]
+        public decimal? TotalGoodsReceiptQuantity { get; set; }
+
+        [ExcelColumnName("Total Goods Issue Quantity")]
+        [Column("total_goods_issue_quantity")]
+        public decimal? TotalGoodsIssueQuantity { get; set; }
+    }
+
+    [Table("store_material_history")]
+    public class MaterialHistory : BaseModel
+    {
+        [PrimaryKey("id", false)] public long? Id { get; set; }
+        [Column("material")] public string Material { get; set; } = "";
+        [Column("material_description")] public string? MaterialDescription { get; set; }
+        [Column("valuation_type")] public string? ValuationType { get; set; }
+        [Column("plant")] public string Plant { get; set; } = "";
+        [Column("storage_location")] public string StorageLocation { get; set; } = "";
+        [Column("batch")] public string Batch { get; set; } = "";
+        [Column("company_code")] public string? CompanyCode { get; set; }
+        [Column("valuation_area")] public string? ValuationArea { get; set; }
+        [Column("valuation_class")] public string? ValuationClass { get; set; }
+        [Column("gl_account")] public string? GLAccount { get; set; }
+        [Column("material_type")] public string? MaterialType { get; set; }
+        [Column("material_group")] public string? MaterialGroup { get; set; }
+        [Column("base_unit_of_measure")] public string? BaseUnitOfMeasure { get; set; }
+        [Column("currency")] public string? Currency { get; set; }
+        [Column("stock_quantity_on_period_end")] public decimal? StockQuantityOnPeriodEnd { get; set; }
+        [Column("stock_value_on_period_end")] public decimal? StockValueOnPeriodEnd { get; set; }
+        [Column("stock_quantity_on_period_start")] public decimal? StockQuantityOnPeriodStart { get; set; }
+        [Column("total_goods_receipt_quantity")] public decimal? TotalGoodsReceiptQuantity { get; set; }
+        [Column("total_goods_issue_quantity")] public decimal? TotalGoodsIssueQuantity { get; set; }
+
+        [Column("action")] public string Action { get; set; } = "";
+        [Column("changed_at")] public DateTime ChangedAt { get; set; }
+        [Column("changed_by")] public string ChangedBy { get; set; } = "";
+    }
+}

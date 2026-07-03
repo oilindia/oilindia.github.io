@@ -1,0 +1,256 @@
+﻿@page "/allassets"
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8">
+    <MudText Typo="Typo.h4" GutterBottom="true" Class="mb-4">P&ID Markers Asset Registry</MudText>
+
+    <MudTable Items="@_markers"
+              Dense="true"
+              Hover="true"
+              Bordered="true"
+              Striped="true"
+              Filter="new Func<PidMarker,bool>(FilterFunc1)"
+              Loading="@_loading"
+              LoadingProgressColor="Color.Info"
+              Class="elevation-1">
+
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Instrumentation & Assets</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString"
+                          Placeholder="Search by Tag, Type, Serial, or Installation..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Class="mt-0"
+                          Clearable="true">
+            </MudTextField>
+        </ToolBarContent>
+
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.Id)">ID</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.TagNumber!)">Tag Number</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.Instrument!)">Instrument</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.Location?.InstallationName!)">Installation / Facility</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.InstrumentType!)">Type</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.MakeModelType!)">Make/Model</MudTableSortLabel></MudTh>
+            <MudTh>Range</MudTh>
+            <MudTh>Coordinates</MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.SerialNumber!)">Serial Number</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.DeviceLocation!)">Device Location</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<PidMarker, object>(x => x.ReplacementCost ?? 0)">Replacement Cost</MudTableSortLabel></MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Tag Number">
+                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">@context.TagNumber</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Instrument">@context.Instrument</MudTd>
+            <MudTd DataLabel="Installation / Facility">
+                @if (context.Location != null)
+                {
+                    <div class="d-flex flex-column">
+                        <div class="d-flex align-center gap-1">
+                            <MudText Typo="Typo.body2" Class="fw-bold">@context.Location.InstallationName</MudText>
+                            @if (context.Location.IsActive == false)
+                            {
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Filled" Scale="0.8">Inactive</MudChip>
+                            }
+                        </div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @context.Location.AreaName @(string.IsNullOrEmpty(context.Location.SubArea) ? "" : $" -> {context.Location.SubArea}")
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Error">Unassigned Location (ID: @context.LocationId)</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Type">@context.InstrumentType</MudTd>
+            <MudTd DataLabel="Make/Model">@context.MakeModelType</MudTd>
+            <MudTd DataLabel="Range">@context.Range</MudTd>
+            <MudTd DataLabel="Coordinates">
+                @if (context.CoordX.HasValue || context.CoordY.HasValue)
+                {
+                    <span class="font-monospace" style="font-size: 0.8rem;">X:@context.CoordX?.ToString("F2")<br />Y:@context.CoordY?.ToString("F2")</span>
+                }
+                else
+                {
+                    <span>—</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Serial Number">@context.SerialNumber</MudTd>
+            <MudTd DataLabel="Device Location">
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body2">@context.DeviceLocation</MudText>
+                    <MudText Typo="Typo.caption" Style="color:gray;">@context.LocationType</MudText>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Replacement Cost">
+                @if (context.ReplacementCost.HasValue)
+                {
+                    @context.ReplacementCost.Value.ToString("C0")
+                }
+                else
+                {
+                    <span>—</span>
+                }
+            </MudTd>
+        </RowTemplate>
+
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private List<PidMarker> _markers = new();
+    private string _searchString = "";
+    private bool _loading = true;
+
+    // --- Supabase Data Models Mapping to Postgres Tables ---
+
+    [Table("locations")]
+    public class Location : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("sub_area")]
+        public string? SubArea { get; set; }
+
+        [Column("area_name")]
+        public string? AreaName { get; set; }
+
+        [Column("installation_name")]
+        public string? InstallationName { get; set; }
+
+        [Column("field_type")]
+        public string? FieldType { get; set; }
+
+        [Column("image_url")]
+        public string? ImageUrl { get; set; }
+
+        [Column("installation_type")]
+        public string? InstallationType { get; set; }
+
+        [Column("is_active")]
+        public bool? IsActive { get; set; }
+
+        [Column("distance_fhq_km")]
+        public float? DistanceFhqKm { get; set; }
+    }
+
+    [Table("pid_markers")]
+    public class PidMarker : BaseModel
+    {
+        [PrimaryKey("id", false)]
+        public long Id { get; set; }
+
+        [Column("location_id")]
+        public long? LocationId { get; set; }
+
+        [Column("tag_number")]
+        public string? TagNumber { get; set; }
+
+        [Column("instrument_type")]
+        public string? InstrumentType { get; set; }
+
+        [Column("make_model_type")]
+        public string? MakeModelType { get; set; }
+
+        [Column("range")]
+        public string? Range { get; set; }
+
+        [Column("coord_x")]
+        public double? CoordX { get; set; }
+
+        [Column("coord_y")]
+        public double? CoordY { get; set; }
+
+        [Column("replacement_cost")]
+        public long? ReplacementCost { get; set; }
+
+        [Column("device_location")]
+        public string? DeviceLocation { get; set; }
+
+        [Column("serial_number")]
+        public string? SerialNumber { get; set; }
+
+        [Column("Instrument")]
+        public string? Instrument { get; set; }
+
+        [Column("location_type")]
+        public string? LocationType { get; set; }
+
+        [Reference(typeof(Location))]
+        public Location? Location { get; set; }
+    }
+
+    // --- Lifecycle and Logic ---
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSupabaseDataAsync();
+    }
+
+    private async Task LoadSupabaseDataAsync()
+    {
+        try
+        {
+            _loading = true;
+
+            // FIX: Removed manual string Select modifiers.
+            // By calling .Get() directly, the SDK generates the optimal column selections
+            // and relationship bindings from the [Reference] attribute parameters safely.
+            var response = await SupabaseClient
+                .From<PidMarker>()
+                .Get();
+
+            _markers = response.Models ?? new List<PidMarker>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Supabase Query Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private bool FilterFunc1(PidMarker marker) => FilterFunc(marker, _searchString);
+
+    private bool FilterFunc(PidMarker marker, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        if (marker.TagNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (marker.InstrumentType?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (marker.Instrument?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (marker.SerialNumber?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (marker.DeviceLocation?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        // Client-side execution of our multi-relationship lookups
+        if (marker.Location?.InstallationName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (marker.Location?.AreaName?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        return false;
+    }
+}

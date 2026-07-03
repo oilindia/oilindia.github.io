@@ -57,7 +57,7 @@
                     <MudTextField @bind-Value="_editingLoc.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Required="true" Placeholder="e.g. Hatiali EPS, Bhogpara OCS" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.InstallationType" Label="Installation Type" Variant="Variant.Outlined" Placeholder="e.g. EPS, QPS, OCS, WHS" />
+                    <MudTextField @bind-Value="_editingLoc.InstallationType" Label="Installation Type" Variant="Variant.Outlined" Placeholder="e.g. EPS, QPS, OCS, WHS, OTHER" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudTextField @bind-Value="_editingLoc.AreaName" Label="Area Name" Variant="Variant.Outlined" Placeholder="e.g. Chabua" />
@@ -66,7 +66,7 @@
                     <MudTextField @bind-Value="_editingLoc.SubArea" Label="Sub-Area" Variant="Variant.Outlined" Placeholder="e.g. Sector A" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_editingLoc.FieldType" Label="Field Type" Variant="Variant.Outlined" Placeholder="e.g. Western Fields" />
+                    <MudTextField @bind-Value="_editingLoc.FieldType" Label="Field Type" Variant="Variant.Outlined" Placeholder="e.g. Western Fields, Eastern Fields, Other" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudNumericField @bind-Value="_editingLoc.DistanceFhqKm" Label="Distance to FHQ (km)" Variant="Variant.Outlined" HideSpinButtons="true" Placeholder="e.g. 42.5" Format="N2" Culture="@System.Globalization.CultureInfo.InvariantCulture" />

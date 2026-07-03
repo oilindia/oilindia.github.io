@@ -1,0 +1,264 @@
+﻿@page "/storeMIGO"
+@using System.Runtime.Serialization
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Interfaces
+@using Supabase.Postgrest.Models
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@using Newtonsoft.Json
+@using OIL.Shared.Services
+@inject CustomAuthStateProvider AuthStateProvider
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@using System.Linq
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@inject Supabase.Client Supabase
+
+
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
+
+    <MudPaper Elevation="2" Class="pa-4 mb-6" Style="background-color: #f8f9fa;">
+        <MudGrid AlignItems="Center">
+            <MudItem xs="12" sm="4" md="2">
+                <MudDatePicker Label="From Date" @bind-Date="_startDate"
+                               DateFormat="dd.MM.yyyy" MaxDate="_endDate"
+                               Variant="Variant.Outlined" Color="Color.Primary" />
+            </MudItem>
+            <MudItem xs="12" sm="4" md="2">
+                <MudDatePicker Label="To Date" @bind-Date="_endDate"
+                               DateFormat="dd.MM.yyyy" MinDate="_startDate"
+                               Variant="Variant.Outlined" Color="Color.Primary" />
+            </MudItem>
+            <MudItem xs="12" sm="4" md="5">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           Size="Size.Large" OnClick="LoadReportDataAsync"
+                           StartIcon="@Icons.Material.Filled.Search">
+                    Generate Report
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload"
+                           Color="Color.Success" OnClick="ExportToExcel">
+                    Export to Excel
+                </MudButton>
+
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <div style="border: 2px solid #000080; background-color: #ffffff; font-family: Arial, sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px dashed #000080;">
+            <h4 style="margin: 0; font-weight: bold; letter-spacing: 1px;">MIGO FOR THE PERIOD FROM</h4>
+            <h4 style="margin: 0; font-weight: bold;">
+                @(_startDate?.ToString("dd.MM.yyyy") ?? "___") &nbsp;&nbsp; TO &nbsp;&nbsp; @(_endDate?.ToString("dd.MM.yyyy") ?? "___")
+            </h4>
+            <h4 style="margin: 0; font-weight: bold;">REPORT NO-25 OF @DateTime.Now.Year</h4>
+        </div>
+
+        <div style="text-align: center; padding: 12px; font-weight: bold; font-size: 1.1rem;">
+            INSTRUMENTATION DEPARTMENT (STORE)
+        </div>
+    </div>
+
+    <MudTable Items="@_migoData" Loading="@_isLoading" Dense="true" Hover="true" Bordered="true" Striped="true"
+              HorizontalScrollbar="true" FixedHeader="true" Height="650px"
+              Style="border: 1px solid #000080; border-top: none;">
+
+        <HeaderContent>
+            <MudTh Style="font-weight: bold; text-align: center;">SL.<br />NO</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">NOTIFICATION</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">ISSUE<br />DATE</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">MAT CODE</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left;">DESCRIPTION</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">ISSUED<br />QNTY</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">UOM</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">SLOC</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left;">ISSUED TO</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">PHYSICAL<br />QNTY</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">SAP<br />STOCK</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">LOCATION</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left;">JOB DESCRIPTION</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center;">ASSET</MudTh>
+
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">JOB NAME</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">PEOPLE ALLOTTED</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center; background-color: #f8f9fa;">SHIFT</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">DRIVER</MudTh>
+
+            <MudTh Style="font-weight: bold; text-align: center;">MIGO TO BE<br />DONE BY</MudTh>
+
+            <MudTh Style="font-weight: bold; text-align: center; background-color: #f4b084; color: #000; border: 1px solid #d99a73;">
+                MIGO NO.(To be filled<br />by FM)
+            </MudTh>
+
+            <MudTh Style="font-weight: bold; text-align: left;">REMARKS</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd Style="text-align: center;">@(_migoData.IndexOf(context) + 1)</MudTd>
+            <MudTd Style="text-align: center; color: #d32f2f;">@context.NotificationNo</MudTd>
+            <MudTd Style="text-align: center;">@context.IssueDate.ToString("dd.MM.yyyy")</MudTd>
+            <MudTd Style="text-align: center;">@context.MatCode</MudTd>
+            <MudTd>@context.Description</MudTd>
+            <MudTd Style="text-align: center;">@context.IssuedQnty.ToString("N0")</MudTd>
+            <MudTd Style="text-align: center;">@context.Uom</MudTd>
+            <MudTd Style="text-align: center;">@context.Sloc</MudTd>
+            <MudTd>@context.IssuedTo</MudTd>
+            <MudTd Style="text-align: center;">@context.PhysicalQnty.ToString("N0")</MudTd>
+            <MudTd Style="text-align: center;">@context.SapStock.ToString("N0")</MudTd>
+            <MudTd Style="text-align: center;">@context.Location</MudTd>
+            <MudTd>@context.JobDescription</MudTd>
+            <MudTd Style="text-align: center;">@context.Asset</MudTd>
+
+            <MudTd Style="background-color: #fbfbfc;">@context.JobName</MudTd>
+            <MudTd Style="background-color: #fbfbfc;">@context.PeopleAllotted</MudTd>
+            <MudTd Style="text-align: center; background-color: #fbfbfc;">@context.Shift</MudTd>
+            <MudTd Style="background-color: #fbfbfc;">@context.Driver</MudTd>
+
+            <MudTd></MudTd>
+            <MudTd Style="background-color: #fef0e6;"></MudTd>
+            <MudTd>@context.Remarks</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 20, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
+
+</MudContainer>
+
+@code {
+    private List<MigoReportModel> _migoData = new();
+    private bool _isLoading = true;
+
+    // Use nullable DateTime for MudDatePicker compatibility
+    private DateTime? _startDate = DateTime.Today.AddDays(-6);
+    private DateTime? _endDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportDataAsync();
+    }
+
+    private async Task LoadReportDataAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            // Ensure your variable is either inferred correctly or typed as IPostgrestTable
+            //var query = SupabaseClient.From<MigoReportModel>();
+
+            IPostgrestTable<MigoReportModel> query = SupabaseClient.From<MigoReportModel>();
+
+            // Apply Start Date Filter
+            if (_startDate.HasValue)
+            {
+                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _startDate.Value);
+            }
+
+            // Apply End Date Filter
+            if (_endDate.HasValue)
+            {
+                // Ensure we capture records up to the very last second of the selected end date
+                var endOfDay = _endDate.Value.AddDays(1).AddTicks(-1);
+                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endOfDay);
+            }
+
+            // Execute the fetch ordered by Issue Date
+            var response = await query
+                .Order(x => x.IssueDate, global::Supabase.Postgrest.Constants.Ordering.Ascending)
+                .Get();
+
+            _migoData = response.Models;
+        }
+        catch (Exception ex)
+        {
+            // Add proper error handling here
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+    private async Task ExportToExcel()
+    {
+        var csv = new System.Text.StringBuilder();
+
+        // 1. Add the custom Header Rows for the Report Title and Period
+        csv.AppendLine($"MIGO FOR THE PERIOD FROM,{_startDate?.ToString("dd.MM.yyyy") ?? "___"},TO,{_endDate?.ToString("dd.MM.yyyy") ?? "___"},REPORT NO-25 OF {DateTime.Now.Year}");
+        csv.AppendLine("INSTRUMENTATION DEPARTMENT (STORE),,,");
+        csv.AppendLine(""); // Empty row for spacing
+
+        // 2. Add Data Table Header
+        csv.AppendLine("SL. NO,NOTIFICATION,ISSUE DATE,MAT CODE,DESCRIPTION,ISSUED QNTY,UOM,SLOC,ISSUED TO,PHYSICAL QNTY,SAP STOCK,LOCATION,JOB DESCRIPTION,ASSET,JOB NAME,PEOPLE ALLOTTED,SHIFT,DRIVER,MIGO TO BE DONE BY,MIGO NO. (To be filled by FM),REMARKS");
+
+        // 3. Add Data Rows
+        int count = 1;
+        foreach (var item in _migoData)
+        {
+            csv.AppendLine($"{count}," +
+                $"{item.NotificationNo}," +
+                $"{item.IssueDate:dd.MM.yyyy}," +
+                $"{item.MatCode}," +
+                $"\"{item.Description}\"," +
+                $"{item.IssuedQnty}," +
+                $"{item.Uom}," +
+                $"{item.Sloc}," +
+                $"\"{item.IssuedTo}\"," +
+                $"{item.PhysicalQnty}," +
+                $"{item.SapStock}," +
+                $"{item.Location}," +
+                $"\"{item.JobDescription}\"," +
+                $"{item.Asset}," +
+                $"\"{item.JobName}\"," +
+                $"\"{item.PeopleAllotted}\"," +
+                $"{item.Shift}," +
+                $"\"{item.Driver}\"," +
+                $",," + // Blank columns for FM
+                $"\"{item.Remarks}\"");
+            count++;
+        }
+
+        // 4. Trigger Download
+        var fileName = $"MIGO_Report_{DateTime.Now:yyyyMMdd}.csv";
+        var fileStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv.ToString()));
+
+        using var streamRef = new DotNetStreamReference(stream: fileStream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+
+    // View Mapping Model
+    [Table("vw_migo_report")]
+    public class MigoReportModel : BaseModel
+    {
+        [PrimaryKey("item_id", false)] public long ItemId { get; set; }
+        [Column("notification_no")] public string NotificationNo { get; set; } = "";
+        [Column("issue_date")] public DateTime IssueDate { get; set; }
+        [Column("mat_code")] public string MatCode { get; set; } = "";
+        [Column("description")] public string Description { get; set; } = "";
+        [Column("issued_qnty")] public decimal IssuedQnty { get; set; }
+        [Column("uom")] public string Uom { get; set; } = "";
+        [Column("sloc")] public string Sloc { get; set; } = "";
+        [Column("issued_to")] public string IssuedTo { get; set; } = "";
+        [Column("physical_qnty")] public decimal PhysicalQnty { get; set; }
+        [Column("sap_stock")] public decimal SapStock { get; set; }
+        [Column("location")] public string Location { get; set; } = "";
+        [Column("job_description")] public string JobDescription { get; set; } = "";
+        [Column("asset")] public string Asset { get; set; } = "";
+        [Column("remarks")] public string? Remarks { get; set; }
+
+        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("shift")] public string? Shift { get; set; }
+        [Column("driver")] public string? Driver { get; set; }
+        [Column("people_allotted")] public string? PeopleAllotted { get; set; }
+    }
+}
