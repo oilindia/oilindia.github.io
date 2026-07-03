@@ -132,7 +132,12 @@
         [Column("annual_cost")] public long? AnnualCost { get; set; }
         [Column("mobile")] public long? Mobile { get; set; }
         [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("personal_code")] public string PersonalCode { get; set; }
     }
+
+    
+
+
 
     [Table("engineers")]
     public class EngineerProfileModel : UserProfileModel { }
@@ -226,20 +231,74 @@
         Console.WriteLine("Data Fetch Error: " + ex.Message); 
     }
 }
-    
-    
     private async Task HandleUpdatePassword()
+{
+    _isProcessing = true;
+    try
     {
-        _isProcessing = true;
-        try
+        // 1. Check if an active session user exists in Supabase Auth
+        var currentUser = SupabaseClient.Auth.CurrentUser;
+
+        if (currentUser != null)
         {
+            // User exists in auth table, proceed with standard password update
             await SupabaseClient.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = _newPassword });
-            Snackbar.Add("Password updated successfully!", Severity.Success);
-            _newPassword = ""; _confirmPassword = "";
+            Snackbar.Add("Password updated successfully via Supabase Auth!", Severity.Success);
         }
-        catch (Exception ex) { Snackbar.Add("Update Failed: " + ex.Message, Severity.Error); }
-        finally { _isProcessing = false; }
+        else
+        {
+            // 2. Fallback: User does NOT exist in auth table. 
+            // Fetch the personal_code from the employees_engineers table.
+            // (Assuming you have an identifier like email or personal code to lookup the specific engineer)
+            var currentEmployeeEmail = "user@example.com"; // Replace with your current context's user email or identifier
+            
+            var response = await SupabaseClient
+                                .From<UserProfileModel>()
+                .Filter(x => x.Email, Supabase.Postgrest.Constants.Operator.Equals, currentEmployeeEmail)
+                .Single();
+
+            if (response != null && !string.IsNullOrEmpty(response.PersonalCode))
+            {
+                // Assign the personal code to your password tracking field
+                _newPassword = response.PersonalCode;
+                
+                // Note: To actually register them into the auth table now that you have their fallback password,
+                // you would generally call SupabaseClient.Auth.SignUp(currentEmployeeEmail, _newPassword).
+                // Or if this UI simply tracks the change locally:
+                Snackbar.Add("User not in Auth. Using Personal Code as password placeholder.", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("User session not found, and no matching employee record found.", Severity.Warning);
+            }
+        }
+
+        // Reset fields
+        _newPassword = ""; 
+        _confirmPassword = "";
     }
+    catch (Exception ex) 
+    { 
+        Snackbar.Add("Update Failed: " + ex.Message, Severity.Error); 
+    }
+    finally 
+    { 
+        _isProcessing = false; 
+    }
+}
+    
+    // private async Task HandleUpdatePassword()
+    // {
+    //     _isProcessing = true;
+    //     try
+    //     {
+    //         await SupabaseClient.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = _newPassword });
+    //         Snackbar.Add("Password updated successfully!", Severity.Success);
+    //         _newPassword = ""; _confirmPassword = "";
+    //     }
+    //     catch (Exception ex) { Snackbar.Add("Update Failed: " + ex.Message, Severity.Error); }
+    //     finally { _isProcessing = false; }
+    // }
 
     private void TogglePasswordVisibility()
     {
