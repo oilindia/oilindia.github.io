@@ -89,20 +89,40 @@ namespace OIL.Shared.Services
                     {
                         Console.WriteLine($"Engineer verification successful for: {response.Designation}");
 
-                        var userSession = new CustomAuthStateProvider.UserSession
+                        if (loginId is "103606" or "204957" or "205169")
                         {
-                            Email = response.EmpCode, // Use EmpCode as the unique identifier
-                            Role = "Engineer",
-                            FullName = response.FullName ?? "",
-                            Designation = response.Designation ?? "",
-                            Grade = response.Grade ?? ""
-                        };
+                            var userSession = new CustomAuthStateProvider.UserSession
+                            {
+                                Email = response.EmpCode, // Use EmpCode as the unique identifier
+                                Role = "Store",
+                                FullName = response.FullName ?? "",
+                                Designation = response.Designation ?? "",
+                                Grade = response.Grade ?? ""
+                            };
 
-                        GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
-                        GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
-                        GlobalVariables.GlobalCurrentUserRole = "Engineer";
+                            GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
+                            GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
+                            GlobalVariables.GlobalCurrentUserRole = "Store";
 
-                        await _authStateProvider.UpdateStateAsync(userSession);
+                            await _authStateProvider.UpdateStateAsync(userSession);
+                        }
+                        else {
+
+                            var userSession = new CustomAuthStateProvider.UserSession
+                            {
+                                Email = response.EmpCode, // Use EmpCode as the unique identifier
+                                Role = "Engineer",
+                                FullName = response.FullName ?? "",
+                                Designation = response.Designation ?? "",
+                                Grade = response.Grade ?? ""
+                            };
+
+                            GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
+                            GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
+                            GlobalVariables.GlobalCurrentUserRole = "Engineer";
+                            await _authStateProvider.UpdateStateAsync(userSession);
+                        }
+
                         return true;
                     }
                     else
@@ -404,7 +424,7 @@ namespace OIL.Shared.Services
 
 
     [Supabase.Postgrest.Attributes.Table("employees_engineers")]
-    public class Employee_FM : BaseModel
+    public class EmployeeEngineer : BaseModel
     {
         [Key]
         [Supabase.Postgrest.Attributes.Column("id")]
@@ -451,65 +471,10 @@ namespace OIL.Shared.Services
         [StringLength(255)] // Maps to character varying
         public string? PersonalCode { get; set; }
 
-        // Navigation property for self-referencing relationship
-        [ForeignKey("ReportsToId")]
-        public virtual Employee_FM? Manager { get; set; }
+        //// Navigation property for self-referencing relationship
+        //[ForeignKey("ReportsToId")]
+        //public virtual Employee_FM? Manager { get; set; }
     }
-
-
-
-    //[Supabase.Postgrest.Attributes.Table("employees_fm")]
-    //public class Employee_FM : BaseModel
-    //{
-    //    [Key]
-    //    [Supabase.Postgrest.Attributes.Column("id")]
-    //    public long Id { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("reports_to_id")]
-    //    public long? ReportsToId { get; set; }
-
-    //    [EmailAddress]
-    //    [Supabase.Postgrest.Attributes.Column("email")]
-    //    public string? Email { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("emp_code")]
-    //    public string? EmpCode { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("designation")]
-    //    public string? Designation { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("grade")]
-    //    public string? Grade { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("full_name")]
-    //    public string? FullName { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("gender")]
-    //    public string? Gender { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("mobile")]
-    //    public long? Mobile { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("department")]
-    //    public string? Department { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("section")]
-    //    public string? Section { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("created_at")]
-    //    public DateTimeOffset? CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-
-    //    [Supabase.Postgrest.Attributes.Column("annual_cost")]
-    //    public long? AnnualCost { get; set; }
-
-    //    [Supabase.Postgrest.Attributes.Column("personal_code")]
-    //    [StringLength(255)] // Maps to character varying
-    //    public string? PersonalCode { get; set; }
-
-    //    // Navigation property for self-referencing relationship
-    //    [ForeignKey("ReportsToId")]
-    //    public virtual Employee_FM? Manager { get; set; }
-    //}
 
 
 
@@ -536,7 +501,7 @@ namespace OIL.Shared.Services
     }
 
     [Supabase.Postgrest.Attributes.Table("employees_fm")]
-    public class EmployeeEngineer : BaseModel
+    public class Employee_FM : BaseModel
     {
         [Supabase.Postgrest.Attributes.PrimaryKey("id", false)]
         public long Id { get; set; }

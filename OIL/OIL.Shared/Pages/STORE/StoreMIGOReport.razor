@@ -160,15 +160,16 @@
             // Apply Start Date Filter
             if (_startDate.HasValue)
             {
-                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _startDate.Value);
+                // Convert DateTime to ISO-8601 string string
+                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _startDate.Value.ToString("o"));
             }
 
             // Apply End Date Filter
             if (_endDate.HasValue)
             {
-                // Ensure we capture records up to the very last second of the selected end date
                 var endOfDay = _endDate.Value.AddDays(1).AddTicks(-1);
-                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endOfDay);
+                // Convert DateTime to ISO-8601 string string
+                query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endOfDay.ToString("o"));
             }
 
             // Execute the fetch ordered by Issue Date
@@ -233,7 +234,7 @@
         var fileStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv.ToString()));
 
         using var streamRef = new DotNetStreamReference(stream: fileStream);
-        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        await JS.InvokeVoidAsync("downloadFileFromStreamStore", fileName, streamRef);
     }
 
     // View Mapping Model

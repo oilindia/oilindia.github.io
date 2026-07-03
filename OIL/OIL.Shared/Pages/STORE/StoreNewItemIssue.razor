@@ -773,21 +773,28 @@
             isLoading = true;
             errorMessage = string.Empty;
 
-            // Fetch jobs sorted with latest records at the top
+            // 1. Calculate the 30-day cutoff timestamp (ISO-8601 string)
+            string cutoffDate = DateTime.UtcNow.AddDays(-30).ToString("o");
+
+            // 2. Fetch jobs sorted with latest records at the top (last 30 days only)
             var jobsResponse = await Supabase.From<Job>()
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
                 .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
                 .Get();
             jobsList = jobsResponse.Models;
 
-            // Fetch job assignments sorted with latest records at the top
+            // 3. Fetch job assignments sorted with latest records at the top (last 30 days only)
             var assignmentsResponse = await Supabase.From<JobAssignment>()
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
                 .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
                 .Get();
             assignmentsList = assignmentsResponse.Models;
 
-            // Fetch your engineers directory for array resolution mapping
+            // 4. Fetch your engineers directory for array resolution mapping (Keep unfiltered as it's a structural lookup)
             var engineersResponse = await Supabase.From<EmployeeEngineer>().Get();
             engineersDirectory = engineersResponse.Models;
+
+            
         }
         catch (Exception ex)
         {

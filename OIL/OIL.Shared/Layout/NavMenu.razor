@@ -69,30 +69,13 @@
             </MudNavGroup>
 
 
-            <MudNavGroup Title="STORE" Icon="@Icons.Material.Filled.ShoppingCart">
-                <MudNavLink Href="/storenewitemissue">Issue/Return Spare</MudNavLink>
-                <MudNavLink Href="/storeMIGO">MIGO Report</MudNavLink>
-
-
-
-
-
-                <MudNavLink Href="/storereconcilespare">Reconcile Spare</MudNavLink>
-                <MudNavLink Href="/storematerialmaster">Material Master</MudNavLink>
-            </MudNavGroup>
+            
 
 
             @* --- ADMIN & MANAGER SECTION --- *@
             @if (context.User.IsInRole("Admin") || context.User.IsInRole("Manager"))
             {
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.caption" Class="px-4">ADMIN & MANAGEMENT</MudText>
-
-                @*  <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
-
-<MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink> *@
-
-                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Analytics">
+                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Report">
                     <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
                     <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
                     <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
@@ -101,8 +84,20 @@
 
                     <MudNavLink Href="/jobhistory" Icon="@Icons.Material.Filled.Dataset">Job Hisotry</MudNavLink>
 
-                    @* <MudNavLink Href="/jobcard">Job Card</MudNavLink> *@
+                    <MudNavLink Href="/approvecost" Icon="@Icons.Material.Filled.Money">Approve Cost</MudNavLink>
+
+                   
                 </MudNavGroup>
+
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.caption" Class="px-4">ADMIN & MANAGEMENT</MudText>
+
+                @*  <MudNavLink Href="/home" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">About Us</MudNavLink>
+
+<MudNavLink Href="/fmorgano" Icon="@Icons.Material.Filled.AccountTree">Field Maintenance Organogram</MudNavLink> *@
+
+                
 
                 <MudNavGroup Title="Portal Data" Icon="@Icons.Material.Filled.Storage">
                     <MudNavLink Href="/managedrivers">Manage Drivers</MudNavLink>
@@ -140,9 +135,10 @@
             <MudDivider Class="my-2" />
             <MudText Typo="Typo.caption" Class="px-4">MAINTENANCE (PM)</MudText>
 
-            @if (context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
-            {
+           
 
+            @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
+            {
                 <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.Storage">
                     <MudNavLink Href="/PmDB">PM Dashboard</MudNavLink>
                     <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
@@ -156,38 +152,18 @@
 
                 </MudNavGroup>
 
-
-                <MudNavGroup Title="Daily Report" Icon="@Icons.Material.Filled.Report">
-                    <MudNavLink Href="/reportnewjob">Report New Jobs</MudNavLink>
-                    <MudNavLink Href="/jobassign">Manage Jobs</MudNavLink>
-                    <MudNavLink Href="/dailyreportprint">Daily Report Print</MudNavLink>
-
-                    <MudNavLink Href="/userassignedjobs" Icon="@Icons.Material.Filled.WorkHistory">My Assigned Jobs</MudNavLink>
-
-                    <MudNavLink Href="/jobhistory" Icon="@Icons.Material.Filled.Dataset">Job Hisotry</MudNavLink>
-
-                    <MudNavLink Href="/approvecost" Icon="@Icons.Material.Filled.Money">Approve Cost</MudNavLink>
-
-                    @* <MudNavLink Href="/jobcard">Job Card</MudNavLink> *@
-                </MudNavGroup>
-
-
-                @* <MudNavGroup Title="Calibration" Icon="@Icons.Material.Filled.Receipt">
-                    <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
-
-                    <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
-                </MudNavGroup> *@
-                @* <MudNavLink Href="/PmDB" Icon="@Icons.Material.Filled.Dashboard">PM DB</MudNavLink>
-
-                @* PM Planning for Managers *@
-                @* <MudNavLink Href="/pmschedule" Icon="@Icons.Material.Filled.CalendarMonth">PM Scheduling</MudNavLink>  *@
-            }
-
-            @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
-            {
                 @* Execution for Engineers and Managers *@
                 @* <MudNavLink Href="/pmexecution" Icon="@Icons.Material.Filled.AssignmentTurnedIn">PM Execution</MudNavLink>
                 <MudNavLink Href="/pmreports" Icon="@Icons.Material.Filled.Assessment">PM Reports</MudNavLink> *@
+            }
+            @if (context.User.IsInRole("Store") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
+            {
+            <MudNavGroup Title="STORE" Icon="@Icons.Material.Filled.ShoppingCart">
+                <MudNavLink Href="/storenewitemissue">Issue/Return Spare</MudNavLink>
+                <MudNavLink Href="/storeMIGO">MIGO Report</MudNavLink>
+                <MudNavLink Href="/storereconcilespare">Reconcile Spare</MudNavLink>
+                <MudNavLink Href="/storematerialmaster">Material Master</MudNavLink>
+            </MudNavGroup>
             }
 
         </Authorized>
