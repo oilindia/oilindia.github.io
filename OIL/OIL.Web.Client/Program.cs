@@ -51,7 +51,7 @@ builder.Services.AddSingleton(provider =>
     )
 );
 
-
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
 
 // Ensure these lines are in your Program.cs or MauiProgram.cs

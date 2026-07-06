@@ -8,7 +8,10 @@ using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Net.Http.Json;
 using System.Security.Claims;
+using static OIL.Shared.Services.CustomAuthStateProvider;
+using static System.Net.WebRequestMethods;
 
 
 namespace OIL.Shared.Services
@@ -17,11 +20,13 @@ namespace OIL.Shared.Services
     {
         private readonly Supabase.Client _supabase;
         private readonly CustomAuthStateProvider _authStateProvider;
+        private readonly HttpClient _http; // Add this
 
-        public AuthService(Supabase.Client supabase, AuthenticationStateProvider authStateProvider)
+        public AuthService(Supabase.Client supabase, AuthenticationStateProvider authStateProvider, HttpClient http)
         {
             _supabase = supabase;
             _authStateProvider = (CustomAuthStateProvider)authStateProvider;
+            _http = http; // Add this
         }
 
         public async Task<bool> Login(string loginId, string password, bool isAdminMode)
@@ -35,27 +40,13 @@ namespace OIL.Shared.Services
                     return true;
                 }
 
-                // Branch 1: Executive Login (Uses Email & Supabase GoTrue Auth)
+                // Branch 1: Executive Login
                 if (loginId.Contains("@"))
                 {
-                    Supabase.Gotrue.Session? session = null;
-                    try
-                    {
-                        session = await _supabase.Auth.SignIn(loginId, password);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Supabase Auth Attempt Failed: {ex.Message}");
-                        return false;
-                    }
-
+                    var session = await _supabase.Auth.SignIn(loginId, password);
                     if (session?.AccessToken != null)
                     {
-                        // Fetch Executive metadata
-                        var response = await _supabase.From<EmployeeExecutive>()
-                            .Where(x => x.Email == loginId)
-                            .Single();
-
+                        var response = await _supabase.From<EmployeeExecutive>().Where(x => x.Email == loginId).Single();
                         var role = response?.IsLocalAdmin == true ? "Admin" : "Executive";
 
                         var userSession = new CustomAuthStateProvider.UserSession
@@ -64,74 +55,63 @@ namespace OIL.Shared.Services
                             Role = role,
                             FullName = response?.FullName ?? loginId,
                             Designation = response?.Designation ?? "",
-                            Grade = "Executive" // Assigning a default since executives lack the grade column
+                            Grade = "Executive"
                         };
 
                         GlobalVariables.GlobalCurrentUserID = session.User?.Id?.ToString();
-                        GlobalVariables.GlobalCurrentUserEmail = session.User?.Email;
-                        GlobalVariables.GlobalCurrentUserTok = session.AccessToken;
+                        GlobalVariables.GlobalCurrentUserRole = role;
+                        await _authStateProvider.UpdateStateAsync(userSession);
+                        return true;
+                    }
+                }
+                // Branch 2: Engineer Login
+                else
+                {
+                    var response = await _supabase.From<EmployeeEngineer>().Where(x => x.EmpCode == loginId).Single();
+
+                    if (response != null && response.PersonalCode == password)
+                    {
+                        // 1. Get the JWT from your Edge Function
+                        // Replace with your actual project URL
+                        var jwtResponse = await _http.PostAsJsonAsync("https://pmwutokmedbbphpwxafo.supabase.co/functions/v1/generate-jwt", new { empCode = response.EmpCode });
+
+                        if (!jwtResponse.IsSuccessStatusCode) return false;
+
+                        var tokenObj = await jwtResponse.Content.ReadFromJsonAsync<TokenResponse>();
+
+                        // 2. THIS AUTHENTICATES THE SUPABASE CLIENT
+                        //await _supabase.Auth.SetSession(tokenObj.Token, "");
+                        //await _supabase.Auth.SetSession(tokenObj.Token, tokenObj.Token);
+                        // This forces the database client to use your token for every RLS request
+                        
+
+                        // 3. Determine Role
+                        string role = (loginId is "103606" or "204957" or "205169") ? "Store" : "Engineer";
+
+                        // 4. Create Session
+                        var userSession = new CustomAuthStateProvider.UserSession
+                        {
+                            Email = response.EmpCode,
+                            Role = role,
+                            FullName = response.FullName ?? "",
+                            Designation = response.Designation ?? "",
+                            Grade = response.Grade ?? ""
+                        };
+
+
+                        _supabase.Postgrest.Options.Headers["Authorization"] = $"Bearer {tokenObj.Token}";
+
+                        // 3. Update the UI State (as you already do)
+                        await _authStateProvider.UpdateStateAsync(userSession);
+
+                        GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
+                        GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
                         GlobalVariables.GlobalCurrentUserRole = role;
 
                         await _authStateProvider.UpdateStateAsync(userSession);
                         return true;
                     }
                 }
-
-                // Branch 2: Engineer Login (Uses EmpCode & Manual Table Verification)
-                else
-                {
-                    var response = await _supabase.From<EmployeeEngineer>()
-                        .Where(x => x.EmpCode == loginId)
-                        .Single();
-
-                    // Validate against the custom password column (e.g., PersonalCode)
-                    if (response != null && response.PersonalCode == password)
-                    {
-                        Console.WriteLine($"Engineer verification successful for: {response.Designation}");
-
-                        if (loginId is "103606" or "204957" or "205169")
-                        {
-                            var userSession = new CustomAuthStateProvider.UserSession
-                            {
-                                Email = response.EmpCode, // Use EmpCode as the unique identifier
-                                Role = "Store",
-                                FullName = response.FullName ?? "",
-                                Designation = response.Designation ?? "",
-                                Grade = response.Grade ?? ""
-                            };
-
-                            GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
-                            GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
-                            GlobalVariables.GlobalCurrentUserRole = "Store";
-
-                            await _authStateProvider.UpdateStateAsync(userSession);
-                        }
-                        else {
-
-                            var userSession = new CustomAuthStateProvider.UserSession
-                            {
-                                Email = response.EmpCode, // Use EmpCode as the unique identifier
-                                Role = "Engineer",
-                                FullName = response.FullName ?? "",
-                                Designation = response.Designation ?? "",
-                                Grade = response.Grade ?? ""
-                            };
-
-                            GlobalVariables.GlobalCurrentUserID = response.Id.ToString();
-                            GlobalVariables.GlobalCurrentUserEmail = response.EmpCode;
-                            GlobalVariables.GlobalCurrentUserRole = "Engineer";
-                            await _authStateProvider.UpdateStateAsync(userSession);
-                        }
-
-                        return true;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid Engineer ID or Password.");
-                        return false;
-                    }
-                }
-
                 return false;
             }
             catch (Exception ex)
@@ -141,272 +121,15 @@ namespace OIL.Shared.Services
             }
         }
 
-
-        //public async Task<bool> Login(string email, string password, bool isAdminMode)
-        //{
-        //    try
-        //    {
-        //        if (isAdminMode)
-        //        {
-        //            // Change from synchronous to the persisting async call
-        //            await _authStateProvider.AdminUpdateAuthenticationStateAsync(email ?? "admin@oilindia.com", "Admin");
-        //            return true;
-        //        }
-        //        else
-        //        {
-        //            try
-        //            {
-        //                Supabase.Gotrue.Session? session = null;
-        //                try
-        //                {
-        //                    session = await _supabase.Auth.SignIn(email, password);
-        //                }
-        //                catch (Exception ex)
-        //                {
-        //                    Console.WriteLine($"Supabase Auth Attempt Failed: {ex.Message}");
-        //                }
-
-        //                if (session?.AccessToken != null)
-        //                {
-        //                    var response = await _supabase.From<UserPermission>()
-        //                        .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //                        .Get();
-
-        //                    var userPerm = response.Models.FirstOrDefault();
-        //                    string assignedRole = userPerm?.AppRole ?? "User";
-
-
-        //                    GlobalVariables.GlobalCurrentUserID = session?.User?.Id?.ToString();
-        //                    GlobalVariables.GlobalCurrentUserEmail = session?.User?.Email?.ToString();
-        //                    GlobalVariables.GlobalCurrentUserTok = session?.AccessToken?.ToString();
-        //                    GlobalVariables.GlobalCurrentUserRole = assignedRole; // Assumed safely handled or nullable
-
-        //                    await _authStateProvider.UpdateAuthenticationState(email, assignedRole);
-        //                    return true;
-        //                }
-        //                else
-        //                {
-        //                    var response = await _supabase.From<Employee_FM>()
-        //                        .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //                        .Get();
-
-        //                    var employee = response.Models.FirstOrDefault();
-
-        //                    if (employee != null && employee.PersonalCode == password)
-        //                    {
-        //                        Console.WriteLine($"Manual verification successful for: {employee.Designation}");
-
-
-        //                        GlobalVariables.GlobalCurrentUserID = session?.User?.Id?.ToString();
-        //                        GlobalVariables.GlobalCurrentUserEmail = session?.User?.Email?.ToString();
-        //                        GlobalVariables.GlobalCurrentUserTok = session?.AccessToken?.ToString();
-        //                        //GlobalVariables.GlobalCurrentUserRole = assignedRole; // Assumed safely handled or nullable
-
-        //                        GlobalVariables.GlobalCurrentUserRole = "Engineer";
-
-        //                        // Fixed: Persist the manual user state to LocalStorage
-        //                        await _authStateProvider.AdminUpdateAuthenticationStateAsync(email, "Engineer");
-        //                        return true;
-        //                    }
-        //                    else
-        //                    {
-        //                        Console.WriteLine("Invalid credentials for both Auth and Employee Table.");
-        //                        return false;
-        //                    }
-        //                }
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                Console.WriteLine($"Critical Login Error: {ex.Message}");
-        //                return false;
-        //            }
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-
-        //        Console.WriteLine($"Critical Login Error: {ex.Message}");
-        //        return false;
-        //        //Snackbar.Add($"Error : {ex.Message}", Severity.Error);
-        //    }
-
-
-
-        //}
-
-        //public async Task<bool> Login(string email, string password, bool isAdminMode)
-        //{
-        //    // --- KEEPING ADMIN LOGIN PART AS IS ---
-        //    if (isAdminMode)
-        //    {
-        //        _authStateProvider.AdminUpdateAuthenticationState(email ?? "admin@oilindia.com", "Admin");
-        //        return true;
-        //    }
-        //    else {
-
-
-
-        //        try
-        //        {
-        //            // Initialize session as null; Supabase.Gotrue.Session is the specific type
-        //            Supabase.Gotrue.Session? session = null;
-
-        //            try
-        //            {
-        //                // Try standard Supabase Auth first
-        //                session = await _supabase.Auth.SignIn(email, password);
-        //                Console.WriteLine($"Session created for: {session?.User?.Email}");
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                // Log but don't return yet; we want to try the fallback check below
-        //                Console.WriteLine($"Supabase Auth Attempt Failed: {ex.Message}");
-        //            }
-
-        //            // CASE 1: Supabase Auth Succeeded
-        //            if (session?.AccessToken != null)
-        //            {
-        //                var response = await _supabase.From<UserPermission>()
-        //                    .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //                    .Get();
-
-        //                var userPerm = response.Models.FirstOrDefault();
-        //                string assignedRole = userPerm?.AppRole ?? "User"; // Default role if not found in view
-
-        //                _authStateProvider.UpdateAuthenticationState(email, assignedRole);
-        //                return true;
-        //            }
-
-        //            // CASE 2: Supabase Auth failed/missing, falling back to manual Table Verification
-        //            else
-        //            {
-        //                var response = await _supabase.From<Employee_FM>()
-        //                    .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //                    .Get();
-
-        //                var employee = response.Models.FirstOrDefault();
-
-        //                // Check if employee exists and PersonalCode matches the entered password
-        //                if (employee != null && employee.PersonalCode == password)
-        //                {
-        //                    Console.WriteLine($"Manual verification successful for: {employee.Designation}");
-
-        //                    // Using your specific AdminUpdate provider method
-        //                    _authStateProvider.AdminUpdateAuthenticationState(email, "Engineer");
-        //                    return true;
-        //                }
-        //                else
-        //                {
-        //                    Console.WriteLine("Invalid credentials for both Auth and Employee Table.");
-        //                    return false;
-        //                }
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            Console.WriteLine($"Critical Login Error: {ex.Message}");
-        //            return false;
-        //        }
-
-
-
-
-
-
-        //        //try
-        //        //{
-        //        //    var session; 
-        //        //    try
-        //        //    {
-        //        //        session= await _supabase.Auth.SignIn(email, password);
-        //        //        Console.WriteLine($"session: {session.ToString()}");
-        //        //    }
-        //        //    catch (Exception ex)
-        //        //    {
-        //        //        Console.WriteLine($"Login Error: {ex.Message}");
-        //        //        //return false;
-        //        //    }
-        //        //    // 1. Sign In (ASYNCHRONOUS)
-
-        //        //    if (session.ToString().IsNullOrEmpty()) {
-
-
-        //        //        // 2. Query the View (ASYNCHRONOUS)
-        //        //        // Ensure you are using .Get() and NOT .Result
-        //        //        var response = await _supabase.From<UserPermission>()
-        //        //            .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //        //            .Get();
-
-        //        //        var userPerm = response.Models.FirstOrDefault();
-
-        //        //        Console.WriteLine($"Usr: {userPerm.AppRole}");
-
-        //        //        // 3. Determine Role
-        //        //        string assignedRole = userPerm?.AppRole ?? "Admin";
-
-        //        //        // 4. Update the Provider
-        //        //        _authStateProvider.UpdateAuthenticationState(email, assignedRole);
-
-        //        //        return true;
-
-
-
-        //        //    }
-
-
-        //        //    else
-        //        //    {
-        //        //        // 2. Query the View (ASYNCHRONOUS)
-        //        //        // Ensure you are using .Get() and NOT .Result
-        //        //        var response = await _supabase.From<Employee_FM>()
-        //        //            .Filter("email", Supabase.Postgrest.Constants.Operator.Equals, email)
-        //        //            .Order("priority", Supabase.Postgrest.Constants.Ordering.Ascending)
-        //        //            .Get();
-
-        //        //        var userPerm = response.Models.FirstOrDefault();
-
-        //        //        Console.WriteLine($"Usr: {userPerm.Designation}");
-
-
-        //        //        if (userPerm != null && userPerm.PersonalCode == password) {
-
-        //        //            // 3. Determine Role
-        //        //            //string assignedRole = userPerm?.Designation ?? "Engineer";
-
-        //        //            // 4. Update the Provider
-        //        //            _authStateProvider.AdminUpdateAuthenticationState(email ?? email, "Engineer");
-
-        //        //            return true;
-
-        //        //        }
-
-
-        //        //        else
-        //        //        {
-        //        //            return false;
-        //        //        }
-
-        //        //    }
-
-
-
-
-        //        //}
-        //        //catch (Exception ex)
-        //        //{
-        //        //    Console.WriteLine($"Login Error: {ex.Message}");
-        //        //    return false;
-        //        //}
-
-        //    }
-        //}
-
         public async Task Logout()
         {
             await _supabase.Auth.SignOut();
             _authStateProvider.NotifyLogout();
         }
     }
+
+    // Add this helper class at the bottom of your file
+    public class TokenResponse { public string Token { get; set; } }
 
     // FIXED: Must inherit from BaseModel and have Table mapping
     [Supabase.Postgrest.Attributes.Table("user_permissions")]

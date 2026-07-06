@@ -362,12 +362,66 @@
         align-items: center;
         gap: 0.75rem;
     }
+    /* Make inputs inside tables more mobile-friendly */
+    .fms-table input[type="number"] {
+        width: 70px !important; /* Force a comfortable size */
+        font-size: 1rem !important; /* Larger text for readability */
+        padding: 0.5rem !important;
+        text-align: center;
+        border: 2px solid var(--slate-300);
+        border-radius: 6px;
+        display: block;
+        margin: 0 auto;
+    }
+
+    /* Remove default browser arrows (the cause of the layout clutter) */
+    .fms-table input::-webkit-outer-spin-button,
+    .fms-table input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* Ensure the column itself has breathing room */
+    .fms-table th:nth-child(4),
+    .fms-table td:nth-child(4) {
+        min-width: 90px;
+        text-align: center;
+    }
+
+
+    /* Mobile-only back button container */
+    .mobile-nav-bar {
+        display: none;
+        padding: 0.5rem 1.25rem;
+        border-bottom: 1px solid var(--slate-200);
+    }
+
+    /* Mobile Logic */
+    @@media (max-width: 1023px) {
+        /* Helper to force hide elements on mobile */
+        .is-hidden-mobile {
+            display: none !important;
+        }
+        /* Ensure layout takes full width when one side is hidden */
+        .fms-main-layout {
+            grid-template-columns: 1fr !important;
+        }
+
+        .fms-detail-column .mobile-nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+    }
+
 </style>
 
 <div class="fms-workspace">
     <div class="fms-main-layout">
 
-        <div class="fms-card">
+        <!-- SIDEBAR LIST COLUMN -->
+        <!-- Add the conditional class 'is-hidden-mobile' -->
+        <div class="fms-card fms-list-column @(selectedJob != null ? "is-hidden-mobile" : "")">
             <div class="fms-card-header header-light">
                 <span>Active Jobs Registry</span>
                 <span class="fms-badge badge-primary">@jobsList.Count Items</span>
@@ -410,7 +464,9 @@
             </div>
         </div>
 
-        <div class="fms-card">
+        @* <div class="fms-card"> *@
+        <!-- DETAIL COLUMN -->
+        <div class="fms-card fms-detail-column @(selectedJob == null ? "is-hidden-mobile" : "")">
             @if (selectedJob == null)
             {
                 <div class="empty-state">
@@ -423,6 +479,15 @@
             }
             else
             {
+                <!-- Mobile Only Navigation Bar -->
+                <div class="mobile-nav-bar">
+                    <button type="button" class="fms-btn btn-outline" @onclick="DeselectJob">
+                        ← Back to List
+                    </button>
+                    <span style="margin-left:auto; font-size: 0.8rem; font-weight:600;">@selectedJob.JobName</span>
+                </div>
+
+
                 var details = GetJoinedJobsData().FirstOrDefault(x => x.Job.Id == selectedJob.Id);
 
                 <div class="fms-card-header">
@@ -524,7 +589,8 @@
                                         <th>Material Code</th>
                                         <th>Description</th>
                                         <th style="text-align: center;">In Stock</th>
-                                        <th style="text-align: center; width: 110px;">Issue Qty</th>
+                                        
+                                        <th style="text-align: center; width: 90px;">Issue Qty</th>
                                         <th style="text-align: right;">Unit Cost</th>
                                         <th style="text-align: right;">Total</th>
                                         <th style="text-align: center;">Action</th>
@@ -648,6 +714,9 @@
 
     </div>
 </div>
+
+
+
 
 @code {
     private bool isLoading = true;
@@ -794,7 +863,7 @@
             var engineersResponse = await Supabase.From<EmployeeEngineer>().Get();
             engineersDirectory = engineersResponse.Models;
 
-            
+
         }
         catch (Exception ex)
         {
@@ -803,6 +872,7 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -957,6 +1027,7 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -996,6 +1067,7 @@
         selectedJob = null;
         stagedSparesBucket.Clear();
     }
+
     public class JobIssuedSpareSummary
     {
         public long MaterialId { get; set; }
@@ -1009,6 +1081,7 @@
     }
 
     private List<JobIssuedSpareSummary> jobIssuedSparesSummaryList = new();
+    
     private async Task LoadJobSparesHistoryAsync(Guid jobId)
     {
         try
@@ -1176,6 +1249,7 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -1340,6 +1414,7 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 

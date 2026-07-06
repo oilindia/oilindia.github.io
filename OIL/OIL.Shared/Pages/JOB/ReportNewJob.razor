@@ -76,7 +76,7 @@
 
                         @* --- MAIN INSTALLATION LOCATION --- *@
                         @* ToStringFunc="@(loc => loc?.Id == -1 ? "Other (Manual Entry)" : loc?.InstallationName)" *@
-                        <MudItem xs="12" md="4">
+                        @* <MudItem xs="12" md="4">
                             <MudSelect T="LocationTable" Label="Installation Location" 
                                        Value="@_selectedLocation" 
                                        ValueChanged="OnLocationChanged"
@@ -94,7 +94,32 @@
                             {
                                 <MudTextField T="string" Class="mt-2" Label="Specify Installation Location" @bind-Value="_manualLocationText" Variant="Variant.Outlined" Required="true" />
                             }
+                        </MudItem> *@
+                        @* --- MAIN INSTALLATION LOCATION --- *@
+                        <MudItem xs="12" md="4">
+                            <MudAutocomplete T="LocationTable"
+                                             Label="Installation Location"
+                                             Value="@_selectedLocation"
+                                             ValueChanged="OnLocationChanged"
+                                             ToStringFunc="@((Func<LocationTable?, string?>)(loc => loc?.Id == -1 ? "+ Installation Not Listed (Manual Entry)" : loc?.InstallationName))"
+                                             SearchFunc="@SearchLocations"
+                                             Variant="Variant.Outlined"
+                                             Required="!_isManualLocation"
+                                             HelperText="Select to load instrumentation markers"
+                                             ResetValueOnEmptyText="true"
+                                             CoerceText="true"
+                                             CoerceValue="true"
+                                             MaxItems="100">
+                            </MudAutocomplete>
+
+                            @if (_isManualLocation)
+                            {
+                                <MudTextField T="string" Class="mt-2" Label="Specify Installation Location" @bind-Value="_manualLocationText" Variant="Variant.Outlined" Required="true" />
+                            }
                         </MudItem>
+
+
+
 
                         @* --- DYNAMIC CASCADE DROPDOWNS --- *@
                         
@@ -585,7 +610,28 @@
 
     // --- CASCADING ACTION STATE MACHINE HANDLERS ---
 
+    private async Task<IEnumerable<LocationTable>> SearchLocations(string value, CancellationToken token)
+    {
+        // 1. Prepare the base list including the manual placeholder at the end
+        var searchPool = _filteredLocations.ToList();
 
+        if (!searchPool.Any(x => x.Id == _manualLocationPlaceholder.Id))
+        {
+            searchPool.Add(_manualLocationPlaceholder);
+        }
+
+        // 2. If the user hasn't typed anything, show all items
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return searchPool;
+        }
+
+        // 3. If they are typing, filter the results (but keep the manual entry option available)
+        return searchPool.Where(x =>
+            x.Id == -1 || // Always keep the "Manual Entry" option in the filtered list
+            (x.InstallationName?.Contains(value, StringComparison.InvariantCultureIgnoreCase) ?? false)
+        );
+    }
     private async Task OnLocationChanged(LocationTable loc)
     {
         _selectedLocation = loc;

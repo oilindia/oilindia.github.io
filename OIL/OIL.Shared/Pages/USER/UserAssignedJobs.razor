@@ -75,19 +75,29 @@
 
             <HeaderContent>
                 <MudTh Class="job-col-name">Date</MudTh>
+                <MudTh Class="job-col-location">Location</MudTh>
+                <MudTh Class="job-col-location">FieldType</MudTh>
                 <MudTh Class="job-col-name">Job Name</MudTh>
                 <MudTh Class="job-col-type">Type</MudTh>
                 <MudTh Class="job-col-type">Person</MudTh>
                 <MudTh Class="job-col-type">Driver/Vehicle</MudTh>
 
                 <MudTh Class="job-col-description">Description</MudTh>
-                <MudTh Class="job-col-location">Location</MudTh>
+                
                 <MudTh Class="job-col-action">Action</MudTh>
             </HeaderContent>
 
             <RowTemplate>
                 <MudTd DataLabel="Date" Class="job-name-cell">
                     @context.CreatedAt.ToString("dd-MM-yyyy")
+                </MudTd>
+
+                <MudTd DataLabel="Location" Class="job-location-cell">
+                    @GetLocationName(context.LocationId)
+                </MudTd>
+
+                <MudTd DataLabel="Location" Class="job-location-cell">
+                    @GetFieldName(context.LocationId)
                 </MudTd>
 
 
@@ -153,9 +163,7 @@
 
                 </MudTd>
 
-                <MudTd DataLabel="Location" Class="job-location-cell">
-                    @GetLocationName(context.LocationId)
-                </MudTd>
+                
 
                 @* <MudTd DataLabel="Location" Class="job-location-cell">
                     @context.LocationId
@@ -526,6 +534,7 @@
         [Column("installation_name")] public string? InstallationName { get; set; }
 
         [Column("installation_type")] public string? InstallationType { get; set; }
+        [Column("field_type")] public string? FieldType { get; set; }
     }
 
 
@@ -634,6 +643,7 @@
             _locationLookup = locationsTask.Result.Models.ToDictionary(
                 l => l.Id,
                 l => l.InstallationName ?? "Unnamed Installation"
+               
             );
 
             var allEngineers = engineersTask.Result.Models;
@@ -912,6 +922,29 @@
         }
         return "Unknown Location";
     }
+
+    private async Task<string> GetFieldName(long? locationId)
+    {
+       
+        if (locationId == null)
+        {
+            return "";
+        }
+
+        // 1. Await the Supabase task to get the response
+        var response = await SupabaseClient.From<Location>().Get();
+
+        // 2. Extract the list of Location models from the response
+        var locations = response.Models;
+
+        // 3. Find the matching location by ID
+        var location = locations.FirstOrDefault(x => x.Id == locationId);
+
+        // 4. Return the FieldType if found and not null; otherwise default
+        return location?.FieldType ?? "";
+    }
+
+
     private string GetPersonnelNames(Guid jobId) =>
     _jobPersonnelLookup.TryGetValue(jobId, out var names)
         ? names : "Unassigned";
