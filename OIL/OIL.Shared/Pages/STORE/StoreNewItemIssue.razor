@@ -925,88 +925,105 @@
             }
         </div>
     
-        <div class="fms-card" style="width: 100%; margin-top: 1.5rem;">
-            <div class="fms-card-header header-light">
-                <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 1rem; font-weight: 700; color: var(--slate-900);">🕒 Issuance History</span>
-                    <span style="font-size: 0.75rem; color: var(--slate-647); font-weight: 400;">Review previously processed department allocations.</span>
+        <div class="fms-card" style="width: 100%; margin-top: 1.5rem; border: 1px solid var(--slate-200); border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+            <!-- Card Header -->
+            <div class="fms-card-header header-light" style="padding: 1.25rem; border-bottom: 1px solid var(--slate-200); background-color: #fafafa;">
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <span style="font-size: 1rem; font-weight: 700; color: var(--slate-900); display: flex; align-items: center; gap: 0.5rem;">
+                        🕒 Issuance History
+                    </span>
+                    <span style="font-size: 0.85rem; color: var(--slate-600); font-weight: 400;">
+                        Review previously processed department allocations.
+                    </span>
                 </div>
             </div>
 
-            <div class="meta-grid grid-3" style="border-bottom: 1px solid var(--slate-200); padding: 1rem 1.25rem; align-items: flex-end;">
-                <div class="form-group">
-                    <label>From Date</label>
-                    <input type="date" class="form-input-interactive" @bind="historyFromDate" />
+            <!-- Filter Section -->
+            <div class="meta-grid grid-3" style="border-bottom: 1px solid var(--slate-200); padding: 1.25rem; align-items: flex-end; background-color: #fff; gap: 1rem;">
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--slate-600); ">From Date</label>
+                    <input type="date" class="form-input-interactive" @bind="historyFromDate" style="width: 100%; padding: 0.5rem; border: 1px solid var(--slate-300); border-radius: 6px;" />
+                </div>
+                <div class="form-group" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    <label style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--slate-600); ">To Date</label>
+                    <input type="date" class="form-input-interactive" @bind="historyToDate" style="width: 100%; padding: 0.5rem; border: 1px solid var(--slate-300); border-radius: 6px;" />
                 </div>
                 <div class="form-group">
-                    <label>To Date</label>
-                    <input type="date" class="form-input-interactive" @bind="historyToDate" />
-                </div>
-                <div class="form-group">
-                    <button type="button" class="fms-btn btn-primary" @onclick="LoadIssueHistoryAsync">
+                    <button type="button" class="fms-btn btn-primary" @onclick="LoadIssueHistoryAsync" style="width: 100%; padding: 0.5rem 1.25rem; font-weight: 600; border-radius: 6px;">
                         Search History
                     </button>
                 </div>
             </div>
 
-            <div class="fms-table-wrapper" style="margin-top: 0; border: none; max-height: 40vh; overflow-y: auto;">
-                <table class="table table-hover table-striped table-sm">
-                    <thead class="table-dark">
+            <!-- Table Wrapper (The Fix) -->
+            <div class="fms-table-wrapper" style="margin-top: 0; border: none; max-height: 50vh; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="table table-hover table-striped table-sm" style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+                    <thead style="position: sticky; top: 0; z-index: 10; background-color: var(--slate-900); color: #fff;">
                         <tr>
-                            <th>SL.NO</th>
-                            <th>MAT CODE</th>
-                            <th>DESCRIPTION</th>
-                            <th>ISSUED QNTY</th>
-                            <th>SAP STOCK</th>
-                            <th>NOTIFICATION</th>
-                            <th>ISSUE DATE</th>
-                            <th>UOM</th>
-                            <th>SLOC</th>
-                            <th>ISSUED TO</th>
-                            <th>PHYSICAL QNTY</th>
-                            <th>LOCATION</th>
-                            <th>JOB DESCRIPTION</th>
-                            <th>ASSET</th>
-                            <th>MIGO BY</th>
-                            <th>MIGO NO.</th>
-                            <th>REMARKS</th>
-                            <th>ACTION</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: center;">SL.NO</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">MAT CODE</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; min-width: 200px;">DESCRIPTION</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: right;">ISSUED QNTY</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: right;">SAP STOCK</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">NOTIFICATION</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: center;">ISSUE DATE</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: center;">UOM</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">SLOC</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">ISSUED TO</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: right;">PHYSICAL QNTY</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">LOCATION</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; min-width: 180px;">JOB DESCRIPTION</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">ASSET</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">MIGO BY</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;">MIGO NO.</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; min-width: 150px;">REMARKS</th>
+                            <th style="padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; text-align: center; position: sticky; right: 0; background-color: var(--slate-900);">ACTION</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style="font-size: 0.85rem; color: var(--slate-800);">
                         @if (isHistoryLoading)
                         {
-                            <tr><td colspan="18" class="text-center">Loading data...</td></tr>
+                            <tr>
+                                <td colspan="18" class="text-center" style="padding: 2rem; color: var(--slate-500); font-style: italic;">
+                                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                        ⏳ Loading records...
+                                    </div>
+                                </td>
+                            </tr>
                         }
                         else if (historicalIssuesList == null || !historicalIssuesList.Any())
                         {
-                            <tr><td colspan="18" class="text-center">No records found for the selected period.</td></tr>
+                            <tr>
+                                <td colspan="18" class="text-center" style="padding: 3rem 1rem; color: var(--slate-500); font-weight: 500;">
+                                    <div>Nod records found for the selected date range.</div>
+                                </td>
+                            </tr>
                         }
                         else
                         {
                             @for (int i = 0; i < historicalIssuesList.Count; i++)
                             {
                                 var item = historicalIssuesList[i];
-                                <tr>
-                                    <td>@(i + 1)</td>
-                                    <td>@item.MatCode</td>
-                                    <td>@item.Description</td>
-                                    <td>@item.IssuedQuantity</td>
-                                    <td>@item.SapStock</td>
-                                    <td>@item.Notification</td>
-                                    <td>@item.IssueDate?.ToString("dd-MM-yyyy")</td>
-                                    <td>@item.Uom</td>
-                                    <td>@item.Sloc</td>
-                                    <td>@item.IssuedTo</td>
-                                    <td>@item.PhysicalQuantity</td>
-                                    <td>@item.Location</td>
-                                    <td>@item.JobDescription</td>
-                                    <td>@item.Asset</td>
-                                    <td>@item.MigoToBeDoneBy</td>
-                                    <td>@item.MigoNo</td>
-                                    <td>@item.Remarks</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteIssueRecord(item)">
+                                <tr style="border-bottom: 1px solid var(--slate-100); transition: background-color 0.15s ease;">
+                                    <td style="padding: 0.6rem 1rem; text-align: center; font-weight: 500; color: var(--slate-500); white-space: nowrap;">@(i + 1)</td>
+                                    <td style="padding: 0.6rem 1rem; font-family: monospace; font-weight: 600; white-space: nowrap;">@item.MatCode</td>
+                                    <td style="padding: 0.6rem 1rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@item.Description">@item.Description</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: right; font-weight: 500; white-space: nowrap;">@item.IssuedQuantity</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: right; white-space: nowrap;">@item.SapStock</td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.Notification</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: center; white-space: nowrap;">@item.IssueDate?.ToString("dd-MM-yyyy")</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: center; white-space: nowrap;"><span style="background: var(--slate-100); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.75rem;">@item.Uom</span></td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.Sloc</td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.IssuedTo</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: right; white-space: nowrap;">@item.PhysicalQuantity</td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.Location</td>
+                                    <td style="padding: 0.6rem 1rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@item.JobDescription">@item.JobDescription</td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.Asset</td>
+                                    <td style="padding: 0.6rem 1rem; white-space: nowrap;">@item.MigoToBeDoneBy</td>
+                                    <td style="padding: 0.6rem 1rem; font-family: monospace; white-space: nowrap;">@item.MigoNo</td>
+                                    <td style="padding: 0.6rem 1rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="@item.Remarks">@item.Remarks</td>
+                                    <td style="padding: 0.6rem 1rem; text-align: center; position: sticky; right: 0; background: inherit; box-shadow: -4px 0 8px rgba(0,0,0,0.02);">
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteIssueRecord(item)" style="padding: 0.25rem 0.5rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px;">
                                             <i class="oi oi-trash"></i>
                                         </button>
                                     </td>
@@ -1941,6 +1958,11 @@
             StateHasChanged();
         }
     }
+
+
+
+
+
 }
 
 

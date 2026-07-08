@@ -80,6 +80,7 @@
             <MudTh Style="font-weight: bold; text-align: center;">ISSUED<br />QNTY</MudTh>
             <MudTh Style="font-weight: bold; text-align: center;">UOM</MudTh>
             <MudTh Style="font-weight: bold; text-align: center;">SLOC</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left;">ISSUED BY</MudTh>
             <MudTh Style="font-weight: bold; text-align: left;">ISSUED TO</MudTh>
             <MudTh Style="font-weight: bold; text-align: center;">PHYSICAL<br />QNTY</MudTh>
             <MudTh Style="font-weight: bold; text-align: center;">SAP<br />STOCK</MudTh>
@@ -109,6 +110,7 @@
             <MudTd Style="text-align: center;">@context.IssuedQnty.ToString("N0")</MudTd>
             <MudTd Style="text-align: center;">@context.Uom</MudTd>
             <MudTd Style="text-align: center;">@context.Sloc</MudTd>
+            <MudTd>@context.IssuedBy</MudTd>
             <MudTd>@context.IssuedTo</MudTd>
             <MudTd Style="text-align: center;">@context.PhysicalQnty.ToString("N0")</MudTd>
             <MudTd Style="text-align: center;">@context.SapStock.ToString("N0")</MudTd>
@@ -202,7 +204,7 @@
         csv.AppendLine(""); // Empty row for spacing
 
         // 2. Add Data Table Header
-        csv.AppendLine("SL. NO,NOTIFICATION,ISSUE DATE,MAT CODE,DESCRIPTION,ISSUED QNTY,UOM,SLOC,ISSUED TO,PHYSICAL QNTY,SAP STOCK,LOCATION,JOB DESCRIPTION,ASSET,JOB NAME,PEOPLE ALLOTTED,SHIFT,DRIVER,MIGO TO BE DONE BY,MIGO NO. (To be filled by FM),REMARKS");
+        csv.AppendLine("SL. NO,NOTIFICATION,ISSUE DATE,MAT CODE,DESCRIPTION,ISSUED QNTY,UOM,SLOC,ISSUED BY,ISSUED TO,PHYSICAL QNTY,SAP STOCK,LOCATION,JOB DESCRIPTION,ASSET,JOB NAME,PEOPLE ALLOTTED,SHIFT,DRIVER,MIGO TO BE DONE BY,MIGO NO. (To be filled by FM),REMARKS");
 
         // 3. Add Data Rows
         int count = 1;
@@ -216,6 +218,7 @@
                 $"{item.IssuedQnty}," +
                 $"{item.Uom}," +
                 $"{item.Sloc}," +
+                $"\"{item.IssuedBy}\"," +
                 $"\"{item.IssuedTo}\"," +
                 $"{item.PhysicalQnty}," +
                 $"{item.SapStock}," +
@@ -240,11 +243,13 @@
         await JS.InvokeVoidAsync("downloadFileFromStreamStore", fileName, streamRef);
     }
 
-    // View Mapping Model
     [Table("vw_migo_report")]
     public class MigoReportModel : BaseModel
     {
+        
         [PrimaryKey("item_id", false)] public long ItemId { get; set; }
+        [Column("issued_by")] public string IssuedBy { get; set; } = "";
+        [Column("issued_to")] public string IssuedTo { get; set; } = "";
         [Column("notification_no")] public string NotificationNo { get; set; } = "";
         [Column("issue_date")] public DateTime IssueDate { get; set; }
         [Column("mat_code")] public string MatCode { get; set; } = "";
@@ -252,19 +257,16 @@
         [Column("issued_qnty")] public decimal IssuedQnty { get; set; }
         [Column("uom")] public string Uom { get; set; } = "";
         [Column("sloc")] public string Sloc { get; set; } = "";
-        [Column("issued_to")] public string IssuedTo { get; set; } = "";
         [Column("physical_qnty")] public decimal PhysicalQnty { get; set; }
         [Column("sap_stock")] public decimal SapStock { get; set; }
         [Column("location")] public string Location { get; set; } = "";
         [Column("job_description")] public string JobDescription { get; set; } = "";
         [Column("asset")] public string Asset { get; set; } = "";
         [Column("remarks")] public string? Remarks { get; set; }
-
-        [Column("job_name")] public string JobName { get; set; } = "";
+        [Column("job_name")] public string? JobName { get; set; }
         [Column("shift")] public string? Shift { get; set; }
         [Column("driver")] public string? Driver { get; set; }
         [Column("people_allotted")] public string? PeopleAllotted { get; set; }
-
         [Column("migo_to_be_done_by")] public string? MigoToBeDoneBy { get; set; }
         [Column("migo_no")] public string? MigoNo { get; set; }
     }

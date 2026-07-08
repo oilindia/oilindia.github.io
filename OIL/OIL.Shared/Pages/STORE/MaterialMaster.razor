@@ -1,6 +1,8 @@
 ﻿@page "/storematerialmaster"
 @using System.IO
 @using MiniExcelLibs
+@using ClosedXML.Excel;
+@using System.IO;
 @using Supabase
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
@@ -200,16 +202,90 @@
         }
     }
 
-
-    private async Task DownloadExcel() {
+    private async Task DownloadExcel()
+    {
         _loading = true;
-        try {
-            var stream = new MemoryStream();
-            stream.SaveAs(_materials);
-            await JS.InvokeVoidAsync("downloadFile", "MasterData.xlsx", Convert.ToBase64String(stream.ToArray()));
-        } catch (Exception ex) { Snackbar.Add($"Download Error: {ex.Message}", Severity.Error); }
-        finally { _loading = false; }
+        try
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("MaterialData");
+
+                // 1. Set Headers
+                var headers = new string[] {
+                "Material", "Material Description", "Valuation Type", "Plant",
+                "Storage Location", "Batch", "Company Code", "Valuation Area",
+                "Valuation Class", "G/L Account", "Material Type", "Material Group",
+                "Base Unit of Measure", "Currency", "Stock Quantity on Period End",
+                "Stock Value on Period End", "Stock Quantity on Period Start",
+                "Total Goods Receipt Quantity", "Total Goods Issue Quantity"
+            };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cell(1, i + 1).Value = headers[i];
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true; // Optional: Makes headers bold
+                }
+
+                // 2. Map Data
+                int row = 2;
+                foreach (var item in _materials)
+                {
+                    worksheet.Cell(row, 1).Value = item.Material;
+                    worksheet.Cell(row, 2).Value = item.MaterialDescription;
+                    worksheet.Cell(row, 3).Value = item.ValuationType;
+                    worksheet.Cell(row, 4).Value = item.Plant;
+                    worksheet.Cell(row, 5).Value = item.StorageLocation;
+                    worksheet.Cell(row, 6).Value = item.Batch;
+                    worksheet.Cell(row, 7).Value = item.CompanyCode;
+                    worksheet.Cell(row, 8).Value = item.ValuationArea;
+                    worksheet.Cell(row, 9).Value = item.ValuationClass;
+                    worksheet.Cell(row, 10).Value = item.GLAccount;
+                    worksheet.Cell(row, 11).Value = item.MaterialType;
+                    worksheet.Cell(row, 12).Value = item.MaterialGroup;
+                    worksheet.Cell(row, 13).Value = item.BaseUnitOfMeasure;
+                    worksheet.Cell(row, 14).Value = item.Currency;
+                    worksheet.Cell(row, 15).Value = item.StockQuantityOnPeriodEnd;
+                    worksheet.Cell(row, 16).Value = item.StockValueOnPeriodEnd;
+                    worksheet.Cell(row, 17).Value = item.StockQuantityOnPeriodStart;
+                    worksheet.Cell(row, 18).Value = item.TotalGoodsReceiptQuantity;
+                    worksheet.Cell(row, 19).Value = item.TotalGoodsIssueQuantity;
+                    row++;
+                }
+
+                // 3. Auto-fit columns for readability
+                worksheet.Columns().AdjustToContents();
+
+                // 4. Save to MemoryStream
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    var fileName = $"MasterData_{DateTime.Now:yyyyMMdd}.xlsx";
+
+                    // 5. Trigger download
+                    using var streamRef = new DotNetStreamReference(stream: new MemoryStream(stream.ToArray()));
+                    await JS.InvokeVoidAsync("downloadFileFromStreamTemplate", fileName, streamRef);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Download Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
+    // private async Task DownloadExcel() {
+    //     _loading = true;
+    //     try {
+    //         var stream = new MemoryStream();
+    //         stream.SaveAs(_materials);
+    //         await JS.InvokeVoidAsync("downloadFile", "MasterData.xlsx", Convert.ToBase64String(stream.ToArray()));
+    //     } catch (Exception ex) { Snackbar.Add($"Download Error: {ex.Message}", Severity.Error); }
+    //     finally { _loading = false; }
+    // }
 
     private MaterialHistory MapToHistory(MaterialStock m, string action)
     {
