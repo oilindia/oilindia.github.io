@@ -121,7 +121,9 @@
             <MudTd Style="text-align: center; background-color: #fbfbfc;">@context.Shift</MudTd>
             <MudTd Style="background-color: #fbfbfc;">@context.Driver</MudTd>
 
-            <MudTd></MudTd>
+           
+            <MudTd Style="text-align: center;">@context.MigoToBeDoneBy</MudTd>
+            <MudTd Style="background-color: #fef0e6; text-align: center;">@context.MigoNo</MudTd>
             <MudTd Style="background-color: #fef0e6;"></MudTd>
             <MudTd>@context.Remarks</MudTd>
         </RowTemplate>
@@ -224,7 +226,8 @@
                 $"\"{item.PeopleAllotted}\"," +
                 $"{item.Shift}," +
                 $"\"{item.Driver}\"," +
-                $",," + // Blank columns for FM
+                $"\"{item.MigoToBeDoneBy}\"," + // Now mapped
+    $"\"{item.MigoNo}\"," +         // Now mapped
                 $"\"{item.Remarks}\"");
             count++;
         }
@@ -261,5 +264,8 @@
         [Column("shift")] public string? Shift { get; set; }
         [Column("driver")] public string? Driver { get; set; }
         [Column("people_allotted")] public string? PeopleAllotted { get; set; }
+
+        [Column("migo_to_be_done_by")] public string? MigoToBeDoneBy { get; set; }
+        [Column("migo_no")] public string? MigoNo { get; set; }
     }
 }
