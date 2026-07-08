@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Content Include="Pages\MANAGE\ManageDrivers.txt" />
+    <Content Include="Pages\STORE\StoreNewItemIssue - Copy %282%29.txt" />
   </ItemGroup>
 
   <ItemGroup>

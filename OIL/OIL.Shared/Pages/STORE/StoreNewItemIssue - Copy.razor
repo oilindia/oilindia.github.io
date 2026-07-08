@@ -1,62 +1,4 @@
-Report C: Fast-Moving vs Slow-Moving Spares Analysis
-Identifies which warehouse items are high-demand versus items sitting idle in storage bins.
-
-SQL
-select 
-  mm.material as material_code,
-  mm.material_description,
-  mm.stock_quantity_on_period_end as current_stock,
-  sum(mii.quantity_issued) as units_consumed_this_period,
-  count(mii.id) as frequency_of_demand
-from public.store_material_masterdata mm
-left join public.material_issuance_items mii on mii.material_id = mm.id
-group by mm.id, mm.material, mm.material_description, mm.stock_quantity_on_period_end
-order by frequency_of_demand desc;
-
-
-
-
-Report B: Live Store Consumption Audit Trail (Who took what?)
-A chronological list of stock movements, which can be hooked up directly to a "Store Ledger Admin Dashboard".
-
-SQL
-select 
-  mi.created_at as issuance_date,
-  mi.issued_by_email,
-  j.job_name,
-  mm.material as material_code,
-  mm.material_description,
-  mii.quantity_issued,
-  mii.unit_cost_at_issue,
-  mii.total_cost
-from public.material_issuance_items mii
-join public.material_issuances mi on mii.issuance_id = mi.id
-join public.store_material_masterdata mm on mii.material_id = mm.id
-join public.jobs j on mi.job_id = j.id
-order by mi.created_at desc;
-
-
-
-Report A: Total Cost of Materials Burden per Job
-Shows exactly how much money in spare parts has been consumed by each unique maintenance ticket.
-
-SQL
-select 
-  j.id as job_id,
-  j.job_name,
-  count(mii.id) as total_distinct_parts_issued,
-  sum(mii.quantity_issued) as total_items_issued,
-  sum(mii.total_cost) as aggregate_parts_cost
-from public.jobs j
-join public.material_issuances mi on mi.job_id = j.id
-join public.material_issuance_items mii on mii.issuance_id = mi.id
-group by j.id, j.job_name;
-
-
-
-
-
-@page "/storenewitemissue"
+﻿@page "/storenewitemissue2"
 @using MudBlazor
 @using Supabase
 @using Supabase.Postgrest.Attributes
@@ -237,11 +179,13 @@ group by j.id, j.job_name;
         gap: 1rem;
         padding: 1.25rem;
     }
+
     @@media (min-width: 640px) {
         .meta-grid.grid-2 {
             grid-template-columns: repeat(2, 1fr);
         }
     }
+
     @@media (min-width: 768px) {
         .meta-grid.grid-3 {
             grid-template-columns: repeat(3, 1fr);
@@ -647,7 +591,7 @@ group by j.id, j.job_name;
                                         <th>Material Code</th>
                                         <th>Description</th>
                                         <th style="text-align: center;">In Stock</th>
-                                        
+
                                         <th style="text-align: center; width: 90px;">Issue Qty</th>
                                         <th style="text-align: right;">Unit Cost</th>
                                         <th style="text-align: right;">Total</th>
@@ -1139,7 +1083,7 @@ group by j.id, j.job_name;
     }
 
     private List<JobIssuedSpareSummary> jobIssuedSparesSummaryList = new();
-    
+
     private async Task LoadJobSparesHistoryAsync(Guid jobId)
     {
         try
@@ -1315,7 +1259,7 @@ group by j.id, j.job_name;
 
 
 
-//# Return Section all logic
+    //# Return Section all logic
 
 
     [Table("store_material_returns")]
@@ -1485,7 +1429,7 @@ group by j.id, j.job_name;
 
 
 
-    //Commented Code : 
+    //Commented Code :
     // private void SelectJob(Job job)
     // {
     //     selectedJob = job;

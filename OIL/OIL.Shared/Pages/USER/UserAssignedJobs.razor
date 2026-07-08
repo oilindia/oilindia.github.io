@@ -538,7 +538,9 @@
     }
 
 
-    private Dictionary<long, string> _locationLookup = new();
+    //private Dictionary<long, string> _locationLookup = new();
+    private Dictionary<long, OIL.Shared.Pages.USER.UserAssignedJobs.Location> _locationLookup;
+
     private Dictionary<Guid, string> _jobPersonnelLookup = new();
     private Dictionary<Guid, string> _jobDriverLookup = new();
 
@@ -640,11 +642,15 @@
             await Task.WhenAll(locationsTask, engineersTask, executivesTask, checklistsTask, driversTask);
 
             // 2. Build Base Lookups
-            _locationLookup = locationsTask.Result.Models.ToDictionary(
-                l => l.Id,
-                l => l.InstallationName ?? "Unnamed Installation"
+            // _locationLookup = locationsTask.Result.Models.ToDictionary(
+            //     l => l.Id,
+            //     l => l.InstallationName ?? "Unnamed Installation"
                
-            );
+            // );
+
+            _locationLookup = locationsTask.Result.Models
+      .ToDictionary(l => l.Id, l => l);
+
 
             var allEngineers = engineersTask.Result.Models;
             var engineerLookup = allEngineers.ToDictionary(
@@ -916,32 +922,21 @@
     // Quick helper method to resolve names safely in the UI markup
     private string GetLocationName(long? locationId)
     {
-        if (locationId.HasValue && _locationLookup.TryGetValue(locationId.Value, out var name))
+        // 'location' is now the full object, not just a string
+        if (locationId.HasValue && _locationLookup.TryGetValue(locationId.Value, out var location))
         {
-            return name;
+            return location.InstallationName ?? "Unnamed Installation";
         }
         return "Unknown Location";
     }
 
-    private async Task<string> GetFieldName(long? locationId)
+    private string GetFieldName(long? locationId)
     {
-       
-        if (locationId == null)
+        if (locationId.HasValue && _locationLookup.TryGetValue(locationId.Value, out var location))
         {
-            return "";
+            return location.FieldType ?? "";
         }
-
-        // 1. Await the Supabase task to get the response
-        var response = await SupabaseClient.From<Location>().Get();
-
-        // 2. Extract the list of Location models from the response
-        var locations = response.Models;
-
-        // 3. Find the matching location by ID
-        var location = locations.FirstOrDefault(x => x.Id == locationId);
-
-        // 4. Return the FieldType if found and not null; otherwise default
-        return location?.FieldType ?? "";
+        return "";
     }
 
 

@@ -486,10 +486,8 @@
                                     <span class="fms-badge badge-success">@item.Job.Status</span>
                                 </div>
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px; width:100%;">
-                                    <span style="font-size: 0.75rem; color: var(--slate-647); font-family: monospace;">Date: @item.Job.CreatedAt.ToString("dd-MM-yyyy")</span>
-                                
-                                    <span style="font-size: 0.75rem; color: var(--slate-647); font-family: monospace;">Loc: @GetLocationName(item.Job.LocationId)</span>
-                                    </div>
+                                    <span style="font-size: 0.75rem; color: var(--slate-647); font-family: monospace;">ID: @item.Job.Id.ToString().Substring(0, 8)...</span>
+                                </div>
                             </button>
                         }
                     }
@@ -599,7 +597,49 @@
                         </div>
                     </div>
 
-                    
+                    @if (stagedSparesBucket.Any())
+                    {
+                        <div style="padding: 0 1.25rem 1.25rem 1.25rem;">
+                            <h6 style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--rose-700); font-size: 0.85rem; text-transform: uppercase;">
+                                Selected Spares (Staging Area)
+                            </h6>
+                            <div class="fms-table-wrapper">
+                                <table class="fms-table">
+                                    <thead style="background: var(--rose-50);">
+                                        <tr>
+                                            <th>Material Code</th>
+                                            <th>Description</th>
+                                            <th style="text-align: center;">In Stock</th>
+                                            <th style="text-align: center; width: 100px;">Issue Qty</th>
+                                            <th style="text-align: center;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var staged in stagedSparesBucket)
+                                        {
+                                            <tr>
+                                                <td style="font-family: monospace; font-weight: 600;">@staged.Material</td>
+                                                <td>@staged.MaterialDescription</td>
+                                                <td style="text-align: center;">@((int)staged.StockQuantity)</td>
+                                                <td style="text-align: center;">
+                                                    <input type="number" class="form-input-interactive compact-input" style="text-align: center;"
+                                                           value="@staged.QuantityToIssue"
+                                                           @oninput="(e) => OnIssueQuantityChanged(staged, e.Value?.ToString())" />
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    <button type="button" class="fms-btn btn-outline" style="color: var(--rose-600); min-height: 36px;" @onclick="() => RemoveStagedItem(staged.Id)">Del</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+                                <button type="button" class="fms-btn btn-outline" @onclick="ClearStagingBucket">Cancel</button>
+                                <button type="button" class="fms-btn btn-danger" @onclick="ConfirmAndCommitBatch">Confirm Issue</button>
+                            </div>
+                        </div>
+                    }
 
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
@@ -612,11 +652,11 @@
                         <h6 style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--slate-800); font-size: 0.85rem; text-transform: uppercase;">
                             📋 Unified Material Log & Return Desk
                         </h6>
-                        @* <button type="button" class="fms-btn btn-outline" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;" @onclick="RefreshMaterialLogAsync">
+                        <button type="button" class="fms-btn btn-outline" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;" @onclick="RefreshMaterialLogAsync">
                             🔄 Refresh Log
-                        </button> *@
+                        </button>
 
-                        @if (!unifiedWorkspaceList.Any())
+                        @if (!jobIssuedSparesSummaryList.Any())
                         {
                             <div style="border: 2px dashed var(--slate-200); border-radius: 8px; padding: 2rem; text-align: center; color: var(--slate-400); font-size: 0.875rem; font-style: italic;">
                                 No parts issued against this work ticket yet. Use the search input console above to locate stock.
@@ -624,96 +664,62 @@
                         }
                         else
                         {
-                            <div class="table-responsive border rounded-3 mb-4">
-                                <table class="table table-hover align-middle m-0">
-                                    <thead class="table-light border-bottom text-uppercase tracking-wider small fw-bold">
+                            <div class="fms-table-wrapper">
+                                <table class="fms-table">
+                                    <thead>
                                         <tr>
-                                            <th scope="col" class="ps-3" style="width: 15%">Material Code</th>
-                                            <th scope="col" style="width: 25%">Part Profile Description</th>
-                                            <th scope="col" class="text-center" style="width: 10%">WH Available</th>
-                                            <th scope="col" class="text-center" style="width: 10%">Total Issued</th>
-                                            <th scope="col" class="text-center" style="width: 10%">Total Returned</th>
-                                            <th scope="col" class="text-center bg-light" style="width: 10%">Net On Job</th>
-                                            <th scope="col" class="text-center table-primary text-primary" style="width: 10%">[ + ] Issue New</th>
-                                            <th scope="col" class="text-center table-warning text-warning" style="width: 10%">[ - ] Return Counter</th>
-                                            <th scope="col" class="pe-3 text-center" style="width: 5%"></th>
+                                            <th>Material Code</th>
+                                            <th>Description</th>
+                                            <th style="text-align: right;">Total Issued</th>
+                                            <th style="text-align: right;">Returned</th>
+                                            <th style="text-align: right;">Net on Field</th>
+                                            <th style="text-align: center; width: 130px; background: var(--rose-50); color: var(--rose-700);">Qty To Return</th>
+                                            <th style="text-align: right;">Unit Cost</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y font-normal small">
-                                        @if (!unifiedWorkspaceList.Any())
+                                    <tbody>
+                                        @foreach (var log in jobIssuedSparesSummaryList)
                                         {
                                             <tr>
-                                                <td colspan="9" class="text-center text-muted py-5">
-                                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                                    No materials linked or staged. Use the search block field lookup index above to add row paths.
+                                                <td style="font-family: monospace; font-weight: 600;">@log.MaterialCode</td>
+                                                <td style="color: var(--slate-700);">@log.Description</td>
+                                                <td style="text-align: right; font-weight: 500;">@log.TotalIssued</td>
+                                                <td style="text-align: right; color: var(--rose-600);">@log.TotalReturned</td>
+                                                <td style="text-align: right; font-weight: 700; color: var(--blue-700);">@log.NetAllocated</td>
+                                                <td style="text-align: center; background: var(--rose-50);">
+                                                    @if (log.NetAllocated > 0)
+                                                    {
+                                                        <input type="number" min="0" max="@((double)log.NetAllocated)" step="any"
+                                                               class="form-input-interactive"
+                                                               style="padding: 0.25rem; text-align: center; border-color: var(--rose-300); background: #ffffff; font-weight: 600; max-width: 90px; margin: 0 auto;"
+                                                               @bind="log.QuantityToReturnInput" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="font-size: 0.75rem; color: var(--slate-400); font-style: italic;">Fully Returned</span>
+                                                    }
                                                 </td>
+                                                <td style="text-align: right; font-family: monospace; color: var(--slate-647);">₹@log.UnitCost.ToString("F2")</td>
                                             </tr>
                                         }
-                                        else
-                                        {
-                                            @foreach (var row in unifiedWorkspaceList)
-                                            {
-                                                <tr class="@(row.IsNewlyAddedLine ? "table-success-light" : "")">
-                                                    <td class="ps-3 font-monospace fw-bold text-secondary">@row.MaterialCode</td>
-                                                    <td>
-                                                        <div class="fw-semibold text-dark">@row.Description</div>
-                                                        <small class="text-muted">Unit Baseline Cost Track: @row.UnitCost.ToString("C")</small>
-                                                    </td>
-                                                    <td class="text-center fw-bold @(row.SapStock <= 0 ? "text-danger" : "text-muted")">
-                                                        @row.SapStock
-                                                    </td>
-                                                    <td class="text-center text-muted">@row.TotalIssued</td>
-                                                    <td class="text-center text-muted">@row.TotalReturned</td>
-                                                    <td class="text-center fw-bold bg-light @(row.NetAllocated > 0 ? "text-dark" : "text-muted")">
-                                                        @row.NetAllocated
-                                                    </td>
-
-                                                    <td class="table-primary p-2">
-                                                        <input type="number" step="1" class="form-control form-control-sm text-center border-primary"
-                                                               min="0" max="@((int)row.SapStock)" @bind-value="row.PendingIssueQty" />
-                                                    </td>
-
-                                                    <td class="table-warning p-2">
-                                                        <input type="number" step="1" class="form-control form-control-sm text-center border-warning"
-                                                               min="0" max="@((int)row.NetAllocated)" @bind-value="row.PendingReturnQty"
-                                                               disabled="@(row.NetAllocated <= 0)" />
-                                                    </td>
-
-                                                    <td class="pe-3 text-center">
-                                                        @if (row.IsNewlyAddedLine)
-                                                        {
-                                                            <button class="btn btn-link btn-sm text-danger p-0" @onclick="() => RemoveUncommittedLine(row)">
-                                                                <i class="bi bi-trash-fill fs-5"></i>
-                                                            </button>
-                                                        }
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
+                                        <tr style="background: var(--slate-50); font-weight: bold; border-top: 2px solid var(--slate-200);">
+                                            <td colspan="4" style="text-align: right; color: var(--slate-647); font-size: 0.75rem; text-transform: uppercase;">Total Materials Burden:</td>
+                                            <td style="text-align: right; font-family: monospace; color: var(--blue-700); font-size: 0.95rem;">
+                                                ₹@jobIssuedSparesSummaryList.Sum(x => x.NetAllocated * x.UnitCost).ToString("F2")
+                                            </td>
+                                            <td colspan="2" style="background: var(--rose-50); text-align: center;">
+                                                @if (jobIssuedSparesSummaryList.Any(x => x.QuantityToReturnInput > 0))
+                                                {
+                                                    <button type="button" class="fms-btn btn-danger" style="font-size: 0.75rem; padding: 0.375rem 0.75rem; width: 100%; box-shadow: 0 2px 4px rgba(225,29,72,0.15);"
+                                                            @onclick="CommitGridReturnsAsync">
+                                                        Process Returns
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
-
-
-                            <div class="d-flex justify-content-end align-items-center gap-3 border-top pt-3">
-                                <span class="text-muted small">
-                                    Review all ledger transaction rows above carefully before executing production ledger writes.
-                                </span>
-                                <button class="btn btn-success btn-lg px-5 shadow-sm fw-bold"
-                                        @onclick="CommitUnifiedWorkspaceBatchAsync"
-                                        disabled="@(isLoading || !unifiedWorkspaceList.Any(x => x.PendingIssueQty > 0 || x.PendingReturnQty > 0))">
-                                    @if (isLoading)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        <span>Syncing Supabase Base...</span>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-cloud-check-fill me-2"></i><span>Commit Workspace Changes</span>
-                                    }
-                                </button>
-                            </div>
-
                         }
                     </div>
 
@@ -864,6 +870,43 @@
 
 
 @code {
+    private string activeTab = "JobIssuance";
+    private bool isSearching = false;
+    private bool isLoading = true;
+    private string spareSearchQuery = string.Empty;
+    private string deptSearchQuery = string.Empty;
+    private string errorMessage = string.Empty;
+    private string deptErrorMessage = string.Empty;
+    private Job? selectedJob;
+
+    private List<Job> jobsList = new();
+    private List<JobAssignment> assignmentsList = new();
+    private List<StoreMaterial> filteredSpares = new();
+    private List<StagedSpareItem> stagedSparesBucket = new();
+
+    // Tracks saved transactions locally for UI representation after saving
+    private List<AllocatedSpareDetail> activeSessionCommittedSpares = new();
+
+    private List<EmployeeEngineer> engineersDirectory = new();
+
+    // Live State Master Inventory List
+    //private List<Job> jobsList = new();
+    private List<StoreMaterial> allSpares = new();
+
+    // UI Local Filter Lists
+    //private List<StoreMaterial> filteredSpares = new();
+    private List<StoreMaterial> deptFilteredSpares = new();
+    //private List<StagedSpareItem> stagedSparesBucket = new();
+    private List<DepartmentIssueModel> departmentIssuesList = new();
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        errorMessage = string.Empty;
+        deptErrorMessage = string.Empty;
+        deptSearchQuery = string.Empty;
+        deptFilteredSpares.Clear();
+    }
 
     // -------------------------------------------------------------
     // DATABASE POCO SCHEMAS
@@ -877,7 +920,6 @@
         [Column("field_type")] public string FieldType { get; set; } = string.Empty;
         [Column("status")] public string Status { get; set; } = string.Empty;
         [Column("created_at")] public DateTime CreatedAt { get; set; }
-        [Column("location_id")] public long? LocationId { get; set; }
     }
 
     [Table("job_assignments")]
@@ -935,459 +977,36 @@
         [Column("mobile")] public long? Mobile { get; set; }
     }
 
-    [Table("store_material_returns")]
-    public class MaterialReturn : BaseModel
-    {
-        [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("job_id")] public Guid JobId { get; set; }
-        [Column("returned_by_email")] public string ReturnedByEmail { get; set; } = string.Empty;
-        [Column("remarks")] public string Remarks { get; set; } = string.Empty;
-    }
-
-    [Table("store_material_return_items")]
-    public class MaterialReturnItem : BaseModel
-    {
-        [PrimaryKey("id")] public long Id { get; set; }
-        [Column("return_id")] public Guid ReturnId { get; set; }
-        [Column("material_id")] public long MaterialId { get; set; }
-        [Column("quantity_returned")] public decimal QuantityReturned { get; set; }
-        [Column("unit_cost_at_return")] public decimal UnitCostAtReturn { get; set; }
-    }
-
-    [Table("locations")] 
-    public class Location : BaseModel { 
-        [PrimaryKey("id")] public long Id { get; set; } 
-        [Column("installation_name")] public string InstallationName { get; set; } 
-        [Column("field_type")] public string FieldType { get; set; } 
-    }
-
     // Updated View Model to carry the compiled list of assigned personnel
     public class JobDisplayViewModel
     {
         public Job Job { get; set; } = new();
         public JobAssignment? Assignment { get; set; }
         public List<EmployeeEngineer> AssignedPersonnel { get; set; } = new();
-        //public List<AllocatedSpareDetail> Spares { get; set; } = new();
+        public List<AllocatedSpareDetail> Spares { get; set; } = new();
     }
 
-    public class UnifiedSpareWorkspaceRow
+    public class StagedSpareItem
     {
-        // Static Record Identifiers
-        public long MaterialId { get; set; }
-        public string MaterialCode { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public long Id { get; set; }
+        public string Material { get; set; } = string.Empty;
+        public string MaterialDescription { get; set; } = string.Empty;
+        public decimal StockQuantity { get; set; }
+        public int QuantityToIssue { get; set; } = 1;
         public decimal UnitCost { get; set; }
-        public decimal SapStock { get; set; } // Fresh live warehouse stock level
-
-        // Historical Database Totals (Read-Only Context)
-        public decimal TotalIssued { get; set; }
-        public decimal TotalReturned { get; set; }
-        public decimal NetAllocated => TotalIssued - TotalReturned;
-
-        // Interactive Transaction Actions (Pending Write-State)
-        public decimal PendingIssueQty { get; set; }   // Bi-directional UI input binding
-        public decimal PendingReturnQty { get; set; }  // Bi-directional UI input binding
-
-        // Flags for conditional UI elements
-        public bool IsNewlyAddedLine => TotalIssued == 0 && TotalReturned == 0;
     }
 
-    
-    //private List<StagedSpareItem> stagedSparesBucket = new();
-
-    private string activeTab = "JobIssuance";
-    private bool isSearching = false;
-    private bool isLoading = true;
-    private string spareSearchQuery = string.Empty;
-    private string errorMessage = string.Empty;
-    private Job? selectedJob;
-
-    private List<Job> jobsList = new();
-    private List<JobAssignment> assignmentsList = new();
-    private List<EmployeeEngineer> engineersDirectory = new();
-    private List<StoreMaterial> filteredSpares = new();
-    private List<Location> _locations = new();
-    // The Single Source of Truth Workspace List for the UI Grid
-    private List<UnifiedSpareWorkspaceRow> unifiedWorkspaceList = new();
-
-
-    private string GetLocationName(long? locationId)
+    public class AllocatedSpareDetail
     {
-        if (!locationId.HasValue) return "";
-        return _locations.FirstOrDefault(l => l.Id == locationId.Value)?.InstallationName ?? "";
-    }
-    private IEnumerable<JobDisplayViewModel> GetJoinedJobsData()
-    {
-        // Order by created_at descending right at the source
-        return jobsList
-            .OrderByDescending(job => job.CreatedAt) // Note: Change to job.created_at if your C# property matches database snake_case exactly
-            .Select(job =>
-            {
-                // Find the specific assignment that references this job UUID
-                var assignment = assignmentsList.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
-
-                // Resolve the bigint[] array column to matching personnel objects
-                var assignedPeople = new List<EmployeeEngineer>();
-                if (assignment?.PersonnelIds != null && engineersDirectory.Any())
-                {
-                    assignedPeople = engineersDirectory
-                        .Where(engineer => assignment.PersonnelIds.Contains(engineer.Id))
-                        .ToList();
-                }
-
-                return new JobDisplayViewModel
-                {
-                    Job = job,
-                    Assignment = assignment,
-                    AssignedPersonnel = assignedPeople
-                    //Spares = activeSessionCommittedSpares
-                };
-            });
-    }
-    private void SetTab(string tab)
-    {
-        activeTab = tab;
-        errorMessage = string.Empty;
-        spareSearchQuery = string.Empty;
-        filteredSpares.Clear();
-    }
-    private void DeselectJob()
-    {
-        selectedJob = null;
-        //stagedSparesBucket.Clear();
-    }
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadWorkspaceDataAsync();
+        public string MaterialCode { get; set; } = string.Empty;
+        public string SpareName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal UnitCost { get; set; }
+        public decimal TotalCost { get; set; }
     }
 
-    private async Task LoadWorkspaceDataAsync()
-    {
-        try
-        {
-            isLoading = true;
-            errorMessage = string.Empty;
-            string cutoffDate = DateTime.UtcNow.AddDays(-30).ToString("o");
+    public class JobDetailView { public Job Job { get; set; } = new(); }
 
-            var jobsResponse = await Supabase.From<Job>()
-                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
-                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
-                .Get();
-            jobsList = jobsResponse.Models;
-
-            var assignmentsResponse = await Supabase.From<JobAssignment>()
-                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
-                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
-                .Get();
-            assignmentsList = assignmentsResponse.Models;
-
-            var engineersResponse = await Supabase.From<EmployeeEngineer>().Get();
-            engineersDirectory = engineersResponse.Models;
-
-            _locations = (await SupabaseClient.From<Location>().Get()).Models;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error populating cache tables: {ex.Message}";
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task SelectJob(Job job)
-    {
-        selectedJob = job;
-        spareSearchQuery = string.Empty;
-        filteredSpares.Clear();
-        errorMessage = string.Empty;
-
-        // Clear and reload the single workspace grid for the newly selected job context
-        await LoadUnifiedJobWorkspaceAsync(job.Id);
-    }
-
-    private async Task LoadUnifiedJobWorkspaceAsync(Guid jobId)
-    {
-        try
-        {
-            isLoading = true;
-            errorMessage = string.Empty;
-            unifiedWorkspaceList.Clear();
-
-            // 1. Fetch historical issuances
-            var issuanceHeaders = await Supabase.From<MaterialIssuance>().Where(x => x.JobId == jobId).Get();
-            var issuanceIds = issuanceHeaders.Models.Select(x => x.Id).ToList();
-            List<MaterialIssuanceItem> issuedItems = new();
-
-            if (issuanceIds.Any())
-            {
-                var itemsResponse = await Supabase.From<MaterialIssuanceItem>()
-                    .Filter("issuance_id", global::Supabase.Postgrest.Constants.Operator.In, issuanceIds)
-                    .Get();
-                issuedItems = itemsResponse.Models;
-            }
-
-            // 2. Fetch historical returns
-            var returnHeaders = await Supabase.From<MaterialReturn>().Where(x => x.JobId == jobId).Get();
-            var returnIds = returnHeaders.Models.Select(x => x.Id).ToList();
-            List<MaterialReturnItem> returnedItems = new();
-
-            if (returnIds.Any())
-            {
-                var returnsResponse = await Supabase.From<MaterialReturnItem>()
-                    .Filter("return_id", global::Supabase.Postgrest.Constants.Operator.In, returnIds)
-                    .Get();
-                returnedItems = returnsResponse.Models;
-            }
-
-            // 3. Extract unique material IDs across both history lines
-            var uniqueMatIds = issuedItems.Select(x => x.MaterialId)
-                .Union(returnedItems.Select(x => x.MaterialId))
-                .Distinct()
-                .ToList();
-
-            if (!uniqueMatIds.Any()) return;
-
-            // 4. Fetch Master Details (to populate live warehouse stock boundaries)
-            var matsResponse = await Supabase.From<StoreMaterial>()
-                .Filter("id", global::Supabase.Postgrest.Constants.Operator.In, uniqueMatIds.Cast<object>().ToList())
-                .Get();
-            var masterLookup = matsResponse.Models;
-
-            // 5. Construct the Unified rows matrix
-            foreach (var matId in uniqueMatIds)
-            {
-                var matMaster = masterLookup.FirstOrDefault(x => x.Id == matId);
-                var totalIssued = issuedItems.Where(x => x.MaterialId == matId).Sum(x => x.QuantityIssued);
-                var totalReturned = returnedItems.Where(x => x.MaterialId == matId).Sum(x => x.QuantityReturned);
-                var unitCost = issuedItems.Where(x => x.MaterialId == matId).Select(x => x.UnitCostAtIssue).FirstOrDefault();
-
-                if (unitCost == 0 && matMaster != null) unitCost = matMaster.UnitCost;
-
-                unifiedWorkspaceList.Add(new UnifiedSpareWorkspaceRow
-                {
-                    MaterialId = matId,
-                    MaterialCode = matMaster?.Material ?? $"ID: {matId}",
-                    Description = matMaster?.MaterialDescription ?? "Unknown Profile",
-                    SapStock = matMaster?.StockQuantity ?? 0,
-                    UnitCost = unitCost,
-                    TotalIssued = totalIssued,
-                    TotalReturned = totalReturned
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error assembling unified matrix lookup: {ex.Message}";
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task HandleSearchTyping(ChangeEventArgs e)
-    {
-        spareSearchQuery = e.Value?.ToString() ?? string.Empty;
-
-        if (spareSearchQuery.Length >= 2)
-        {
-            isSearching = true;
-            try
-            {
-                var response = await Supabase.From<StoreMaterial>()
-                    .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
-                    {
-                        new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%"),
-                        new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%")
-                    })
-                    .Limit(8)
-                    .Get();
-
-                filteredSpares = response.Models;
-            }
-            catch
-            {
-                filteredSpares = new List<StoreMaterial>();
-            }
-            finally
-            {
-                isSearching = false;
-            }
-        }
-        else
-        {
-            filteredSpares.Clear();
-        }
-    }
-
-    private void AddMaterialToWorkspaceGrid(StoreMaterial spare)
-    {
-        // Guard Check: If item already sits inside the table matrix, do not duplicate rows
-        var existingRow = unifiedWorkspaceList.FirstOrDefault(x => x.MaterialId == spare.Id);
-        if (existingRow != null)
-        {
-            existingRow.PendingIssueQty += 1; // Increment intended action count as an intuitive fallback
-        }
-        else
-        {
-            unifiedWorkspaceList.Add(new UnifiedSpareWorkspaceRow
-            {
-                MaterialId = spare.Id,
-                MaterialCode = spare.Material,
-                Description = spare.MaterialDescription,
-                SapStock = spare.StockQuantity,
-                UnitCost = spare.UnitCost,
-                TotalIssued = 0,
-                TotalReturned = 0,
-                PendingIssueQty = 1 // Bootstrap with initial allocation target
-            });
-        }
-
-        // Wipe context search constraints instantly
-        spareSearchQuery = string.Empty;
-        filteredSpares.Clear();
-    }
-
-    private void RemoveUncommittedLine(UnifiedSpareWorkspaceRow row)
-    {
-        unifiedWorkspaceList.Remove(row);
-    }
-
-    private async Task CommitUnifiedWorkspaceBatchAsync()
-    {
-        if (selectedJob == null || !unifiedWorkspaceList.Any()) return;
-
-        // 1. DATA INTEGRITY BOUNDARY CHECKS
-        foreach (var row in unifiedWorkspaceList)
-        {
-            if (row.PendingIssueQty < 0 || row.PendingReturnQty < 0)
-            {
-                errorMessage = $"Negative quantities are forbidden. Check part entry: {row.MaterialCode}";
-                return;
-            }
-            if (row.PendingIssueQty > row.SapStock)
-            {
-                errorMessage = $"Allocation breach! Requested Issue ({row.PendingIssueQty}) exceeds Warehouse Available Stock ({row.SapStock}) for: {row.MaterialCode}";
-                return;
-            }
-            if (row.PendingReturnQty > row.NetAllocated)
-            {
-                errorMessage = $"Return ledger breach! Attempted to return ({row.PendingReturnQty}), but Net Allocated to Job is only ({row.NetAllocated}) for: {row.MaterialCode}";
-                return;
-            }
-        }
-
-        try
-        {
-            isLoading = true;
-            errorMessage = string.Empty;
-
-            var pendingIssuances = unifiedWorkspaceList.Where(x => x.PendingIssueQty > 0).ToList();
-            var pendingReturns = unifiedWorkspaceList.Where(x => x.PendingReturnQty > 0).ToList();
-
-            if (!pendingIssuances.Any() && !pendingReturns.Any())
-            {
-                errorMessage = "No transactions found to save. Modify operational quantities first.";
-                return;
-            }
-
-            var matchedAssignment = assignmentsList.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(selectedJob.Id));
-
-            // 2. TRANSACTION EXECUTION ENGINE ONE: PROCESS ISSUANCES
-            if (pendingIssuances.Any())
-            {
-                var issuanceHeader = new MaterialIssuance
-                {
-                    JobId = selectedJob.Id,
-                    AssignmentId = matchedAssignment?.Id,
-                    IssuedByEmail = "surendra.choudhary@company.com", // Dynamic authentication replacement point
-                    Remarks = $"Batch Issuance Workspace: {selectedJob.JobName}"
-                };
-
-                var headerResponse = await Supabase.From<MaterialIssuance>().Insert(issuanceHeader);
-                var committedHeader = headerResponse.Model;
-
-                if (committedHeader != null && committedHeader.Id != Guid.Empty)
-                {
-                    var itemsToInsert = pendingIssuances.Select(x => new MaterialIssuanceItem
-                    {
-                        IssuanceId = committedHeader.Id,
-                        MaterialId = x.MaterialId,
-                        QuantityIssued = x.PendingIssueQty,
-                        UnitCostAtIssue = x.UnitCost
-                    }).ToList();
-
-                    await Supabase.From<MaterialIssuanceItem>().Insert(itemsToInsert);
-                }
-            }
-
-            // 3. TRANSACTION EXECUTION ENGINE TWO: PROCESS RETURNS
-            if (pendingReturns.Any())
-            {
-                var returnHeader = new MaterialReturn
-                {
-                    JobId = selectedJob.Id,
-                    ReturnedByEmail = "surendra.choudhary@company.com",
-                    Remarks = $"Batch Return Workspace: {selectedJob.JobName}"
-                };
-
-                var returnHeaderResponse = await Supabase.From<MaterialReturn>().Insert(returnHeader);
-                var committedReturnHeader = returnHeaderResponse.Model;
-
-                if (committedReturnHeader != null && committedReturnHeader.Id != Guid.Empty)
-                {
-                    var itemsToReturn = pendingReturns.Select(x => new MaterialReturnItem
-                    {
-                        ReturnId = committedReturnHeader.Id,
-                        MaterialId = x.MaterialId,
-                        QuantityReturned = x.PendingReturnQty,
-                        UnitCostAtReturn = x.UnitCost
-                    }).ToList();
-
-                    await Supabase.From<MaterialReturnItem>().Insert(itemsToReturn);
-                }
-            }
-
-            // 4. WORKSPACE POST-FULFILLMENT CLEAN REBOOT
-            await LoadWorkspaceDataAsync();
-            await LoadUnifiedJobWorkspaceAsync(selectedJob.Id);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Transactional processing engine error: {ex.Message}";
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private void StageSpareItem(StoreMaterial spare)
-    {
-        // if (!stagedSparesBucket.Any(s => s.Id == spare.Id))
-        //     stagedSparesBucket.Add(new StagedSpareItem { Id = spare.Id, Material = spare.Material, MaterialDescription = spare.MaterialDescription, StockQuantity = spare.StockQuantity, QuantityToIssue = 1 });
-        // filteredSpares.Clear(); spareSearchQuery = string.Empty;
-    }
-
-
-
-
-
-
-
-    //Department Section 
-    private List<StoreMaterial> deptFilteredSpares = new();
-    //private List<StagedSpareItem> stagedSparesBucket = new();
-    private List<DepartmentIssueModel> departmentIssuesList = new();
-    private string deptSearchQuery = string.Empty;
-    private string deptErrorMessage = string.Empty;
-    private List<StoreMaterial> allSpares = new();
-    
     public class DepartmentIssueModel
     {
         public Guid Id { get; set; } = Guid.NewGuid();
@@ -1411,10 +1030,142 @@
         public string Remarks { get; set; } = string.Empty;
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkspaceDataAsync();
+    }
+
+    private async Task LoadWorkspaceDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // 1. Calculate the 30-day cutoff timestamp (ISO-8601 string)
+            string cutoffDate = DateTime.UtcNow.AddDays(-30).ToString("o");
+
+            // 2. Fetch jobs sorted with latest records at the top (last 30 days only)
+            var jobsResponse = await Supabase.From<Job>()
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
+                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+            jobsList = jobsResponse.Models;
+
+            // 3. Fetch job assignments sorted with latest records at the top (last 30 days only)
+            var assignmentsResponse = await Supabase.From<JobAssignment>()
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, cutoffDate)
+                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+            assignmentsList = assignmentsResponse.Models;
+
+            // 4. Fetch your engineers directory for array resolution mapping (Keep unfiltered as it's a structural lookup)
+            var engineersResponse = await Supabase.From<EmployeeEngineer>().Get();
+            engineersDirectory = engineersResponse.Models;
 
 
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error populating workbench cache tables: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
 
+    private async Task HandleSearchTyping(ChangeEventArgs e)
+    {
+        spareSearchQuery = e.Value?.ToString() ?? string.Empty;
 
+        if (spareSearchQuery.Length >= 2)
+        {
+            isSearching = true;
+            try
+            {
+                // Fix: Pass an explicit List of IPostgrestQueryFilter objects
+                // Fix: Added global:: modifier to bypass variable name collision
+                var response = await Supabase.From<StoreMaterial>()
+                    .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
+                    {
+                    new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%"),
+                    new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%")
+                    })
+                    .Limit(10)
+                    .Get();
+
+                filteredSpares = response.Models;
+            }
+            catch
+            {
+                filteredSpares = new List<StoreMaterial>();
+            }
+            finally
+            {
+                isSearching = false;
+            }
+        }
+        else
+        {
+            filteredSpares.Clear();
+        }
+    }
+
+    private IEnumerable<JobDisplayViewModel> GetJoinedJobsData()
+    {
+        // Order by created_at descending right at the source
+        return jobsList
+            .OrderByDescending(job => job.CreatedAt) // Note: Change to job.created_at if your C# property matches database snake_case exactly
+            .Select(job =>
+            {
+                // Find the specific assignment that references this job UUID
+                var assignment = assignmentsList.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
+
+                // Resolve the bigint[] array column to matching personnel objects
+                var assignedPeople = new List<EmployeeEngineer>();
+                if (assignment?.PersonnelIds != null && engineersDirectory.Any())
+                {
+                    assignedPeople = engineersDirectory
+                        .Where(engineer => assignment.PersonnelIds.Contains(engineer.Id))
+                        .ToList();
+                }
+
+                return new JobDisplayViewModel
+                {
+                    Job = job,
+                    Assignment = assignment,
+                    AssignedPersonnel = assignedPeople,
+                    Spares = activeSessionCommittedSpares
+                };
+            });
+    }
+
+    //private IEnumerable<JobDetailView> GetJoinedJobsData() => jobsList.Select(j => new JobDetailView { Job = j });
+
+    private async Task SelectJob(Job job)
+    {
+        selectedJob = job;
+        spareSearchQuery = string.Empty;
+        filteredSpares.Clear();
+        stagedSparesBucket.Clear();
+        errorMessage = string.Empty;
+
+        await LoadJobSparesHistoryAsync(job.Id);
+    }
+
+    //private void SelectJob(Job job) { selectedJob = job; ClearStagingBucket(); }
+
+    private void DeselectJob()
+    {
+        selectedJob = null;
+        stagedSparesBucket.Clear();
+    }
+
+    // -------------------------------------------------------------
+    // SELECTION & AUTO-POPULATE LOGIC (TAB 2)
+    // -------------------------------------------------------------
     private async void HandleDeptSearchTyping(ChangeEventArgs e)
     {
         deptSearchQuery = e.Value?.ToString() ?? string.Empty;
@@ -1537,31 +1288,488 @@
     private void ClearDepartmentTable() => departmentIssuesList.Clear();
 
 
+
+    private void StageSpareItem(StoreMaterial spare)
+    {
+        if (!stagedSparesBucket.Any(s => s.Id == spare.Id))
+            stagedSparesBucket.Add(new StagedSpareItem { Id = spare.Id, Material = spare.Material, MaterialDescription = spare.MaterialDescription, StockQuantity = spare.StockQuantity, QuantityToIssue = 1 });
+        filteredSpares.Clear(); spareSearchQuery = string.Empty;
+    }
+    //private void OnIssueQuantityChanged(StagedSpareItem item, string? val) { if (double.TryParse(val, out double q)) item.QuantityToIssue = (int)q; }
+    private void RemoveStagedItem(long id) => stagedSparesBucket.RemoveAll(x => x.Id == id);
+
+    private async Task ConfirmAndCommitBatch()
+    {
+        if (selectedJob == null || !stagedSparesBucket.Any()) return;
+
+        // 1. Guard check: Validate input states before hitting production tables
+        foreach (var item in stagedSparesBucket)
+        {
+            if (item.QuantityToIssue <= 0 || item.QuantityToIssue > item.StockQuantity)
+            {
+                errorMessage = $"Stock boundaries violated for code: {item.Material}. Check entry limits.";
+                return;
+            }
+        }
+        //StateHasChanged();
+        try
+        {
+            isLoading = true; // Lock down components during async context calls
+            errorMessage = string.Empty;
+
+            // Find matching assignment ID from your existing UI memory dataset if available
+            var matchedAssignment = assignmentsList.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(selectedJob.Id));
+
+            // 2. STEP ONE: Insert Parent Record (The Transaction Header)
+            var issuanceHeader = new MaterialIssuance
+            {
+                JobId = selectedJob.Id,
+                AssignmentId = matchedAssignment?.Id,
+                IssuedByEmail = "surendra.choudhary@company.com", // Replace with your authentication state/variable
+                Remarks = $"From web portal: {selectedJob.JobName}"
+            };
+
+            // Fire transaction to create header and retrieve generated database UUID
+            var headerResponse = await Supabase.From<MaterialIssuance>().Insert(issuanceHeader);
+            var committedHeader = headerResponse.Model;
+
+            if (committedHeader == null || committedHeader.Id == Guid.Empty)
+            {
+                throw new Exception("The database refused to initialize an integration entry token header.");
+            }
+
+            // 3. STEP TWO: Map UI Staging Box to Database Line Items Array
+            var itemsToInsert = new List<MaterialIssuanceItem>();
+            foreach (var staged in stagedSparesBucket)
+            {
+                itemsToInsert.Add(new MaterialIssuanceItem
+                {
+                    IssuanceId = committedHeader.Id, // Foreign Key linking directly back to our new header UUID
+                    MaterialId = staged.Id,
+                    QuantityIssued = staged.QuantityToIssue,
+                    UnitCostAtIssue = staged.UnitCost
+                });
+            }
+
+            // 4. STEP THREE: Write child records in a single batch insert payload
+            await Supabase.From<MaterialIssuanceItem>().Insert(itemsToInsert);
+
+            // 5. STEP FOUR: Mirror database actions on runtime UI tracking tables
+            foreach (var item in stagedSparesBucket)
+            {
+                activeSessionCommittedSpares.Add(new AllocatedSpareDetail
+                {
+                    MaterialCode = item.Material,
+                    SpareName = item.MaterialDescription,
+                    Quantity = item.QuantityToIssue,
+                    UnitCost = item.UnitCost,
+                    TotalCost = item.QuantityToIssue * item.UnitCost
+                });
+            }
+            //StateHasChanged();
+            // Clean slate upon transactional fulfillment
+            //stagedSparesBucket.Clear();
+
+            // 6. STEP FIVE: Refresh parent records to display automated trigger values
+            // var jobsResponse = await Supabase.From<Job>().Get();
+            // jobsList = jobsResponse.Models;
+
+            // Re-locate current active context selection to refresh costs visibility metrics
+            //selectedJob = jobsList.FirstOrDefault(j => j.Id == selectedJob.Id);
+
+            LoadJobSparesHistoryAsync(selectedJob.Id);
+
+
+            //stagedSparesBucket.Clear();
+
+            // Pull fresh data directly from the DB
+            await RefreshMaterialLogAsync();
+
+            //LoadJobSparesHistoryAsync();
+            StateHasChanged();
+
+            //StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Transactional storage breakdown: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    //private void ConfirmAndCommitBatch() { ClearStagingBucket(); }
+    private void ClearStagingBucket() { stagedSparesBucket.Clear(); filteredSpares.Clear(); spareSearchQuery = string.Empty; }
+
+
+
+
+    public class JobIssuedSpareSummary
+    {
+        public long MaterialId { get; set; }
+        public string MaterialCode { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal TotalIssued { get; set; }
+        public decimal TotalReturned { get; set; }
+        public decimal NetAllocated => TotalIssued - TotalReturned;
+        public decimal UnitCost { get; set; }
+        public decimal QuantityToReturnInput { get; set; } // Tracks real-time UI text box entry
+    }
+
+    private List<JobIssuedSpareSummary> jobIssuedSparesSummaryList = new();
+
+    private async Task LoadJobSparesHistoryAsync(Guid jobId)
+    {
+        try
+        {
+            jobIssuedSparesSummaryList.Clear();
+            errorMessage = string.Empty;
+
+            // 1. Fetch all issuance IDs for this job ticket
+            var issuanceHeaders = await Supabase.From<MaterialIssuance>()
+                .Where(x => x.JobId == jobId)
+                .Get();
+            var issuanceIds = issuanceHeaders.Models.Select(x => x.Id).ToList();
+
+            List<MaterialIssuanceItem> issuedItems = new();
+            if (issuanceIds.Any())
+            {
+                var itemsResponse = await Supabase.From<MaterialIssuanceItem>()
+                    .Filter("issuance_id", global::Supabase.Postgrest.Constants.Operator.In, issuanceIds)
+                    .Get();
+                issuedItems = itemsResponse.Models;
+            }
+
+            // 2. Fetch all return records for this job ticket
+            var returnHeaders = await Supabase.From<MaterialReturn>()
+                .Where(x => x.JobId == jobId)
+                .Get();
+            var returnIds = returnHeaders.Models.Select(x => x.Id).ToList();
+
+            List<MaterialReturnItem> returnedItems = new();
+            if (returnIds.Any())
+            {
+                var returnsResponse = await Supabase.From<MaterialReturnItem>()
+                    .Filter("return_id", global::Supabase.Postgrest.Constants.Operator.In, returnIds)
+                    .Get();
+                returnedItems = returnsResponse.Models;
+            }
+
+            // 3. Load descriptions for all involved materials
+            var uniqueMaterialIds = issuedItems.Select(x => x.MaterialId).Distinct().ToList();
+            List<StoreMaterial> materialsLookup = new();
+            if (uniqueMaterialIds.Any())
+            {
+                var matsResponse = await Supabase.From<StoreMaterial>()
+                    .Filter("id", global::Supabase.Postgrest.Constants.Operator.In, uniqueMaterialIds.Cast<object>().ToList())
+                    .Get();
+                materialsLookup = matsResponse.Models;
+            }
+
+            // 4. Build the merged view model matrix
+            foreach (var matId in uniqueMaterialIds)
+            {
+                var matInfo = materialsLookup.FirstOrDefault(x => x.Id == matId);
+                var totalIssued = issuedItems.Where(x => x.MaterialId == matId).Sum(x => x.QuantityIssued);
+                var totalReturned = returnedItems.Where(x => x.MaterialId == matId).Sum(x => x.QuantityReturned);
+                var pricing = issuedItems.Where(x => x.MaterialId == matId).Select(x => x.UnitCostAtIssue).FirstOrDefault();
+
+                jobIssuedSparesSummaryList.Add(new JobIssuedSpareSummary
+                {
+                    MaterialId = matId,
+                    MaterialCode = matInfo?.Material ?? $"ID: {matId}",
+                    Description = matInfo?.MaterialDescription ?? "Unknown Part Profile",
+                    TotalIssued = totalIssued,
+                    TotalReturned = totalReturned,
+                    UnitCost = pricing
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error computing historical logs: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshMaterialLogAsync()
+    {
+        //if (selectedJob == null) return;
+
+        try
+        {
+            // Example: Replace this with your actual database fetching logic
+            // jobIssuedSparesSummaryList = await _dbService.GetIssuedSparesByJobIdAsync(selectedJob.Id);
+            LoadJobSparesHistoryAsync(selectedJob.Id);
+
+
+            errorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message.ToString(), Severity.Normal);
+            errorMessage = $"Failed to refresh data: {ex.Message}";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    // Call history engine immediately upon job click selection
+    
+
+    // Auto-Clear Error Boundary Code
+    private void OnIssueQuantityChanged(StagedSpareItem item, string value)
+    {
+        if (decimal.TryParse(value, out var parsedQty))
+        {
+            item.QuantityToIssue = (int)parsedQty;
+        }
+        else
+        {
+            item.QuantityToIssue = 0;
+        }
+
+        // Evaluate current list boundaries
+        bool boundariesViolated = false;
+        foreach (var staged in stagedSparesBucket)
+        {
+            if (staged.QuantityToIssue <= 0 || staged.QuantityToIssue > staged.StockQuantity)
+            {
+                boundariesViolated = true;
+                errorMessage = $"Stock boundaries violated for code: {staged.Material}. Check entry limits.";
+                break;
+            }
+        }
+
+        // Clear error message if all items are valid
+        if (!boundariesViolated)
+        {
+            errorMessage = string.Empty;
+        }
+    }
+
+    // Process returns directly from the loaded grid row items
+    private async Task CommitGridReturnsAsync()
+    {
+        var activeReturns = jobIssuedSparesSummaryList.Where(x => x.QuantityToReturnInput > 0).ToList();
+        if (selectedJob == null || !activeReturns.Any()) return;
+
+        foreach (var item in activeReturns)
+        {
+            if (item.QuantityToReturnInput > item.NetAllocated)
+            {
+                errorMessage = $"Cannot return more than net allocated for code: {item.MaterialCode}";
+                return;
+            }
+        }
+
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            var returnHeader = new MaterialReturn
+            {
+                JobId = selectedJob.Id,
+                ReturnedByEmail = "surendra.choudhary@company.com",
+                Remarks = "Direct store-counter refund processing"
+            };
+
+            var headerResponse = await Supabase.From<MaterialReturn>().Insert(returnHeader);
+            var committedHeader = headerResponse.Model;
+
+            var itemsToReturn = activeReturns.Select(item => new MaterialReturnItem
+            {
+                ReturnId = committedHeader.Id,
+                MaterialId = item.MaterialId,
+                QuantityReturned = item.QuantityToReturnInput,
+                UnitCostAtReturn = item.UnitCost
+            }).ToList();
+
+            await Supabase.From<MaterialReturnItem>().Insert(itemsToReturn);
+
+            // Refresh UI state values
+            await LoadWorkspaceDataAsync();
+            await LoadJobSparesHistoryAsync(selectedJob.Id);
+            selectedJob = jobsList.FirstOrDefault(j => j.Id == selectedJob.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Return execution failure: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+
+
+
+
+    //# Return Section all logic
+
+
+    [Table("store_material_returns")]
+    public class MaterialReturn : BaseModel
+    {
+        [PrimaryKey("id")] public Guid Id { get; set; }
+        [Column("job_id")] public Guid JobId { get; set; }
+        [Column("returned_by_email")] public string ReturnedByEmail { get; set; } = string.Empty;
+        [Column("remarks")] public string Remarks { get; set; } = string.Empty;
+    }
+
+    [Table("store_material_return_items")]
+    public class MaterialReturnItem : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("return_id")] public Guid ReturnId { get; set; }
+        [Column("material_id")] public long MaterialId { get; set; }
+        [Column("quantity_returned")] public decimal QuantityReturned { get; set; }
+        [Column("unit_cost_at_return")] public decimal UnitCostAtReturn { get; set; }
+    }
+    public class MaterialReturnStagingModel
+    {
+        public long MaterialId { get; set; }
+        public string MaterialCode { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal QuantityToReturn { get; set; }
+        public decimal UnitCost { get; set; }
+    }
+
+    // Instantiate this inside your Blazor component properties
+    private List<MaterialReturnStagingModel> stagedReturnsBucket = new();
+    private string returnSearchInput = string.Empty;
+    private string returnUiFeedbackMessage = string.Empty;
+
+    // Interactive Helper: Allows pressing 'Enter' in the input box to instantly add a part
+    private async Task HandleReturnSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await StageItemByCode();
+        }
+    }
+
+    // Staging Mechanism: Finds the item based on the typed query and moves it to the returns bucket
+    private async Task StageItemByCode()
+    {
+        if (string.IsNullOrWhiteSpace(returnSearchInput)) return;
+
+        returnUiFeedbackMessage = string.Empty;
+
+        try
+        {
+            // 1. Query the master database index to confirm this material exists
+            var lookupResponse = await Supabase.From<StoreMaterial>()
+                .Where(x => x.Material == returnSearchInput.Trim())
+                .Limit(1)
+                .Get();
+
+            var targetedMaterial = lookupResponse.Models.FirstOrDefault();
+
+            if (targetedMaterial == null)
+            {
+                returnUiFeedbackMessage = "Material item code not found in warehouse master databases.";
+                return;
+            }
+
+            // 2. Guard against duplicating items within the staging bucket list
+            if (stagedReturnsBucket.Any(x => x.MaterialId == targetedMaterial.Id))
+            {
+                returnUiFeedbackMessage = "This material item is already staged in the manifest list below.";
+                return;
+            }
+
+            // 3. Append safely into the return model bucket array
+            stagedReturnsBucket.Add(new MaterialReturnStagingModel
+            {
+                MaterialId = targetedMaterial.Id,
+                MaterialCode = targetedMaterial.Material,
+                Description = targetedMaterial.MaterialDescription,
+                QuantityToReturn = 1, // Default fallback start value
+                UnitCost = targetedMaterial.UnitCost
+            });
+
+            // Clear input box for next entry scan
+            returnSearchInput = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            returnUiFeedbackMessage = $"Search resolution failure: {ex.Message}";
+        }
+    }
+
+    // Removal Mechanism: Clears an individual row out of the staging layout list
+    private void RemoveFromReturnStaging(MaterialReturnStagingModel item)
+    {
+        stagedReturnsBucket.Remove(item);
+    }
+
+    private async Task CommitMaterialReturnBatch()
+    {
+        if (selectedJob == null || !stagedReturnsBucket.Any()) return;
+
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // 1. Write the Return Transaction Header Record
+            var returnHeader = new MaterialReturn
+            {
+                JobId = selectedJob.Id,
+                ReturnedByEmail = "surendra.choudhary@company.com", // Bind to auth context state
+                Remarks = $"Unused material returned to store warehouse storage lines for Job: {selectedJob.JobName}"
+            };
+
+            var headerResponse = await Supabase.From<MaterialReturn>().Insert(returnHeader);
+            var committedHeader = headerResponse.Model;
+
+            if (committedHeader == null || committedHeader.Id == Guid.Empty)
+            {
+                throw new Exception("Database failed to initialize the Return Tracking ID.");
+            }
+
+            // 2. Map the UI Staging bucket array to database entity models
+            var itemsToReturn = new List<MaterialReturnItem>();
+            foreach (var item in stagedReturnsBucket)
+            {
+                itemsToReturn.Add(new MaterialReturnItem
+                {
+                    ReturnId = committedHeader.Id,
+                    MaterialId = item.MaterialId,
+                    QuantityReturned = item.QuantityToReturn,
+                    UnitCostAtReturn = item.UnitCost
+                });
+            }
+
+            // 3. Fire the array batch insert to Supabase
+            await Supabase.From<MaterialReturnItem>().Insert(itemsToReturn);
+
+            // 4. Wipe operational staging states clean
+            stagedReturnsBucket.Clear();
+
+            // 5. Re-sync workspace datasets to display the restored stock values instantly
+            await LoadWorkspaceDataAsync();
+            if (selectedJob != null)
+            {
+                selectedJob = jobsList.FirstOrDefault(j => j.Id == selectedJob.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Stock restoration breakdown: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
