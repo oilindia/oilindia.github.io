@@ -25,6 +25,9 @@
                 </ActivatorContent>
             </MudFileUpload>
             <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadExcel" Disabled="_loading">Download Template</MudButton>
+            
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="DownloadMasterData" Disabled="_loading">Download Master Data</MudButton>
+            
             <MudSpacer />
             <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Search by Material, Desc, or Plant..." 
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
@@ -79,40 +82,124 @@
         finally { _loading = false; }
     }
 
+    // private async Task UploadExcel(IBrowserFile file) {
+    //     _loading = true;
+    //     try {
+    //         using var memoryStream = new MemoryStream();
+    //         await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
+    //         memoryStream.Position = 0;
+    //         var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
+            
+    //         var existingData = await SupabaseClient.From<MaterialStock>().Get();
+    //         var existingDict = existingData.Models.ToDictionary(m => m.Material);
+            
+    //         var processedMaterials = new HashSet<string>();
+
+    //         foreach (var newRow in uploadedRows) {
+    //             // Prevent processing duplicates from the Excel file
+    //             if (!processedMaterials.Add(newRow.Material)) continue;
+
+    //             if (existingDict.TryGetValue(newRow.Material, out var existing)) {
+    //                 if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
+    //                     await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
+    //                     newRow.Id = existing.Id;
+    //                     await SupabaseClient.From<MaterialStock>().Update(newRow);
+    //                 }
+    //             } else {
+    //                 newRow.Id = null; // Forces DB auto-increment
+    //                 await SupabaseClient.From<MaterialStock>().Insert(newRow);
+    //                 await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
+    //             }
+    //         }
+    //         Snackbar.Add("Data synced successfully!", Severity.Success);
+    //         await LoadData();
+    //     } catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
+    //     finally { _loading = false; }
+    // }
+
     private async Task UploadExcel(IBrowserFile file) {
-        _loading = true;
-        try {
-            using var memoryStream = new MemoryStream();
-            await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
-            var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
-            
-            var existingData = await SupabaseClient.From<MaterialStock>().Get();
-            var existingDict = existingData.Models.ToDictionary(m => m.Material);
-            
-            var processedMaterials = new HashSet<string>();
+    _loading = true;
+    int newCount = 0;
+    int updatedCount = 0;
 
-            foreach (var newRow in uploadedRows) {
-                // Prevent processing duplicates from the Excel file
-                if (!processedMaterials.Add(newRow.Material)) continue;
+    try {
+        using var memoryStream = new MemoryStream();
+        await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
+        memoryStream.Position = 0;
+        
+        var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
+        var existingData = await SupabaseClient.From<MaterialStock>().Get();
+        
+        var existingDict = existingData.Models.ToDictionary(m => 
+            $"{m.Material}_{m.Plant}_{m.StorageLocation}_{m.Batch}".ToLower());
+        
+        var processedKeys = new HashSet<string>();
 
-                if (existingDict.TryGetValue(newRow.Material, out var existing)) {
-                    if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
-                        await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
-                        newRow.Id = existing.Id;
-                        await SupabaseClient.From<MaterialStock>().Update(newRow);
-                    }
-                } else {
-                    newRow.Id = null; // Forces DB auto-increment
-                    await SupabaseClient.From<MaterialStock>().Insert(newRow);
-                    await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
+        foreach (var newRow in uploadedRows) {
+            var key = $"{newRow.Material}_{newRow.Plant}_{newRow.StorageLocation}_{newRow.Batch}".ToLower();
+            
+            if (!processedKeys.Add(key)) continue;
+
+            if (existingDict.TryGetValue(key, out var existing)) {
+                if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
+                    // 1. Log historical state
+                    await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
+                    
+                    // 2. Perform safe, explicit update
+                    await SupabaseClient.From<MaterialStock>()
+                        .Where(m => m.Id == existing.Id)
+                        .Set(m => m.StockQuantityOnPeriodEnd, newRow.StockQuantityOnPeriodEnd)
+                        .Set(m => m.StockValueOnPeriodEnd, newRow.StockValueOnPeriodEnd)
+                        .Update();
+                    
+                    updatedCount++;
                 }
+            } else {
+                newRow.Id = null; 
+                await SupabaseClient.From<MaterialStock>().Insert(newRow);
+                await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
+                newCount++;
             }
-            Snackbar.Add("Data synced successfully!", Severity.Success);
-            await LoadData();
-        } catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
-        finally { _loading = false; }
+        }
+        
+        Snackbar.Add($"Sync Complete: {newCount} new items, {updatedCount} updated.", Severity.Success);
+        await LoadData();
+    } 
+    catch (Exception ex) { 
+        Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); 
     }
+    finally { 
+        _loading = false; 
+    }
+}
+
+    private async Task DownloadMasterData()
+    {
+        _loading = true;
+        try
+        {
+            // Fetch fresh data from DB to ensure the "Manual Check" is accurate
+            var response = await SupabaseClient.From<MaterialStock>().Get();
+            var data = response.Models;
+
+            using var stream = new MemoryStream();
+            stream.SaveAs(data);
+
+            // Use your existing JS Interop to trigger the file download
+            await JS.InvokeVoidAsync("downloadFile", $"MasterData_Export_{DateTime.Now:yyyyMMdd}.xlsx", Convert.ToBase64String(stream.ToArray()));
+
+            Snackbar.Add("Master data downloaded successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Download Failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
 
     private async Task DownloadExcel() {
         _loading = true;

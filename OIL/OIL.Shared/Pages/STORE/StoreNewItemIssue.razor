@@ -950,49 +950,66 @@
             </div>
 
             <div class="fms-table-wrapper" style="margin-top: 0; border: none; max-height: 40vh; overflow-y: auto;">
-                <table class="fms-table">
-                    <thead style="position: sticky; top: 0; z-index: 10;">
+                <table class="table table-hover table-striped table-sm">
+                    <thead class="table-dark">
                         <tr>
-                            <th style="width: 120px;">ISSUE DATE</th>
-                            <th style="width: 130px;">MAT CODE</th>
-                            <th style="min-width: 200px;">DESCRIPTION</th>
-                            <th style="width: 110px;">QNTY</th>
-                            <th style="width: 160px;">ISSUED TO</th>
-                            <th style="width: 160px;">MIGO BY</th>
-                            <th style="width: 160px;">MIGO NO.</th>
+                            <th>SL.NO</th>
+                            <th>MAT CODE</th>
+                            <th>DESCRIPTION</th>
+                            <th>ISSUED QNTY</th>
+                            <th>SAP STOCK</th>
+                            <th>NOTIFICATION</th>
+                            <th>ISSUE DATE</th>
+                            <th>UOM</th>
+                            <th>SLOC</th>
+                            <th>ISSUED TO</th>
+                            <th>PHYSICAL QNTY</th>
+                            <th>LOCATION</th>
+                            <th>JOB DESCRIPTION</th>
+                            <th>ASSET</th>
+                            <th>MIGO BY</th>
+                            <th>MIGO NO.</th>
+                            <th>REMARKS</th>
+                            <th>ACTION</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (isHistoryLoading)
                         {
-                            <tr>
-                                <td colspan="7" class="empty-state" style="padding: 3rem;">
-                                    <span style="color: var(--slate-647);">Loading history...</span>
-                                </td>
-                            </tr>
+                            <tr><td colspan="18" class="text-center">Loading data...</td></tr>
                         }
                         else if (historicalIssuesList == null || !historicalIssuesList.Any())
                         {
-                            <tr>
-                                <td colspan="7" class="empty-state" style="padding: 3rem;">
-                                    <div style="font-size: 2rem;">📅</div>
-                                    <h6 style="color: var(--slate-700); font-weight:600; margin: 0.5rem 0 0 0;">No Records Found</h6>
-                                    <p style="font-size: 0.85rem; margin: 0; color:var(--slate-647);">Select a date range and click Search to view past issues.</p>
-                                </td>
-                            </tr>
+                            <tr><td colspan="18" class="text-center">No records found for the selected period.</td></tr>
                         }
                         else
                         {
-                            @foreach (var history in historicalIssuesList)
+                            @for (int i = 0; i < historicalIssuesList.Count; i++)
                             {
+                                var item = historicalIssuesList[i];
                                 <tr>
-                                    <td>@(history.IssueDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
-                                    <td style="font-family: monospace; font-weight: 700; color: var(--blue-700);">@history.MatCode</td>
-                                    <td style="color: var(--slate-700);">@history.Description</td>
-                                    <td><span class="fms-badge badge-primary">@history.IssuedQuantity @history.Uom</span></td>
-                                    <td>@history.IssuedTo</td>
-                                    <td>@history.MigoToBeDoneBy</td>
-                                    <td style="font-family: monospace;">@history.MigoNo</td>
+                                    <td>@(i + 1)</td>
+                                    <td>@item.MatCode</td>
+                                    <td>@item.Description</td>
+                                    <td>@item.IssuedQuantity</td>
+                                    <td>@item.SapStock</td>
+                                    <td>@item.Notification</td>
+                                    <td>@item.IssueDate?.ToString("dd-MM-yyyy")</td>
+                                    <td>@item.Uom</td>
+                                    <td>@item.Sloc</td>
+                                    <td>@item.IssuedTo</td>
+                                    <td>@item.PhysicalQuantity</td>
+                                    <td>@item.Location</td>
+                                    <td>@item.JobDescription</td>
+                                    <td>@item.Asset</td>
+                                    <td>@item.MigoToBeDoneBy</td>
+                                    <td>@item.MigoNo</td>
+                                    <td>@item.Remarks</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteIssueRecord(item)">
+                                            <i class="oi oi-trash"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                             }
                         }
@@ -1218,8 +1235,29 @@
         selectedJob = null;
         //stagedSparesBucket.Clear();
     }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
+
+
     protected override async Task OnInitializedAsync()
     {
+        if (AuthStateTask != null)
+        {
+            var authState = await AuthStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                _email = user.GetEmail();
+                _fullName = user.GetFullName();
+                _designation = user.GetDesignation();
+
+            }
+        }
         await LoadWorkspaceDataAsync();
     }
 
@@ -1484,7 +1522,7 @@
                 {
                     JobId = selectedJob.Id,
                     AssignmentId = matchedAssignment?.Id,
-                    IssuedByEmail = "surendra.choudhary@company.com", // Dynamic authentication replacement point
+                    IssuedByEmail = _email, // Dynamic authentication replacement point
                     Remarks = $"Batch Issuance Workspace: {selectedJob.JobName}"
                 };
 
@@ -1511,7 +1549,7 @@
                 var returnHeader = new MaterialReturn
                 {
                     JobId = selectedJob.Id,
-                    ReturnedByEmail = "surendra.choudhary@company.com",
+                    ReturnedByEmail = _email,
                     Remarks = $"Batch Return Workspace: {selectedJob.JobName}"
                 };
 
@@ -1599,6 +1637,7 @@
     private List<DepartmentIssueModel> historicalIssuesList = new();
 
     // --- New Method for Fetching History ---
+    // --- New Method for Fetching History ---
     private async Task LoadIssueHistoryAsync()
     {
         try
@@ -1606,15 +1645,16 @@
             isHistoryLoading = true;
             StateHasChanged();
 
-            // 1. Ensure dates cover the entire day timeframe safely
-            var startDate = historyFromDate.Date;
-            var endDate = historyToDate.Date.AddDays(1).AddTicks(-1);
+            // 1. Format dates strictly for PostgreSQL (UTC ISO-8601)
+            var startStr = historyFromDate.Date.ToUniversalTime().ToString("o");
+            var endStr = historyToDate.Date.AddDays(1).AddTicks(-1).ToUniversalTime().ToString("o");
 
-            // 2. Fetch the Parent Issuance Records (filtering by issuance_category if needed)
+            // 2. Fetch the Parent Issuance Records
+            // FIX: Changed "JOB" to "DEPT" to match your save routine
             var issuancesResponse = await SupabaseClient.From<MaterialIssuance>()
-                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, startDate)
-                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endDate)
-                .Filter("issuance_category", global::Supabase.Postgrest.Constants.Operator.Equals, "JOB") // Assuming Dept is categorized differently or just fetching all
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, startStr)
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endStr)
+                .Filter("issuance_category", global::Supabase.Postgrest.Constants.Operator.Equals, "DEPT")
                 .Get();
 
             var issuances = issuancesResponse.Models;
@@ -1627,9 +1667,10 @@
 
             var issuanceIds = issuances.Select(i => i.Id).ToList();
 
-            // 3. Fetch the associated Items in a single batch
+            // 3. Fetch the associated Items
+            // FIX: Cast the Guid list to object list for the IN operator
             var itemsResponse = await SupabaseClient.From<MaterialIssuanceItem>()
-                .Filter("issuance_id", global::Supabase.Postgrest.Constants.Operator.In, issuanceIds)
+                .Filter("issuance_id", global::Supabase.Postgrest.Constants.Operator.In, issuanceIds.Cast<object>().ToList())
                 .Get();
 
             var items = itemsResponse.Models;
@@ -1642,9 +1683,10 @@
 
             var materialIds = items.Select(x => x.MaterialId).Distinct().ToList();
 
-            // 4. Fetch Master Data for Descriptions, UOM, and SLOC
+            // 4. Fetch Master Data
+            // FIX: Cast the long list to object list for the IN operator
             var materialsResponse = await SupabaseClient.From<StoreMaterial>()
-                .Filter("id", global::Supabase.Postgrest.Constants.Operator.In, materialIds)
+                .Filter("id", global::Supabase.Postgrest.Constants.Operator.In, materialIds.Cast<object>().ToList())
                 .Get();
 
             var materials = materialsResponse.Models.ToDictionary(m => m.Id, m => m);
@@ -1657,12 +1699,10 @@
 
                 return new DepartmentIssueModel
                 {
-                    IssueDate = parent.CreatedAt,
-                    MatCode = mat?.Material ?? "UNKNOWN",
-                    Description = mat?.MaterialDescription ?? "Unknown Material",
+                    IssueDate = parent.CreatedAt.ToLocalTime(), // Convert back to local time for the UI
+                    MatCode = mat?.Material ?? "",
+                    Description = mat?.MaterialDescription ?? "",
                     IssuedQuantity = (double)item.QuantityIssued,
-
-                    // Map the newly exposed UI fields directly from the DB
                     Uom = mat?.BaseUnitOfMeasure,
                     Sloc = mat?.StorageLocation,
                     IssuedTo = !string.IsNullOrWhiteSpace(parent.IssuedToName) ? parent.IssuedToName : parent.IssuedByEmail,
@@ -1680,6 +1720,7 @@
         }
         catch (Exception ex)
         {
+            // Consider mapping this to your 'deptErrorMessage' so it's visible in the UI instead of just the console
             Console.WriteLine($"Error loading history: {ex.Message}");
         }
         finally
@@ -1755,6 +1796,9 @@
     // -------------------------------------------------------------
     // AUTOMATIC STOCK REDUCTION CORE TRANSACTION PROCESSOR
     // -------------------------------------------------------------
+    // -------------------------------------------------------------
+    // AUTOMATIC STOCK REDUCTION CORE TRANSACTION PROCESSOR
+    // -------------------------------------------------------------
     private async Task SaveDepartmentAllocationsAsync()
     {
         if (!departmentIssuesList.Any()) return;
@@ -1778,29 +1822,81 @@
 
         try
         {
-            await Task.Delay(600); // Simulate network latency block
+            // Take metadata from the first record to construct the parent header
+            var headerContext = departmentIssuesList.First();
 
-            // Loop and automatically reduce stock quantities inside master memory arrays
-            foreach (var record in departmentIssuesList)
+            // 1. TRANSACTION ENGINE ONE: CREATE PARENT HEADER
+            var deptIssuanceHeader = new MaterialIssuance
             {
-                var masterItem = allSpares.FirstOrDefault(s => s.Id == record.MaterialId);
-                if (masterItem != null)
-                {
-                    // Automatic transactional reduction
-                    masterItem.StockQuantity -= (decimal)record.IssuedQuantity;
-                }
-            }
+                IssuedByEmail = _email, // Dynamic auth replacement point
+                Remarks = headerContext.Remarks,
+                Status = "completed",
+                IssuanceCategory = "DEPT", // Categorize differently from "JOB"
+                NotificationNo = headerContext.Notification,
+                IssuedToName = headerContext.IssuedTo,
+                ManualJobDescription = headerContext.JobDescription,
+                LocationTarget = headerContext.Location,
+                AssetId = headerContext.Asset,
+                MigoToBeDoneBy = headerContext.MigoToBeDoneBy,
+                MigoNo = headerContext.MigoNo,
+                CreatedAt = DateTime.UtcNow
+            };
 
-            // Flush the workspace batch on successful processing transaction run
-            departmentIssuesList.Clear();
+            var headerResponse = await Supabase.From<MaterialIssuance>().Insert(deptIssuanceHeader);
+            var committedHeader = headerResponse.Model;
+
+            if (committedHeader != null && committedHeader.Id != Guid.Empty)
+            {
+                // 2. TRANSACTION ENGINE TWO: INSERT LINE ITEMS
+                var itemsToInsert = departmentIssuesList.Select(x => new MaterialIssuanceItem
+                {
+                    IssuanceId = committedHeader.Id,
+                    MaterialId = x.MaterialId,
+                    QuantityIssued = (decimal)x.IssuedQuantity,
+                    // Optionally fetch UnitCost from allSpares if needed here, defaulting to 0 for now
+                    UnitCostAtIssue = 0
+                }).ToList();
+
+                await Supabase.From<MaterialIssuanceItem>().Insert(itemsToInsert);
+
+                // 3. TRANSACTION ENGINE THREE: AUTOMATIC STOCK REDUCTION
+                foreach (var record in departmentIssuesList)
+                {
+                    var masterItem = allSpares.FirstOrDefault(s => s.Id == record.MaterialId);
+                    if (masterItem != null)
+                    {
+                        // Deduct from local memory state
+                        masterItem.StockQuantity -= (decimal)record.IssuedQuantity;
+
+                        // Push updated quantity to Supabase Database
+                        await Supabase.From<StoreMaterial>()
+                            .Where(x => x.Id == masterItem.Id)
+                            .Set(x => x.StockQuantity, masterItem.StockQuantity)
+                            .Update();
+                    }
+                }
+
+                // 4. WORKSPACE POST-FULFILLMENT CLEANUP
+                departmentIssuesList.Clear();
+                deptSearchQuery = string.Empty;
+                deptErrorMessage = "Department Allocation Processed Successfully.";
+
+                // Refresh the history grid to show the newly added transaction
+                await LoadIssueHistoryAsync();
+            }
+            else
+            {
+                deptErrorMessage = "Database Error: Failed to generate transaction header.";
+            }
         }
         catch (Exception ex)
         {
-            deptErrorMessage = $"Database Sync Exception: {ex.Message}";
+            deptErrorMessage = $"Transactional processing engine error: {ex.Message}";
         }
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -1812,7 +1908,39 @@
 
     private void ClearDepartmentTable() => departmentIssuesList.Clear();
 
+    private async Task DeleteIssueRecord(DepartmentIssueModel item)
+    {
+        try
+        {
+            // 1. Confirm the action
+            // Note: If you're using a JS library for alerts, use it here.
+            // For standard Blazor, consider a simple logic check or a modal.
 
+            isLoading = true;
+
+            // 2. Delete the specific Item from the database
+            // We find the item based on the ID we previously generated or mapped
+            // Note: If you want to delete the whole Issuance, you'd target the parent record.
+            // This snippet targets the child item row.
+            await SupabaseClient.From<MaterialIssuanceItem>()
+                .Where(x => x.IssuanceId == item.Id) // Assuming item.Id matches the IssuanceId
+                .Delete();
+
+            // 3. Remove from local list to update UI immediately
+            historicalIssuesList.Remove(item);
+
+            deptErrorMessage = "Record deleted successfully.";
+        }
+        catch (Exception ex)
+        {
+            deptErrorMessage = $"Error deleting record: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
 }
 
 
