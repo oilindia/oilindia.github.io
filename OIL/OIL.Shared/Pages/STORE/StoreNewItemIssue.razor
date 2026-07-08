@@ -442,6 +442,72 @@
             grid-template-columns: 1fr !important;
         }
     }
+
+    /* Add smooth transition for hover effects */
+    .fms-table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+        /* Zebra striping for readability */
+        .fms-table tbody tr:nth-child(even) {
+            background-color: #fdfdfd; /* Extremely subtle off-white */
+        }
+
+        /* Highlight row on hover */
+        .fms-table tbody tr:hover {
+            background-color: var(--slate-50);
+        }
+
+        /* Remove the bottom border from the very last row to prevent double-boxing */
+        .fms-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+    /* Style inputs inside the table to look flat until interacted with */
+    .fms-table td .compact-input {
+        margin: 0;
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+        transition: all 0.15s ease;
+    }
+
+        /* Reveal the input borders when the user hovers or clicks into them */
+        .fms-table td .compact-input:hover {
+            background: #ffffff;
+            border-color: var(--slate-300);
+        }
+
+        .fms-table td .compact-input:focus {
+            background: #ffffff;
+            border-color: var(--blue-600);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+    /* Compact button for grid rows (e.g., an 'X' or 'Trash' icon button) */
+    .table-action-btn {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--slate-400);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .table-action-btn:hover {
+            color: var(--rose-600);
+            background: var(--rose-50);
+            border-color: var(--rose-200);
+        }
+
+
+
 </style>
 
 <div class="fms-workspace">
@@ -584,10 +650,11 @@
                             }
                             else if (filteredSpares.Any())
                             {
+                                @* @onclick="() => StageSpareItem(spare)" *@
                                 <div class="search-results-dropdown">
                                     @foreach (var spare in filteredSpares)
                                     {
-                                        <button type="button" class="search-result-item" @onclick="() => StageSpareItem(spare)">
+                                        <button type="button" class="search-result-item" @onclick="() => AddMaterialToWorkspaceGrid(spare)" >
                                             <div>
                                                 <strong style="color: var(--blue-600); font-family: monospace;">@spare.Material</strong> - @spare.MaterialDescription
                                             </div>
@@ -657,7 +724,7 @@
                                                     <td class="ps-3 font-monospace fw-bold text-secondary">@row.MaterialCode</td>
                                                     <td>
                                                         <div class="fw-semibold text-dark">@row.Description</div>
-                                                        <small class="text-muted">Unit Baseline Cost Track: @row.UnitCost.ToString("C")</small>
+                                                        <small class="text-muted">Unit Baseline Cost Track: @row.UnitCost.ToString("R")</small>
                                                     </td>
                                                     <td class="text-center fw-bold @(row.SapStock <= 0 ? "text-danger" : "text-muted")">
                                                         @row.SapStock
@@ -857,6 +924,86 @@
                 </div>
             }
         </div>
+    
+        <div class="fms-card" style="width: 100%; margin-top: 1.5rem;">
+            <div class="fms-card-header header-light">
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 1rem; font-weight: 700; color: var(--slate-900);">🕒 Issuance History</span>
+                    <span style="font-size: 0.75rem; color: var(--slate-647); font-weight: 400;">Review previously processed department allocations.</span>
+                </div>
+            </div>
+
+            <div class="meta-grid grid-3" style="border-bottom: 1px solid var(--slate-200); padding: 1rem 1.25rem; align-items: flex-end;">
+                <div class="form-group">
+                    <label>From Date</label>
+                    <input type="date" class="form-input-interactive" @bind="historyFromDate" />
+                </div>
+                <div class="form-group">
+                    <label>To Date</label>
+                    <input type="date" class="form-input-interactive" @bind="historyToDate" />
+                </div>
+                <div class="form-group">
+                    <button type="button" class="fms-btn btn-primary" @onclick="LoadIssueHistoryAsync">
+                        Search History
+                    </button>
+                </div>
+            </div>
+
+            <div class="fms-table-wrapper" style="margin-top: 0; border: none; max-height: 40vh; overflow-y: auto;">
+                <table class="fms-table">
+                    <thead style="position: sticky; top: 0; z-index: 10;">
+                        <tr>
+                            <th style="width: 120px;">ISSUE DATE</th>
+                            <th style="width: 130px;">MAT CODE</th>
+                            <th style="min-width: 200px;">DESCRIPTION</th>
+                            <th style="width: 110px;">QNTY</th>
+                            <th style="width: 160px;">ISSUED TO</th>
+                            <th style="width: 160px;">MIGO BY</th>
+                            <th style="width: 160px;">MIGO NO.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (isHistoryLoading)
+                        {
+                            <tr>
+                                <td colspan="7" class="empty-state" style="padding: 3rem;">
+                                    <span style="color: var(--slate-647);">Loading history...</span>
+                                </td>
+                            </tr>
+                        }
+                        else if (historicalIssuesList == null || !historicalIssuesList.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="empty-state" style="padding: 3rem;">
+                                    <div style="font-size: 2rem;">📅</div>
+                                    <h6 style="color: var(--slate-700); font-weight:600; margin: 0.5rem 0 0 0;">No Records Found</h6>
+                                    <p style="font-size: 0.85rem; margin: 0; color:var(--slate-647);">Select a date range and click Search to view past issues.</p>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var history in historicalIssuesList)
+                            {
+                                <tr>
+                                    <td>@(history.IssueDate?.ToString("yyyy-MM-dd") ?? "N/A")</td>
+                                    <td style="font-family: monospace; font-weight: 700; color: var(--blue-700);">@history.MatCode</td>
+                                    <td style="color: var(--slate-700);">@history.Description</td>
+                                    <td><span class="fms-badge badge-primary">@history.IssuedQuantity @history.Uom</span></td>
+                                    <td>@history.IssuedTo</td>
+                                    <td>@history.MigoToBeDoneBy</td>
+                                    <td style="font-family: monospace;">@history.MigoNo</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+
+
     }
 </div>
 
@@ -892,6 +1039,28 @@
         [Column("personnel_ids")] public List<long>? PersonnelIds { get; set; }
     }
 
+    [Table("store_material_issuances")]
+    public class MaterialIssuance : BaseModel
+    {
+        [PrimaryKey("id")] public Guid Id { get; set; }
+        [Column("created_at")] public DateTime CreatedAt { get; set; }
+        [Column("job_id")] public Guid? JobId { get; set; }
+        [Column("assignment_id")] public Guid? AssignmentId { get; set; }
+        [Column("issued_by_email")] public string IssuedByEmail { get; set; } = string.Empty;
+        [Column("remarks")] public string Remarks { get; set; } = string.Empty;
+        [Column("status")] public string Status { get; set; } = "completed";
+        [Column("issuance_category")] public string IssuanceCategory { get; set; } = "JOB";
+
+        // --- Newly mapped fields from SQL schema ---
+        [Column("notification_no")] public string NotificationNo { get; set; }
+        [Column("issued_to_name")] public string IssuedToName { get; set; }
+        [Column("manual_job_description")] public string ManualJobDescription { get; set; }
+        [Column("location_target")] public string LocationTarget { get; set; }
+        [Column("asset_id")] public string AssetId { get; set; }
+        [Column("migo_to_be_done_by")] public string MigoToBeDoneBy { get; set; }
+        [Column("migo_no")] public string MigoNo { get; set; }
+    }
+
     [Table("store_material_masterdata")]
     public class StoreMaterial : BaseModel
     {
@@ -901,18 +1070,11 @@
         [Column("stock_quantity_on_period_end")] public decimal StockQuantity { get; set; }
         [Column("stock_value_on_period_end")] public decimal StockValue { get; set; }
 
-        public decimal UnitCost => StockQuantity > 0 ? StockValue / StockQuantity : 0.00m;
-    }
+        // --- Newly mapped fields from SQL schema ---
+        [Column("base_unit_of_measure")] public string BaseUnitOfMeasure { get; set; }
+        [Column("storage_location")] public string StorageLocation { get; set; }
 
-    [Table("store_material_issuances")]
-    public class MaterialIssuance : BaseModel
-    {
-        [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("job_id")] public Guid JobId { get; set; }
-        [Column("assignment_id")] public Guid? AssignmentId { get; set; }
-        [Column("issued_by_email")] public string IssuedByEmail { get; set; } = string.Empty;
-        [Column("remarks")] public string Remarks { get; set; } = string.Empty;
-        [Column("status")] public string Status { get; set; } = "completed";
+        public decimal UnitCost => StockQuantity > 0 ? StockValue / StockQuantity : 0.00m;
     }
 
     [Table("store_material_issuance_items")]
@@ -1216,6 +1378,7 @@
             finally
             {
                 isSearching = false;
+                await InvokeAsync(StateHasChanged); // Force the dropdown to paint the results (or clear) safely
             }
         }
         else
@@ -1226,6 +1389,16 @@
 
     private void AddMaterialToWorkspaceGrid(StoreMaterial spare)
     {
+        if (selectedJob == null)
+        {
+            errorMessage = "Please select a job before allocating spares.";
+            StateHasChanged();
+            return;
+        }
+
+        //var existingRow = unifiedWorkspaceList.FirstOrDefault(x => x.MaterialId == spare.Id);
+
+
         // Guard Check: If item already sits inside the table matrix, do not duplicate rows
         var existingRow = unifiedWorkspaceList.FirstOrDefault(x => x.MaterialId == spare.Id);
         if (existingRow != null)
@@ -1247,14 +1420,21 @@
             });
         }
 
+
+
         // Wipe context search constraints instantly
         spareSearchQuery = string.Empty;
         filteredSpares.Clear();
+
+        // Explicitly tell Blazor to repaint the UI
+        StateHasChanged();
+
     }
 
     private void RemoveUncommittedLine(UnifiedSpareWorkspaceRow row)
     {
         unifiedWorkspaceList.Remove(row);
+        StateHasChanged();
     }
 
     private async Task CommitUnifiedWorkspaceBatchAsync()
@@ -1411,7 +1591,103 @@
         public string Remarks { get; set; } = string.Empty;
     }
 
+    private DateTime historyFromDate = DateTime.Today.AddDays(-7); // Default to last 7 days
+    private DateTime historyToDate = DateTime.Today;
+    private bool isHistoryLoading = false;
 
+    // Assuming you have a model class for this, re-using your issue model as an example.
+    private List<DepartmentIssueModel> historicalIssuesList = new();
+
+    // --- New Method for Fetching History ---
+    private async Task LoadIssueHistoryAsync()
+    {
+        try
+        {
+            isHistoryLoading = true;
+            StateHasChanged();
+
+            // 1. Ensure dates cover the entire day timeframe safely
+            var startDate = historyFromDate.Date;
+            var endDate = historyToDate.Date.AddDays(1).AddTicks(-1);
+
+            // 2. Fetch the Parent Issuance Records (filtering by issuance_category if needed)
+            var issuancesResponse = await SupabaseClient.From<MaterialIssuance>()
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, startDate)
+                .Filter("created_at", global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endDate)
+                .Filter("issuance_category", global::Supabase.Postgrest.Constants.Operator.Equals, "JOB") // Assuming Dept is categorized differently or just fetching all
+                .Get();
+
+            var issuances = issuancesResponse.Models;
+
+            if (!issuances.Any())
+            {
+                historicalIssuesList = new List<DepartmentIssueModel>();
+                return;
+            }
+
+            var issuanceIds = issuances.Select(i => i.Id).ToList();
+
+            // 3. Fetch the associated Items in a single batch
+            var itemsResponse = await SupabaseClient.From<MaterialIssuanceItem>()
+                .Filter("issuance_id", global::Supabase.Postgrest.Constants.Operator.In, issuanceIds)
+                .Get();
+
+            var items = itemsResponse.Models;
+
+            if (!items.Any())
+            {
+                historicalIssuesList = new List<DepartmentIssueModel>();
+                return;
+            }
+
+            var materialIds = items.Select(x => x.MaterialId).Distinct().ToList();
+
+            // 4. Fetch Master Data for Descriptions, UOM, and SLOC
+            var materialsResponse = await SupabaseClient.From<StoreMaterial>()
+                .Filter("id", global::Supabase.Postgrest.Constants.Operator.In, materialIds)
+                .Get();
+
+            var materials = materialsResponse.Models.ToDictionary(m => m.Id, m => m);
+
+            // 5. Project the real DB data into your unified UI Model
+            historicalIssuesList = items.Select(item =>
+            {
+                var parent = issuances.First(i => i.Id == item.IssuanceId);
+                materials.TryGetValue(item.MaterialId, out var mat);
+
+                return new DepartmentIssueModel
+                {
+                    IssueDate = parent.CreatedAt,
+                    MatCode = mat?.Material ?? "UNKNOWN",
+                    Description = mat?.MaterialDescription ?? "Unknown Material",
+                    IssuedQuantity = (double)item.QuantityIssued,
+
+                    // Map the newly exposed UI fields directly from the DB
+                    Uom = mat?.BaseUnitOfMeasure,
+                    Sloc = mat?.StorageLocation,
+                    IssuedTo = !string.IsNullOrWhiteSpace(parent.IssuedToName) ? parent.IssuedToName : parent.IssuedByEmail,
+                    Notification = parent.NotificationNo,
+                    Location = parent.LocationTarget,
+                    JobDescription = parent.ManualJobDescription,
+                    Asset = parent.AssetId,
+                    MigoToBeDoneBy = parent.MigoToBeDoneBy,
+                    MigoNo = parent.MigoNo,
+                    Remarks = parent.Remarks
+                };
+            })
+            .OrderByDescending(x => x.IssueDate)
+            .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading history: {ex.Message}");
+        }
+        finally
+        {
+            isHistoryLoading = false;
+            StateHasChanged();
+        }
+    }
 
 
 
