@@ -1077,7 +1077,8 @@
     public class MaterialIssuance : BaseModel
     {
         [PrimaryKey("id")] public Guid Id { get; set; }
-        [Column("created_at")] public DateTime CreatedAt { get; set; }
+        //[Column("created_at")] public DateTime CreatedAt { get; set; }
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         [Column("job_id")] public Guid? JobId { get; set; }
         [Column("assignment_id")] public Guid? AssignmentId { get; set; }
         [Column("issued_by_email")] public string IssuedByEmail { get; set; } = string.Empty;
@@ -1540,7 +1541,8 @@
                     JobId = selectedJob.Id,
                     AssignmentId = matchedAssignment?.Id,
                     IssuedByEmail = _email, // Dynamic authentication replacement point
-                    Remarks = $"Batch Issuance Workspace: {selectedJob.JobName}"
+                    Remarks = $"Batch Issuance Workspace: {selectedJob.JobName}",
+                    CreatedAt = DateTime.UtcNow // <-- Added explicit current timestamp
                 };
 
                 var headerResponse = await Supabase.From<MaterialIssuance>().Insert(issuanceHeader);
@@ -1633,7 +1635,7 @@
         public double IssuedQuantity { get; set; } = 1.0;
         public double SapStock { get; set; }
         public string Notification { get; set; } = string.Empty;
-        public DateTime? IssueDate { get; set; } = DateTime.Today;
+        public DateTime? IssueDate { get; set; } = DateTime.Now;
         public string Uom { get; set; } = "EA";
         public string Sloc { get; set; } = string.Empty;
         public string IssuedTo { get; set; } = string.Empty;
@@ -1772,8 +1774,8 @@
             var response = await Supabase.From<StoreMaterial>()
                 .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
                 {
-                    new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%"),
-                    new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{spareSearchQuery}%")
+                    new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%"),
+                    new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%")
                 })
                 .Limit(10)
                 .Get();

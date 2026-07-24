@@ -1,4 +1,4 @@
-﻿@page "/storeMIGO"
+﻿@page "/storeMIGO2"
 @using System.Runtime.Serialization
 @using Microsoft.AspNetCore.Components.Forms
 @using MudBlazor
@@ -19,6 +19,9 @@
 @using System.Linq
 @using System.Collections.Generic
 @using System.Threading.Tasks
+@inject Supabase.Client Supabase
+
+
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
 
@@ -42,9 +45,10 @@
                 </MudButton>
 
                 <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload"
-                           Color="Color.Success" OnClick="ExportToExcel" Class="ml-2">
+                           Color="Color.Success" OnClick="ExportToExcel">
                     Export to Excel
                 </MudButton>
+
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -63,9 +67,7 @@
         </div>
     </div>
 
-    <!-- RowStyleFunc binds row background color dynamically based on Job / Issuance -->
-    <MudTable Items="@_migoData" Loading="@_isLoading" Dense="true" Hover="true" Bordered="true" Striped="false"
-              RowStyleFunc="GetRowStyle"
+    <MudTable Items="@_migoData" Loading="@_isLoading" Dense="true" Hover="true" Bordered="true" Striped="true"
               HorizontalScrollbar="true" FixedHeader="true" Height="650px"
               Style="border: 1px solid #000080; border-top: none;">
 
@@ -86,10 +88,10 @@
             <MudTh Style="font-weight: bold; text-align: left;">JOB DESCRIPTION</MudTh>
             <MudTh Style="font-weight: bold; text-align: center;">ASSET</MudTh>
 
-            <MudTh Style="font-weight: bold; text-align: left;">JOB NAME</MudTh>
-            <MudTh Style="font-weight: bold; text-align: left;">PEOPLE ALLOTTED</MudTh>
-            <MudTh Style="font-weight: bold; text-align: center;">SHIFT</MudTh>
-            <MudTh Style="font-weight: bold; text-align: left;">DRIVER</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">JOB NAME</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">PEOPLE ALLOTTED</MudTh>
+            <MudTh Style="font-weight: bold; text-align: center; background-color: #f8f9fa;">SHIFT</MudTh>
+            <MudTh Style="font-weight: bold; text-align: left; background-color: #f8f9fa;">DRIVER</MudTh>
 
             <MudTh Style="font-weight: bold; text-align: center;">MIGO TO BE<br />DONE BY</MudTh>
 
@@ -102,27 +104,29 @@
         <RowTemplate>
             <MudTd Style="text-align: center;">@(_migoData.IndexOf(context) + 1)</MudTd>
             <MudTd Style="text-align: center; color: #d32f2f;">@context.NotificationNo</MudTd>
-            <MudTd Style="text-align: center;">@(context.IssueDate.HasValue ? context.IssueDate.Value.ToString("dd.MM.yyyy") : "N/A")</MudTd>
+            <MudTd Style="text-align: center;">@context.IssueDate.ToString("dd.MM.yyyy")</MudTd>
             <MudTd Style="text-align: center;">@context.MatCode</MudTd>
             <MudTd>@context.Description</MudTd>
-            <MudTd Style="text-align: center;">@(context.IssuedQnty?.ToString("N0") ?? "0")</MudTd>
+            <MudTd Style="text-align: center;">@context.IssuedQnty.ToString("N0")</MudTd>
             <MudTd Style="text-align: center;">@context.Uom</MudTd>
             <MudTd Style="text-align: center;">@context.Sloc</MudTd>
             <MudTd>@context.IssuedBy</MudTd>
             <MudTd>@context.IssuedTo</MudTd>
-            <MudTd Style="text-align: center;">@(context.PhysicalQnty?.ToString("N0") ?? "0")</MudTd>
-            <MudTd Style="text-align: center;">@(context.SapStock?.ToString("N0") ?? "0")</MudTd>
+            <MudTd Style="text-align: center;">@context.PhysicalQnty.ToString("N0")</MudTd>
+            <MudTd Style="text-align: center;">@context.SapStock.ToString("N0")</MudTd>
             <MudTd Style="text-align: center;">@context.Location</MudTd>
             <MudTd>@context.JobDescription</MudTd>
             <MudTd Style="text-align: center;">@context.Asset</MudTd>
 
-            <MudTd>@context.JobName</MudTd>
-            <MudTd>@context.PeopleAllotted</MudTd>
-            <MudTd Style="text-align: center;">@context.Shift</MudTd>
-            <MudTd>@context.Driver</MudTd>
+            <MudTd Style="background-color: #fbfbfc;">@context.JobName</MudTd>
+            <MudTd Style="background-color: #fbfbfc;">@context.PeopleAllotted</MudTd>
+            <MudTd Style="text-align: center; background-color: #fbfbfc;">@context.Shift</MudTd>
+            <MudTd Style="background-color: #fbfbfc;">@context.Driver</MudTd>
 
+           
             <MudTd Style="text-align: center;">@context.MigoToBeDoneBy</MudTd>
             <MudTd Style="background-color: #fef0e6; text-align: center;">@context.MigoNo</MudTd>
+            <MudTd Style="background-color: #fef0e6;"></MudTd>
             <MudTd>@context.Remarks</MudTd>
         </RowTemplate>
         <PagerContent>
@@ -136,22 +140,9 @@
     private List<MigoReportModel> _migoData = new();
     private bool _isLoading = true;
 
+    // Use nullable DateTime for MudDatePicker compatibility
     private DateTime? _startDate = DateTime.Today.AddDays(-6);
     private DateTime? _endDate = DateTime.Today;
-
-    private readonly string[] _pastelPalette = new[]
-    {
-        "#ebf5fb", // Soft Light Blue
-        "#eafaf1", // Soft Mint Green
-        "#fef9e7", // Soft Warm Yellow
-        "#f5eef8", // Soft Lavender
-        "#fdedec", // Soft Coral
-        "#e8f8f5", // Soft Teal
-        "#fdebd0", // Soft Peach
-        "#f2f4f4"  // Soft Grey
-    };
-
-    private Dictionary<string, string> _jobColorMap = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -165,35 +156,37 @@
             _isLoading = true;
             StateHasChanged();
 
+            // Ensure your variable is either inferred correctly or typed as IPostgrestTable
+            //var query = SupabaseClient.From<MigoReportModel>();
+
             IPostgrestTable<MigoReportModel> query = SupabaseClient.From<MigoReportModel>();
 
+            // Apply Start Date Filter
             if (_startDate.HasValue)
             {
+                // Convert DateTime to ISO-8601 string string
                 query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, _startDate.Value.ToString("o"));
             }
 
+            // Apply End Date Filter
             if (_endDate.HasValue)
             {
                 var endOfDay = _endDate.Value.AddDays(1).AddTicks(-1);
+                // Convert DateTime to ISO-8601 string string
                 query = query.Filter(x => x.IssueDate, global::Supabase.Postgrest.Constants.Operator.LessThanOrEqual, endOfDay.ToString("o"));
             }
 
+            // Execute the fetch ordered by Issue Date
             var response = await query
                 .Order(x => x.IssueDate, global::Supabase.Postgrest.Constants.Ordering.Ascending)
                 .Get();
 
-            // Grouping: Sort sequentially by IssueDate, then group contiguous Job ID / Issuance ID together
-            _migoData = response.Models
-                .OrderBy(x => x.IssueDate)
-                .ThenBy(x => x.JobId ?? x.IssuanceId)
-                .ToList();
-
-            AssignJobColors();
+            _migoData = response.Models;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
-            Console.WriteLine($"Error loading report data: {ex.Message}");
+            // Add proper error handling here
+            Console.WriteLine($"Error loading data: {ex.Message}");
         }
         finally
         {
@@ -201,53 +194,25 @@
             StateHasChanged();
         }
     }
-
-    private void AssignJobColors()
-    {
-        _jobColorMap.Clear();
-        int colorIndex = 0;
-
-        var groups = _migoData
-            .Select(x => x.JobId != null ? $"job_{x.JobId}" : $"issuance_{x.IssuanceId}")
-            .Distinct();
-
-        foreach (var groupKey in groups)
-        {
-            _jobColorMap[groupKey] = _pastelPalette[colorIndex % _pastelPalette.Length];
-            colorIndex++;
-        }
-    }
-
-    private string GetRowStyle(MigoReportModel item, int index)
-    {
-        string groupKey = item.JobId != null ? $"job_{item.JobId}" : $"issuance_{item.IssuanceId}";
-
-        if (_jobColorMap.TryGetValue(groupKey, out var color))
-        {
-            return $"background-color: {color};";
-        }
-
-        return string.Empty;
-    }
-
     private async Task ExportToExcel()
     {
         var csv = new System.Text.StringBuilder();
 
+        // 1. Add the custom Header Rows for the Report Title and Period
         csv.AppendLine($"MIGO FOR THE PERIOD FROM,{_startDate?.ToString("dd.MM.yyyy") ?? "___"},TO,{_endDate?.ToString("dd.MM.yyyy") ?? "___"},REPORT NO-25 OF {DateTime.Now.Year}");
         csv.AppendLine("INSTRUMENTATION DEPARTMENT (STORE),,,");
-        csv.AppendLine("");
+        csv.AppendLine(""); // Empty row for spacing
 
+        // 2. Add Data Table Header
         csv.AppendLine("SL. NO,NOTIFICATION,ISSUE DATE,MAT CODE,DESCRIPTION,ISSUED QNTY,UOM,SLOC,ISSUED BY,ISSUED TO,PHYSICAL QNTY,SAP STOCK,LOCATION,JOB DESCRIPTION,ASSET,JOB NAME,PEOPLE ALLOTTED,SHIFT,DRIVER,MIGO TO BE DONE BY,MIGO NO. (To be filled by FM),REMARKS");
 
+        // 3. Add Data Rows
         int count = 1;
         foreach (var item in _migoData)
         {
-            var dateString = item.IssueDate.HasValue ? item.IssueDate.Value.ToString("dd.MM.yyyy") : "N/A";
-
             csv.AppendLine($"{count}," +
                 $"{item.NotificationNo}," +
-                $"{dateString}," +
+                $"{item.IssueDate:dd.MM.yyyy}," +
                 $"{item.MatCode}," +
                 $"\"{item.Description}\"," +
                 $"{item.IssuedQnty}," +
@@ -264,12 +229,13 @@
                 $"\"{item.PeopleAllotted}\"," +
                 $"{item.Shift}," +
                 $"\"{item.Driver}\"," +
-                $"\"{item.MigoToBeDoneBy}\"," +
-                $"\"{item.MigoNo}\"," +
+                $"\"{item.MigoToBeDoneBy}\"," + // Now mapped
+    $"\"{item.MigoNo}\"," +         // Now mapped
                 $"\"{item.Remarks}\"");
             count++;
         }
 
+        // 4. Trigger Download
         var fileName = $"MIGO_Report_{DateTime.Now:yyyyMMdd}.csv";
         var fileStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv.ToString()));
 
@@ -277,41 +243,29 @@
         await JS.InvokeVoidAsync("downloadFileFromStreamStore", fileName, streamRef);
     }
 
-    [Table("vw_migo_report2")]
+    [Table("vw_migo_report")]
     public class MigoReportModel : BaseModel
     {
+        
         [PrimaryKey("item_id", false)] public long ItemId { get; set; }
-        [Column("issuance_id")] public string? IssuanceId { get; set; }
-
-        // Fixed: JobId is now string? because it's a UUID in the database
-        [Column("job_id")] public string? JobId { get; set; }
-
-        [Column("issued_by")] public string? IssuedBy { get; set; }
-        [Column("issued_to")] public string? IssuedTo { get; set; }
-        [Column("notification_no")] public string? NotificationNo { get; set; }
-        [Column("issue_date")] public DateTime? IssueDate { get; set; }
-        [Column("mat_code")] public string? MatCode { get; set; }
-        [Column("description")] public string? Description { get; set; }
-        [Column("issued_qnty")] public decimal? IssuedQnty { get; set; }
-        [Column("uom")] public string? Uom { get; set; }
-        [Column("sloc")] public string? Sloc { get; set; }
-        [Column("physical_qnty")] public decimal? PhysicalQnty { get; set; }
-        [Column("sap_stock")] public decimal? SapStock { get; set; }
-        [Column("location")] public string? Location { get; set; }
-        [Column("job_description")] public string? JobDescription { get; set; }
-        [Column("asset")] public string? Asset { get; set; }
+        [Column("issued_by")] public string IssuedBy { get; set; } = "";
+        [Column("issued_to")] public string IssuedTo { get; set; } = "";
+        [Column("notification_no")] public string NotificationNo { get; set; } = "";
+        [Column("issue_date")] public DateTime IssueDate { get; set; }
+        [Column("mat_code")] public string MatCode { get; set; } = "";
+        [Column("description")] public string Description { get; set; } = "";
+        [Column("issued_qnty")] public decimal IssuedQnty { get; set; }
+        [Column("uom")] public string Uom { get; set; } = "";
+        [Column("sloc")] public string Sloc { get; set; } = "";
+        [Column("physical_qnty")] public decimal PhysicalQnty { get; set; }
+        [Column("sap_stock")] public decimal SapStock { get; set; }
+        [Column("location")] public string Location { get; set; } = "";
+        [Column("job_description")] public string JobDescription { get; set; } = "";
+        [Column("asset")] public string Asset { get; set; } = "";
         [Column("remarks")] public string? Remarks { get; set; }
         [Column("job_name")] public string? JobName { get; set; }
         [Column("shift")] public string? Shift { get; set; }
-
-        private string? _driver;
-        [Column("driver")]
-        public string? Driver
-        {
-            get => _driver;
-            set => _driver = value?.TrimEnd('-', ' ');
-        }
-
+        [Column("driver")] public string? Driver { get; set; }
         [Column("people_allotted")] public string? PeopleAllotted { get; set; }
         [Column("migo_to_be_done_by")] public string? MigoToBeDoneBy { get; set; }
         [Column("migo_no")] public string? MigoNo { get; set; }
