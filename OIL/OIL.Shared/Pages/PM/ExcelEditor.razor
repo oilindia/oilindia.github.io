@@ -1,0 +1,63 @@
+@page "/excel"
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="toolbar" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+    <button class="btn btn-primary" style="padding: 8px 16px; font-weight: bold; cursor: pointer;" @onclick="PrintToA4">
+        🖨️ Print to A4
+    </button>
+    <span style="color: #666; font-size: 14px;">
+        *Header and layout loaded successfully.
+    </span>
+</div>
+
+<div class="excel-editor-wrapper" style="width: 100%; height: 800px; padding: 0; margin: 0; position: relative;">
+    <div id="excel-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
+</div>
+
+@code {
+    private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<ExcelEditor>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await Task.Delay(150);
+                var modulePath = $"./excel-editor.js?v={DateTime.Now.Ticks}";
+                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", modulePath);
+
+                await _jsModule.InvokeVoidAsync("initLuckysheet", "excel-container", _dotNetRef);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading JS Module: {ex.Message}");
+            }
+        }
+    }
+
+    public async Task PrintToA4()
+    {
+        if (_jsModule != null)
+        {
+            await Task.Delay(100);
+            await _jsModule.InvokeVoidAsync("triggerPrint");
+        }
+    }
+
+    [JSInvokable]
+    public void OnDataChanged() { }
+
+    public async ValueTask DisposeAsync()
+    {
+        _dotNetRef?.Dispose();
+        if (_jsModule is not null)
+        {
+            await _jsModule.DisposeAsync();
+        }
+    }
+}

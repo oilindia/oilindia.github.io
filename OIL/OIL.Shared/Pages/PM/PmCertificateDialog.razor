@@ -1,0 +1,133 @@
+@using MudBlazor
+@using System.Text.Json
+@* Add any other usings your models require *@
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-3 mb-n1" />
+            Calibration & PM Test Certificate: @JobItem.TagNumber
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 400px; overflow-y: auto">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField Value="@JobItem.Instrument" Label="Instrument Type" ReadOnly="true" Variant="Variant.Filled" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Value="@JobItem.Range" Label="Instrument Range" ReadOnly="true" Variant="Variant.Filled" Dense="true" />
+                </MudItem>
+
+                @if (IsPressureInstrument(JobItem.Instrument))
+                {
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="fw-bold mt-2">Pressure Calibration Test Points</MudText></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Input0Percent" Label="Input 0% (Desired)" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output0PercentAsFound" Label="Output As Found" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output0PercentAsLeft" Label="Output As Left" Variant="Variant.Outlined" Dense="true" /></MudItem>
+
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Input50Percent" Label="Input 50% (Desired)" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output50PercentAsFound" Label="Output As Found" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output50PercentAsLeft" Label="Output As Left" Variant="Variant.Outlined" Dense="true" /></MudItem>
+
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Input100Percent" Label="Input 100% (Desired)" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output100PercentAsFound" Label="Output As Found" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="testValues.Output100PercentAsLeft" Label="Output As Left" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle2" Class="fw-bold mt-2">General Servicing & Functional Test</MudText></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="testValues.GeneralAsFoundCondition" Label="As Found Condition" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12" sm="6"><MudTextField @bind-Value="testValues.GeneralActionTaken" Label="Action / Adjustment Done" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                    <MudItem xs="12"><MudTextField @bind-Value="testValues.GeneralTestResult" Label="Functional Test Result" Variant="Variant.Outlined" Dense="true" /></MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="testValues.CalibrationStandardUsed" Label="Calibration Standard / Test Equipment Used" Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAndComplete">Save & Mark Completed</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    public class CertificateTestValuesModel
+    {
+        public string Input0Percent { get; set; } = "0%";
+        public string Output0PercentAsFound { get; set; } = string.Empty;
+        public string Output0PercentAsLeft { get; set; } = string.Empty;
+
+        public string Input50Percent { get; set; } = "50%";
+        public string Output50PercentAsFound { get; set; } = string.Empty;
+        public string Output50PercentAsLeft { get; set; } = string.Empty;
+
+        public string Input100Percent { get; set; } = "100%";
+        public string Output100PercentAsFound { get; set; } = string.Empty;
+        public string Output100PercentAsLeft { get; set; } = string.Empty;
+
+        public string GeneralAsFoundCondition { get; set; } = string.Empty;
+        public string GeneralActionTaken { get; set; } = string.Empty;
+        public string GeneralTestResult { get; set; } = "Satisfactory";
+        public string CalibrationStandardUsed { get; set; } = string.Empty;
+    }
+    public class JobItemModel
+    {
+        public string Unit { get; set; } = string.Empty;
+        public string Instrument { get; set; } = string.Empty;
+        public string MakeModel { get; set; } = string.Empty;
+        public string Range { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public string CertNo { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public string TagNumber { get; set; } = string.Empty;
+        //public string InstrumentType { get; set; } = string.Empty;
+        public string DeviceLocation { get; set; } = string.Empty;
+
+        // Add these properties
+        public bool IsCertificateCompleted { get; set; } = false;
+        public string CertificateValuesJson { get; set; } = string.Empty;
+
+    }
+
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public JobItemModel JobItem { get; set; } = new();
+
+    private CertificateTestValuesModel testValues = new();
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(JobItem.CertificateValuesJson))
+        {
+            try
+            {
+                testValues = JsonSerializer.Deserialize<CertificateTestValuesModel>(JobItem.CertificateValuesJson) ?? new();
+            }
+            catch { }
+        }
+    }
+
+    private bool IsPressureInstrument(string type)
+    {
+        if (string.IsNullOrEmpty(type)) return false;
+        return type.Contains("PRESSURE", StringComparison.OrdinalIgnoreCase) ||
+               type.Contains("PG", StringComparison.OrdinalIgnoreCase) ||
+               type.Contains("PT", StringComparison.OrdinalIgnoreCase) ||
+               type.Contains("PC", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SaveAndComplete()
+    {
+        JobItem.CertificateValuesJson = JsonSerializer.Serialize(testValues);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

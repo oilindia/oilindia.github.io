@@ -26,6 +26,60 @@
     <link rel="icon" type="image/x-icon" href="favicon.png">
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <!-- Luckysheet Dependencies -->
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css' />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css' />
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
+
+            body, html {
+                background: #fff !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+                body * {
+                    visibility: hidden !important;
+                }
+
+            #excel-container,
+            #excel-container * {
+                visibility: visible !important;
+            }
+
+            #excel-container {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                border: none !important;
+                transform: scale(0.97);
+                transform-origin: top left;
+            }
+
+            .luckysheet-scrollbar-x,
+            .luckysheet-scrollbar-y,
+            .luckysheet-sheet-area,
+            .luckysheet-stat-area,
+            #luckysheet-bottom-cont {
+                display: none !important;
+            }
+        }
+    </style>
+
 </head>
 
 <body>

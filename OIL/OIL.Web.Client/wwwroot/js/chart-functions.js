@@ -1,4 +1,29 @@
 ﻿
+// In your wwwroot/index.html or a separate JS file
+window.clipboardInterop = {
+    setupPasteListener: function (elementId, dotNetHelper) {
+        const element = document.getElementById(elementId);
+        element.addEventListener('paste', async (e) => {
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault(); // Stop the default local path paste
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+
+                    reader.onload = function (event) {
+                        const base64String = event.target.result;
+                        // Send the base64 string back to Blazor
+                        dotNetHelper.invokeMethodAsync('HandlePastedImage', base64String);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        });
+    }
+};
+
+
 window.downloadFileFromStreamTemplate = async (fileName, contentStreamReference) => {
     const arrayBuffer = await contentStreamReference.arrayBuffer();
     const blob = new Blob([arrayBuffer]);

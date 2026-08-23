@@ -1,0 +1,923 @@
+﻿@page "/npme"
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@using System.Runtime.Serialization
+@using System.Text.Json
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using OIL.Shared.Services
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@inject CustomAuthStateProvider AuthStateProvider
+@inject AuthenticationStateProvider AuthProvider
+@inject IDialogService DialogService
+@inject IBrowserViewportService BrowserViewportService
+@inject NavigationManager Nav
+
+@using System.Text.Json
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-2 pa-md-3 bg-light min-vh-100">
+    <MudCard Elevation="3" Class="pa-2 pa-md-4 rounded-lg bg-white">
+
+        @* --- HEADER & JOB SELECTION --- *@
+        <div class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center mb-6 gap-4 border-b pb-4">
+            <div>
+                <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 800; letter-spacing: -0.5px;">
+                    PM EXECUTION
+                </MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Style="font-weight: 500;">
+                    Workflow Grouping Mode: <span class="text-primary font-weight-bold">@(_detectedType ?? "SELECT ACTIVE JOB")</span>
+                </MudText>
+            </div>
+        </div>
+
+        <MudGrid Class="mb-6" Spacing="2">
+            <MudItem xs="12" md="4">
+                <MudSelect T="Job" Label="Select Target Job Workflow" Value="_selectedJob" ValueChanged="OnJobChanged" ToStringFunc="@(j => j?.JobName ?? "")" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var job in _pendingJobs)
+                    {
+                        <MudSelectItem Value="@job" />
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="_workPermit" Label="Notification Number" Variant="Variant.Outlined" AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="_assignedTo" Label="Assigned Operations Specialist" Variant="Variant.Outlined" AdornmentIcon="@Icons.Material.Filled.AssignmentInd" Margin="Margin.Dense" />
+            </MudItem>
+        </MudGrid>
+
+        @if (_isSearching)
+        {
+            <div class="d-flex flex-column align-center my-8">
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Fetching processing schemas...</MudText>
+            </div>
+        }
+
+
+
+
+        <EditForm Model="reportModel" OnValidSubmit="HandleValidSubmit">
+            
+            <!-- 1. HEADER SECTION -->
+            @* <MudGrid Spacing="1" Class="align-center border-bottom pb-2 mb-2">
+                <!-- Logo Area -->
+                <MudItem xs="12" sm="3" Class="text-center d-flex flex-column align-center justify-center border-right-sm">
+                    <img src="_content/OIL.Shared/imgs/oil.png" alt="Oil India Logo" style="max-height: 50px; object-fit: contain; margin-bottom: 2px;" onerror="this.style.display='none'" />
+                    <MudText Typo="Typo.caption" Class="fw-bold text-dark lh-1">ऑयल इंडिया</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="fw-black text-dark lh-1" Style="font-family: 'Arial Black', Arial, sans-serif; letter-spacing: 0.5px;">OIL INDIA</MudText>
+                </MudItem>
+                <!-- Title Area -->
+                <MudItem xs="12" sm="9" Class="text-center">
+                    <MudText Typo="Typo.caption" Class="fw-bold text-dark">ऑयल इंडिया लिमिटेड</MudText><br />
+                    <MudText Typo="Typo.caption" Class="fw-bold text-dark">यंत्रीकरण विभाग / INSTRUMENTATION DEPARTMENT</MudText><br />
+                    <MudText Typo="Typo.caption" Class="fw-bold text-dark">दुलियाजान / DULIAJAN / OIL INDIA LIMITED</MudText><br />
+                    <MudText Typo="Typo.caption" Class="fw-bold text-muted mt-1">(केवल आंतरिक उपयोग हेतु / For Internal Use Only)</MudText>
+                </MudItem>
+            </MudGrid> *@
+
+            <!-- 2. REF / DATES ROW -->
+            <MudGrid Spacing="1" Class="mb-2">
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="reportModel.RefNo" Label="Ref No" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="reportModel.Dated" Label="Dated" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="reportModel.PmDate" Label="PM Date" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 3. NOTIFICATION NUMBER ROW -->
+            <MudGrid Spacing="1" Class="mb-2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="reportModel.NotificationNumber" Label="Notification Number" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="reportModel.InstallationName" Label="Installation Name" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- DYNAMIC EQUIPMENT / SECTION SECTIONS LOOP -->
+            @for (int i = 0; i < reportModel.Equipments.Count; i++)
+            {
+                var eqIndex = i;
+                var eq = reportModel.Equipments[eqIndex];
+                var prefixLetter = GetAlphabetLabel(eqIndex);
+                var headerStyle = GetSectionHeaderStyle(eqIndex);
+
+                <MudCard Elevation="1" Class="my-3 rounded" Style="@($"border: 1px solid #333; border-left: 5px solid {headerStyle.DarkerColor};")">
+                    
+                    <!-- EQUIPMENT HEADER -->
+                    <div class="pa-2" style="@($"background-color: {headerStyle.BgColor};")">
+                        <MudGrid Spacing="1" Class="align-center">
+                            @if (eq.IsCompressor)
+                            {
+                                <MudItem xs="12" sm="5">
+                                    <MudTextField @bind-Value="eq.CompSlNo" Label="@($"{prefixLetter} Comp. Sl. No.")" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="5">
+                                    <MudTextField @bind-Value="eq.Make" Label="Make" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                            }
+                            else
+                            {
+                                <MudItem xs="12" sm="10">
+                                    <MudTextField @bind-Value="eq.SectionTitle" Label="@($"{prefixLetter} Section Title")" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                            }
+                            <MudItem xs="12" sm="2" Class="text-end">
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveEquipment(eqIndex)">Remove</MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+
+                    <!-- VISUAL CHECKING POINTS SECTION (FOR COMPRESSOR) -->
+                    <!-- VISUAL CHECKING POINTS SECTION (FOR COMPRESSOR) -->
+                    @if (eq.IsCompressor)
+                    {
+                        <div class="pa-2 border-top border-bottom" style="@($"background-color: {headerStyle.LightBg};")">
+                            <MudText Typo="Typo.caption" Class="fw-bold mb-1">Visual Checking Points</MudText>
+                            <MudGrid Spacing="1">
+                                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                                    <MudCheckBox T="bool" @bind-Value="eq.Check1Passed" Dense="true" Size="Size.Small" Label="1]" />
+                                    <MudTextField @bind-Value="eq.Check1Text" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="flex-grow-1 ml-1" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                                    <MudCheckBox T="bool" @bind-Value="eq.Check2Passed" Dense="true" Size="Size.Small" Label="2]" />
+                                    <MudTextField @bind-Value="eq.Check2Text" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="flex-grow-1 ml-1" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                                    <MudCheckBox T="bool" @bind-Value="eq.Check3Passed" Dense="true" Size="Size.Small" Label="3]" />
+                                    <MudTextField @bind-Value="eq.Check3Text" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="flex-grow-1 ml-1" />
+                                </MudItem>
+                            </MudGrid>
+                        </div>
+                    }
+
+                    <!-- JOB ITEMS MOBILE-RESPONSIVE CARDS -->
+                    <div class="pa-2">
+                        <MudText Typo="Typo.caption" Class="fw-bold text-dark mb-1">Job Done & Calibration Details</MudText>
+                        
+                        @for (int j = 0; j < eq.JobItems.Count; j++)
+                        {
+                            var jobIndex = j;
+                            var job = eq.JobItems[jobIndex];
+                            <MudCard Elevation="0" Class="pa-2 mb-2" Style="border: 1px dashed #adb5bd; background-color: #f8f9fa;">
+                                <MudGrid Spacing="1" Class="align-center">
+                                    <MudItem xs="6" sm="3">
+                                        <MudAutocomplete T="string" @bind-Value="job.Unit" Label="Unit" SearchFunc="SearchUnit" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="6" sm="3">
+                                        <MudAutocomplete T="string" @bind-Value="job.Instrument" Label="Instrument" SearchFunc="SearchInstrument" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="6" sm="3">
+                                        <MudAutocomplete T="string" @bind-Value="job.MakeModel" Label="Make & Model" SearchFunc="SearchMakeModel" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="6" sm="3">
+                                        <MudAutocomplete T="string" @bind-Value="job.Range" Label="Range" SearchFunc="SearchRange" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <MudAutocomplete T="string" @bind-Value="job.Action" Label="Servicing / Action" SearchFunc="SearchAction" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="6" sm="3">
+                                        <MudAutocomplete T="string" @bind-Value="job.CertNo" Label="Cert No." SearchFunc="SearchCertNo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="6" sm="4">
+                                        <MudAutocomplete T="string" @bind-Value="job.Remarks" Label="Remarks" SearchFunc="SearchRemarks" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" ResetValueOnEmptyText="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="1" Class="text-center">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => eq.JobItems.RemoveAt(jobIndex)" Title="Delete Row" />
+                                    </MudItem>
+
+                                    <!-- NEW: Certificate Button & Delete Button Container -->
+                                    <MudItem xs="12" sm="2" Class="d-flex justify-center align-center">
+                                        <MudIconButton Icon="@(job.IsCertificateCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Assignment)"
+                                                       Color="@(job.IsCertificateCompleted ? Color.Success : Color.Primary)"
+                                                       Size="Size.Small"
+                                                       OnClick="() => OpenCertificateDialog(job)"
+                                                       Title="Fill PM Certificate Values"
+                                                       Class="mr-1" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => eq.JobItems.RemoveAt(jobIndex)" Title="Delete Row" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCard>
+                        }
+
+                        <div class="text-right mt-1">
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AddJobRow(eq)">Add Job Row</MudButton>
+                        </div>
+                    </div>
+
+                    <!-- FOOTER SECTIONS (Safety Interlocks, Hooter, Spares) -->
+                    @if (eq.IsCompressor)
+                    {
+                        <div class="pa-2 border-top bg-light">
+                            <MudGrid Spacing="1">
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="eq.SafetyInterlocks" Label="Safety Interlocks" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="eq.Hooter" Label="Hooter" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="eq.SparesConsumed" Label="Spares Consumed" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </div>
+                    }
+
+                </MudCard>
+            }
+
+            <!-- ADD NEW ITEM BUTTON BAR -->
+            <div class="pa-2 my-2 text-center">
+                <MudGrid Spacing="1" Justify="Justify.Center">
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.AddCircle" FullWidth="true" OnClick="AddCompressorEquipment">Add Compressor Unit</MudButton>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.AddBox" FullWidth="true" OnClick="AddInstrumentSection">Add Instrument/Vessel Section</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </div>
+
+            <!-- GENERAL REMARKS & SIGNATURES SECTION -->
+            <MudCard Elevation="0" Class="pa-2 mt-3" Style="border-top: 1px solid #333;">
+                <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark mb-1">REMARKS:</MudText>
+                <MudTextField @bind-Value="reportModel.Remark1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="mb-1" />
+                <MudTextField @bind-Value="reportModel.Remark2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="mb-2" />
+
+                <MudGrid Spacing="2" Class="mt-2 text-center pt-2 border-top">
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.caption" Class="text-muted mb-1">Report prepared by</MudText>
+                        <MudTextField @bind-Value="reportModel.PreparedBy" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="mb-1" />
+                        <MudTextField @bind-Value="reportModel.PreparedByDesignation" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.caption" Class="text-muted mb-1">Job supervised by</MudText>
+                        <MudTextField @bind-Value="reportModel.SupervisedBy" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="mb-1" />
+                        <MudTextField @bind-Value="reportModel.SupervisedByDesignation" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.caption" Class="text-muted mb-1">Report verified by</MudText>
+                        <MudTextField @bind-Value="reportModel.VerifiedBy" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" Class="mb-1" />
+                        <MudTextField @bind-Value="reportModel.VerifiedByDesignation" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+            </MudCard>
+
+            <!-- ACTION SUBMIT BAR -->
+            <div class="mt-3 text-center">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.CheckCircle">
+                    Save PM Report Entry
+                </MudButton>
+            </div>
+
+        </EditForm>
+    </MudCard>
+</MudContainer>
+
+
+
+
+@code {
+
+
+    private async Task OpenCertificateDialog(JobItemModel job)
+    {
+        // Fix: Use the standard string-based dictionary syntax
+        var parameters = new DialogParameters
+    {
+        { "JobItem", job }
+    };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+        // Ensure the spelling here exactly matches your dialog file name
+        var dialog = await DialogService.ShowAsync<PmCertificateDialog>($"PM Certificate Values - [{job.TagNumber} ({job.Instrument})]", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is bool completed && completed)
+        {
+            job.IsCertificateCompleted = true;
+            StateHasChanged();
+        }
+    }
+
+    private bool IsPressureInstrument(string type)
+    {
+        if (string.IsNullOrEmpty(type)) return false;
+        return type.Contains("PRESSURE", StringComparison.OrdinalIgnoreCase) || 
+               type.Contains("PG", StringComparison.OrdinalIgnoreCase) || 
+               type.Contains("PT", StringComparison.OrdinalIgnoreCase) || 
+               type.Contains("PC", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SaveAndComplete()
+    {
+        // JobItem.CertificateValuesJson = JsonSerializer.Serialize(testValues);
+        // MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    // private void Cancel() => MudDialog.();
+
+
+    public class CertificateTestValuesModel
+    {
+        public string Input0Percent { get; set; } = "0%";
+        public string Output0PercentAsFound { get; set; } = string.Empty;
+        public string Output0PercentAsLeft { get; set; } = string.Empty;
+
+        public string Input50Percent { get; set; } = "50%";
+        public string Output50PercentAsFound { get; set; } = string.Empty;
+        public string Output50PercentAsLeft { get; set; } = string.Empty;
+
+        public string Input100Percent { get; set; } = "100%";
+        public string Output100PercentAsFound { get; set; } = string.Empty;
+        public string Output100PercentAsLeft { get; set; } = string.Empty;
+
+        public string GeneralAsFoundCondition { get; set; } = string.Empty;
+        public string GeneralActionTaken { get; set; } = string.Empty;
+        public string GeneralTestResult { get; set; } = "Satisfactory";
+        public string CalibrationStandardUsed { get; set; } = string.Empty;
+    }
+
+
+    [Supabase.Postgrest.Attributes.Table("jobs")]
+    public class Job : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public Guid Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_name")] public string JobName { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("status")] public string Status { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_type")] public string JobType { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("job_spare_replaced")] public string SparesConsumed { get; set; } = "";
+    }
+
+    [Supabase.Postgrest.Attributes.Table("locations")]
+    public class Location : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public int Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_type")] public string? InstallationType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_name")] public string? InstallationName { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pid_markers")]
+    public class PidMarker : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.Column("tag_number")] public string? TagNumber { get; set; }
+        [Supabase.Postgrest.Attributes.Column("device_location")] public string? DeviceLocation { get; set; }
+        [Supabase.Postgrest.Attributes.Column("instrument_type")] public string? InstrumentType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("make_model_type")] public string? MakeModelType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("range")] public string? Range { get; set; }
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+
+        
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_reports")]
+    public class PmReport : Supabase.Postgrest.Models.BaseModel
+    {
+        [PrimaryKey("id", shouldInsert: false)] public int? Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_id")] public Guid JobId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("technician_email")] public string TechnicianEmail { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("section_a_controllers")] public string SectionAJson { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("work_permit")] public string WorkPermit { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("remarks")] public string Remarks { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("section_d_spares")] public string SparesConsumed { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("approx_total_cost")] public decimal? ApproxTotalCost { get; set; } = 0;
+        [Supabase.Postgrest.Attributes.Column("pm_dates")] public string? MultiSelectionPmDates { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Job_Carried_By")] public List<string>? JobCarriedByEmpCodes { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Report_Prepared_By")] public string? ReportPreparedBy { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Report_Supervised_By")] public string? ReportSupervisedBy { get; set; }
+        [Supabase.Postgrest.Attributes.Column("Report_Verified_By")] public string? ReportVerifiedBy { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_calibration_details")]
+    public class CalibrationDetail : Supabase.Postgrest.Models.BaseModel
+    {
+        [PrimaryKey("id", shouldInsert: false)] public int? Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("pm_report_id")] public int? PmReportId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_id")] public Guid JobId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("cert_no")] public string CertNo { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("installation")] public string Installation { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("instrument_type")] public string InstrumentType { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("model")] public string? Model { get; set; }
+        [Supabase.Postgrest.Attributes.Column("manual_model")] public string? ManualModel { get; set; }
+        [Supabase.Postgrest.Attributes.Column("unit_id")] public string? UnitId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("manual_unit")] public string? ManualUnit { get; set; }
+        [Supabase.Postgrest.Attributes.Column("instrument_range")] public string Range { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("master_calibrator")] public string MasterCalibrator { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("calibration_data")] public string CalibrationDataJson { get; set; } = "[]";
+        [Supabase.Postgrest.Attributes.Column("performed_by_name")] public string PerformedBy { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("witnessed_by_name")] public string WitnessedBy { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("performed_by_desig")] public string PerformedByDesignation { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("witnessed_by_desig")] public string WitnessedByDesignation { get; set; } = "";
+    }
+    [Table("employees_engineers")]
+    public class EmployeeEngineer : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string Email { get; set; } = "";
+        [Column("emp_code")] public string EmpCode { get; set; } = "";
+        [Column("designation")] public string Designation { get; set; } = "";
+        [Column("grade")] public string Grade { get; set; } = "";
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("gender")] public string Gender { get; set; } = "";
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("department")] public string Department { get; set; } = "";
+        [Column("section")] public string Section { get; set; } = "";
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+    }
+
+    [Table("employees_executives")]
+    public class EmployeeExecutive : BaseModel
+    {
+        [PrimaryKey("id")] public long Id { get; set; }
+        [Column("reports_to_id")] public long? ReportsToId { get; set; }
+        [Column("email")] public string Email { get; set; } = "";
+        [Column("designation")] public string Designation { get; set; } = "";
+        [Column("full_name")] public string FullName { get; set; } = "";
+        [Column("created_at")] public DateTime? CreatedAt { get; set; }
+        [Column("mobile")] public long? Mobile { get; set; }
+        [Column("Department")] public string Department { get; set; } = "";
+        [Column("annual_cost")] public long? AnnualCost { get; set; }
+        [Column("isLocalAdmin")] public bool? IsLocalAdmin { get; set; }
+        [Column("team_group")] public int? TeamGroup { get; set; }
+    }
+    [Supabase.Postgrest.Attributes.Table("pm_new_reports_gcs")]
+    public class ReportEntity : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id", false)] public long id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("ref_no")] public string ref_no { get; set; }
+        [Supabase.Postgrest.Attributes.Column("dated")] public string dated { get; set; }
+        [Supabase.Postgrest.Attributes.Column("pm_date")] public string pm_date { get; set; }
+        [Supabase.Postgrest.Attributes.Column("notification_number")] public string notification_number { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_name")] public string installation_name { get; set; }
+        [Supabase.Postgrest.Attributes.Column("remark1")] public string remark1 { get; set; }
+        [Supabase.Postgrest.Attributes.Column("remark2")] public string remark2 { get; set; }
+        [Supabase.Postgrest.Attributes.Column("prepared_by")] public string prepared_by { get; set; }
+        [Supabase.Postgrest.Attributes.Column("prepared_by_designation")] public string prepared_by_designation { get; set; }
+        [Supabase.Postgrest.Attributes.Column("supervised_by")] public string supervised_by { get; set; }
+        [Supabase.Postgrest.Attributes.Column("supervised_by_designation")] public string supervised_by_designation { get; set; }
+        [Supabase.Postgrest.Attributes.Column("verified_by")] public string verified_by { get; set; }
+        [Supabase.Postgrest.Attributes.Column("verified_by_designation")] public string verified_by_designation { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_new_equipments_gcs")]
+    public class EquipmentEntity : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id", false)] public long id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("report_id")] public long report_id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("sort_order")] public int sort_order { get; set; }
+        [Supabase.Postgrest.Attributes.Column("is_compressor")] public bool is_compressor { get; set; }
+        [Supabase.Postgrest.Attributes.Column("comp_sl_no")] public string comp_sl_no { get; set; }
+        [Supabase.Postgrest.Attributes.Column("make")] public string make { get; set; }
+        [Supabase.Postgrest.Attributes.Column("section_title")] public string section_title { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check1_passed")] public bool check1_passed { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check1_text")] public string check1_text { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check2_passed")] public bool check2_passed { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check2_text")] public string check2_text { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check3_passed")] public bool check3_passed { get; set; }
+        [Supabase.Postgrest.Attributes.Column("check3_text")] public string check3_text { get; set; }
+        [Supabase.Postgrest.Attributes.Column("safety_interlocks")] public string safety_interlocks { get; set; }
+        [Supabase.Postgrest.Attributes.Column("hooter")] public string hooter { get; set; }
+        [Supabase.Postgrest.Attributes.Column("spares_consumed")] public string spares_consumed { get; set; }
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_new_job_items_gcs")]
+    public class JobItemEntity : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id", false)] public long id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("equipment_id")] public long equipment_id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("sort_order")] public int sort_order { get; set; }
+        [Supabase.Postgrest.Attributes.Column("tag_number")] public string tag_number { get; set; }
+        [Supabase.Postgrest.Attributes.Column("instrument_type")] public string instrument_type { get; set; }
+        [Supabase.Postgrest.Attributes.Column("make_model_type")] public string make_model_type { get; set; }
+        [Supabase.Postgrest.Attributes.Column("range")] public string range { get; set; }
+        [Supabase.Postgrest.Attributes.Column("device_location")] public string device_location { get; set; }
+        [Supabase.Postgrest.Attributes.Column("action")] public string action { get; set; }
+        [Supabase.Postgrest.Attributes.Column("cert_no")] public string cert_no { get; set; }
+        [Supabase.Postgrest.Attributes.Column("remarks")] public string remarks { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("is_certificate_completed")] public bool is_certificate_completed { get; set; }
+        [Supabase.Postgrest.Attributes.Column("certificate_values_json")] public string certificate_values_json { get; set; }
+    }
+
+    public class EquipmentModel
+    {
+        public bool IsCompressor { get; set; }
+        public string CompSlNo { get; set; } = string.Empty;
+        public string Make { get; set; } = string.Empty;
+        public string SectionTitle { get; set; } = string.Empty;
+        public bool Check1Passed { get; set; }
+        public string Check1Text { get; set; } = string.Empty;
+        public bool Check2Passed { get; set; }
+        public string Check2Text { get; set; } = string.Empty;
+        public bool Check3Passed { get; set; }
+        public string Check3Text { get; set; } = string.Empty;
+        public List<JobItemModel> JobItems { get; set; } = new();
+        public string SafetyInterlocks { get; set; } = string.Empty;
+        public string Hooter { get; set; } = string.Empty;
+        public string SparesConsumed { get; set; } = string.Empty;
+    }
+
+    public class JobItemModel
+    {
+        public string Unit { get; set; } = string.Empty;
+        public string Instrument { get; set; } = string.Empty;
+        public string MakeModel { get; set; } = string.Empty;
+        public string Range { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public string CertNo { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public string TagNumber { get; set; } = string.Empty;
+        //public string InstrumentType { get; set; } = string.Empty;
+        public string DeviceLocation { get; set; } = string.Empty;
+
+        // Add these properties
+        public bool IsCertificateCompleted { get; set; } = false;
+        public string CertificateValuesJson { get; set; } = string.Empty;
+        
+    }
+
+    private IReadOnlyCollection<string> _selectedCarriedBy { get; set; } = new List<string>();
+    private string? _preparedBy;
+    private string? _supervisedBy;
+    private string? _verifiedBy;
+    private string? _performedByDesignation;
+    private string? _witnessedByDesignation;
+    private string _sparesConsumed = "";
+    private decimal? _approxTotalCost;
+    private int? _overtimeHours;
+    private int? _overtimeMinutes;
+
+    private List<EmployeeEngineer> _employees = new();
+    private List<EmployeeExecutive> _executives = new();
+
+    private List<PidMarker> _allMarkers = new();
+    private List<string> _uniqueUnits = new();
+    private List<Job> _pendingJobs = new();
+    private Job? _selectedJob;
+    private string? _detectedType;
+    private bool _isSearching = false, _isCalibrationVisible = false;
+    private string _workPermit = "", _assignedTo = "";
+    private int currentPMlocationID;
+    private string currentPMlocation = "";
+
+    // private GcsReportData _gcsData = new();
+    // private List<OcsInstrumentRow> _ocsRows = new();
+    // private List<GcsInstrumentRow> _gcsRows = new();
+    private List<string> _masterCalibratorList = new List<string> { "Fluke1", "Fluke2", "Fluke3" };
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var authState = await AuthStateTask;
+                var user = authState.User;
+                if (user.Identity?.IsAuthenticated == true)
+                {
+                    _email = user.GetEmail();
+                    _fullName = user.GetFullName();
+                    _designation = user.GetDesignation();
+                }
+            }
+
+            var jobRes = await SupabaseClient.From<Job>().Where(x => x.Status == "pending" || x.Status == "assigned").Where(x => x.JobType == "preventive").Get();
+            _pendingJobs = jobRes.Models;
+
+            var response = await SupabaseClient.From<EmployeeEngineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get();
+            _employees = response.Models;
+
+            var executiveResponse = await SupabaseClient.From<EmployeeExecutive>().Where(x => x.Department == "FIELD MAINTENANCE").Get();
+            _executives = executiveResponse.Models;
+
+            _assignedTo = _fullName;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            return;
+        }
+    }
+
+    // Dedicated search function delegates to completely avoid escaped quote errors in HTML markup
+    private Task<IEnumerable<string>> SearchUnit(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "Unit", token);
+    private Task<IEnumerable<string>> SearchInstrument(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "Instrument", token);
+    private Task<IEnumerable<string>> SearchMakeModel(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "MakeModel", token);
+    private Task<IEnumerable<string>> SearchRange(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "Range", token);
+    private Task<IEnumerable<string>> SearchAction(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "Action", token);
+    private Task<IEnumerable<string>> SearchCertNo(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "CertNo", token);
+    private Task<IEnumerable<string>> SearchRemarks(string val, CancellationToken token) => SearchDbItems(val, reportModel.InstallationName, "Remarks", token);
+
+    private async Task<IEnumerable<string>> SearchDbItems(string searchText, string location, string fieldType, CancellationToken cancellationToken)
+    {
+        await Task.Delay(50, cancellationToken);
+
+        // var dbResults = GetMockItemsForLocation(location, fieldType);
+
+        // if (string.IsNullOrWhiteSpace(searchText))
+        //     return dbResults;
+
+        // return dbResults.Where(x => x.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+        return null;
+    }
+
+    private async Task OnJobChanged(Job job)
+    {
+        _isSearching = false;
+        try
+        {
+            if (job == null) return;
+            _selectedJob = job;
+            _isSearching = true;
+
+            var locRes = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId).Single();
+            currentPMlocation = locRes!.InstallationName ?? "";
+            currentPMlocationID = job.LocationId;
+            _detectedType = locRes?.InstallationType?.ToUpper() == "GCS" ? "GCS" : "OCS";
+
+            var markers = await SupabaseClient.From<PidMarker>().Where(x => x.LocationId == job.LocationId).Get();
+            _allMarkers = markers.Models;
+            _uniqueUnits = _allMarkers.Select(m => m.DeviceLocation ?? "").Distinct().OrderBy(x => x).ToList()!;
+
+            // if (_detectedType == "GCS") InitializeGcs(markers.Models);
+            // else InitializeOcs(markers.Models);```
+
+            _isSearching = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            return;
+        }
+    }
+
+    private PmReportModel reportModel = new();
+
+   
+
+    private string GetAlphabetLabel(int index)
+    {
+        if (index >= 0 && index < 26)
+        {
+            return ((char)('A' + index)).ToString() + "]";
+        }
+        return "Z]";
+    }
+
+    private SectionColorStyle GetSectionHeaderStyle(int index)
+    {
+        var palette = new List<SectionColorStyle>
+        {
+            new() { BgColor = "#cfe2ff", DarkerColor = "#0d6efd", LightBg = "#f8f9fa" },
+            new() { BgColor = "#e0cffc", DarkerColor = "#6610f2", LightBg = "#f8f9fa" },
+            new() { BgColor = "#e8daff", DarkerColor = "#6f42c1", LightBg = "#f8f9fa" },
+            new() { BgColor = "#f8d7da", DarkerColor = "#d63384", LightBg = "#f8f9fa" },
+            new() { BgColor = "#ffe5d0", DarkerColor = "#fd7e14", LightBg = "#f8f9fa" },
+            new() { BgColor = "#d1e7dd", DarkerColor = "#198754", LightBg = "#f8f9fa" },
+            new() { BgColor = "#d2f4ea", DarkerColor = "#20c997", LightBg = "#f8f9fa" },
+            new() { BgColor = "#cff4fc", DarkerColor = "#0dcaf0", LightBg = "#f8f9fa" },
+            new() { BgColor = "#fff3cd", DarkerColor = "#ffc107", LightBg = "#f8f9fa" },
+            new() { BgColor = "#f8d7da", DarkerColor = "#dc3545", LightBg = "#f8f9fa" },
+            new() { BgColor = "#e2e3e5", DarkerColor = "#495057", LightBg = "#f8f9fa" }
+        };
+
+        return palette[index % palette.Count];
+    }
+
+    private void AddCompressorEquipment()
+    {
+        reportModel.Equipments.Add(new EquipmentModel
+        {
+            IsCompressor = true,
+            CompSlNo = "NEW-UNIT",
+            Make = "ATLAS COPCO",
+            Check1Passed = true,
+            Check1Text = "Checked all tripping parameters and their settings.",
+            Check2Passed = true,
+            Check2Text = "Panel inside tubing checked and found ok.",
+            Check3Passed = true,
+            Check3Text = "Air Filter Regulators draining and servicing done.",
+            JobItems = new()
+            {
+                new() { Unit = "Suction pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/300", Remarks = "Calibration carried out using hand held pressure calibrator." }
+            },
+            SafetyInterlocks = "Checked and found ok.",
+            Hooter = "Working properly.",
+            SparesConsumed = "NIL"
+        });
+    }
+
+    private void AddInstrumentSection()
+    {
+        reportModel.Equipments.Add(new EquipmentModel
+        {
+            IsCompressor = false,
+            SectionTitle = "NEW INSTRUMENT / VESSEL",
+            JobItems = new()
+            {
+                new() { Unit = "Unit Name", Instrument = "Pressure gauge", MakeModel = "Mass", Range = "0-10kg/cm2", Action = "Calibration", CertNo = "INST/PG/000", Remarks = "Calibration carried out using hand held pressure calibrator." }
+            }
+        });
+    }
+
+    private void RemoveEquipment(int index)
+    {
+        if (reportModel.Equipments.Count > 1)
+        {
+            reportModel.Equipments.RemoveAt(index);
+        }
+    }
+
+    private void AddJobRow(EquipmentModel eq)
+    {
+        eq.JobItems.Add(new JobItemModel
+        {
+            Unit = "New Unit",
+            Instrument = "Pressure gauge",
+            MakeModel = "RB",
+            Range = "0-100PSI",
+            Action = "Calibration",
+            CertNo = "INST/PG/000",
+            Remarks = "Calibration carried out using hand held pressure calibrator."
+        });
+    }
+
+    public class SectionColorStyle
+    {
+        public string BgColor { get; set; } = "#0d6efd";
+        public string DarkerColor { get; set; } = "#0a58ca";
+        public string LightBg { get; set; } = "#f8f9fa";
+    }
+
+    public class PmReportModel
+    {
+        public string RefNo { get; set; } = string.Empty;
+        public string Dated { get; set; } = "30/07/2026";
+        public string PmDate { get; set; } = "28/07/2026,29/07/2026";
+        public string NotificationNumber { get; set; } = string.Empty;
+        public string InstallationName { get; set; } = "GCS-LANGKASHI";
+        public string Remark1 { get; set; } = string.Empty;
+        public string Remark2 { get; set; } = string.Empty;
+        public string PreparedBy { get; set; } = string.Empty;
+        public string PreparedByDesignation { get; set; } = string.Empty;
+        public string SupervisedBy { get; set; } = string.Empty;
+        public string SupervisedByDesignation { get; set; } = string.Empty;
+        public string VerifiedBy { get; set; } = string.Empty;
+        public string VerifiedByDesignation { get; set; } = string.Empty;
+
+        public List<EquipmentModel> Equipments { get; set; } = new()
+        {
+            new EquipmentModel
+            {
+                IsCompressor = true,
+                CompSlNo = "LPB-1",
+                Make = "ATLAS COPCO",
+                Check1Passed = true, Check1Text = "Checked all tripping parameters and their settings.",
+                Check2Passed = true, Check2Text = "Panel inside tubing checked and found ok.",
+                Check3Passed = true, Check3Text = "Air Filter Regulators draining and servicing done.",
+                JobItems = new()
+                {
+                    new() { Unit = "Suction pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/347", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Compressor oil", Instrument = "Pressure gauge", MakeModel = "Budenberg", Range = "0-10kg/cm2", Action = "Calibration", CertNo = "INST/PG/348", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Engine oil", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/349", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Discharge pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-600PSI", Action = "Calibration", CertNo = "INST/PG/350", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Interstage pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/351", Remarks = "Calibration carried out using hand held pressure calibrator." }
+                },
+                SafetyInterlocks = "Checked and found ok.",
+                Hooter = "Working properly.",
+                SparesConsumed = "NIL"
+            },
+            new EquipmentModel
+            {
+                IsCompressor = true,
+                CompSlNo = "LPB-3",
+                Make = "ATLAS COPCO",
+                Check1Passed = true, Check1Text = "Checked all tripping parameters and their settings.",
+                Check2Passed = true, Check2Text = "Panel inside tubing checked and found ok.",
+                Check3Passed = true, Check3Text = "Air Filter Regulators draining and servicing done.",
+                JobItems = new()
+                {
+                    new() { Unit = "Engine oil", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/352", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Suction pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/353", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Discharge pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-600PSI", Action = "Calibration", CertNo = "INST/PG/354", Remarks = "Calibration carried out using hand held pressure calibrator." },
+                    new() { Unit = "Supply pressure", Instrument = "Pressure gauge", MakeModel = "RB", Range = "0-100PSI", Action = "Calibration", CertNo = "INST/PG/355", Remarks = "Calibration carried out using hand held pressure calibrator." }
+                },
+                SafetyInterlocks = "Checked and found ok.",
+                Hooter = "Working properly.",
+                SparesConsumed = "NIL"
+            }
+        };
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // 1. Insert Report Header into pm_new_reports_gcs
+            var reportEntity = new ReportEntity
+            {
+                ref_no = reportModel.RefNo,
+                dated = reportModel.Dated,
+                pm_date = reportModel.PmDate,
+                notification_number = reportModel.NotificationNumber,
+                installation_name = reportModel.InstallationName,
+                remark1 = reportModel.Remark1,
+                remark2 = reportModel.Remark2,
+                prepared_by = reportModel.PreparedBy,
+                prepared_by_designation = reportModel.PreparedByDesignation,
+                supervised_by = reportModel.SupervisedBy,
+                supervised_by_designation = reportModel.SupervisedByDesignation,
+                verified_by = reportModel.VerifiedBy,
+                verified_by_designation = reportModel.VerifiedByDesignation
+            };
+
+            var reportResponse = await SupabaseClient.From<ReportEntity>().Insert(reportEntity);
+            var insertedReport = reportResponse.Models.FirstOrDefault();
+
+            if (insertedReport == null)
+            {
+                Snackbar.Add("Failed to save report header.", Severity.Error);
+                return;
+            }
+
+            // 2. Insert Equipments and Job Items sequentially with sort_order
+            for (int i = 0; i < reportModel.Equipments.Count; i++)
+            {
+                var eq = reportModel.Equipments[i];
+                var equipmentEntity = new EquipmentEntity
+                {
+                    report_id = insertedReport.id,
+                    sort_order = i,
+                    is_compressor = eq.IsCompressor,
+                    comp_sl_no = eq.CompSlNo,
+                    make = eq.Make,
+                    section_title = eq.SectionTitle,
+                    check1_passed = eq.Check1Passed,
+                    check1_text = eq.Check1Text,
+                    check2_passed = eq.Check2Passed,
+                    check2_text = eq.Check2Text,
+                    check3_passed = eq.Check3Passed,
+                    check3_text = eq.Check3Text,
+                    safety_interlocks = eq.SafetyInterlocks,
+                    hooter = eq.Hooter,
+                    spares_consumed = eq.SparesConsumed
+                };
+
+                var eqResponse = await SupabaseClient.From<EquipmentEntity>().Insert(equipmentEntity);
+                var insertedEq = eqResponse.Models.FirstOrDefault();
+
+                if (insertedEq != null && eq.JobItems != null)
+                {
+                    for (int j = 0; j < eq.JobItems.Count; j++)
+                    {
+                        var job = eq.JobItems[j];
+                        var jobEntity = new JobItemEntity
+                        {
+                            equipment_id = insertedEq.id,
+                            sort_order = j,
+                            tag_number = job.TagNumber,
+                            instrument_type = job.Instrument,
+                            make_model_type = job.MakeModel,
+                            range = job.Range,
+                            device_location = job.DeviceLocation,
+                            action = job.Action,
+                            cert_no = job.CertNo,
+                            remarks = job.Remarks
+                        };
+
+                        await SupabaseClient.From<JobItemEntity>().Insert(jobEntity);
+                    }
+                }
+            }
+
+            Snackbar.Add("PM Report saved successfully in sorted form!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving report: {ex.Message}", Severity.Error);
+        }
+    }
+
+    
+}
