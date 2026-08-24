@@ -52,7 +52,7 @@
                         rowlen: {
                             0: 35, 1: 30, 2: 30, 3: 30, 4: 30, 5: 30, 6: 35, 7: 35
                         },
-                        // Optimized column widths strictly fitted to A4 portrait width (~725px total)
+                        // Strict A4 portrait width optimization (~725px total)
                         columnlen: {
                             0: 10,
                             1: 115, // Logo / Section Column
@@ -107,7 +107,7 @@
     }
 }
 
-// Merge-aware row auto-fit function
+// Robust auto-fit and text-wrap enforcer for all rows and cells
 function autoFitRow(r) {
     try {
         const file = luckysheet.flowdata();
@@ -121,28 +121,33 @@ function autoFitRow(r) {
 
         for (let c = 0; c < file[r].length; c++) {
             const cell = file[r][c];
-            if (cell && cell.v !== null && cell.v !== undefined && cell.v !== "") {
-                const text = cell.v.toString();
+            if (cell) {
+                // Force text wrapping (tb: 2) on every cell so text never gets hidden
+                cell.tb = 2;
 
-                // Calculate width accounting for merged column spans (cs)
-                let cellWidth = colWidths[c] || 85;
-                const mergeKey = `${r}_${c}`;
-                if (merges[mergeKey]) {
-                    const cs = merges[mergeKey].cs || 1;
-                    cellWidth = 0;
-                    for (let i = 0; i < cs; i++) {
-                        cellWidth += (colWidths[c + i] || 85);
+                if (cell.v !== null && cell.v !== undefined && cell.v !== "") {
+                    const text = cell.v.toString();
+
+                    // Calculate width accounting for merged column spans (cs)
+                    let cellWidth = colWidths[c] || 85;
+                    const mergeKey = `${r}_${c}`;
+                    if (merges[mergeKey]) {
+                        const cs = merges[mergeKey].cs || 1;
+                        cellWidth = 0;
+                        for (let i = 0; i < cs; i++) {
+                            cellWidth += (colWidths[c + i] || 85);
+                        }
                     }
+
+                    // ~6 characters per line estimation for font size 11
+                    const maxCharsPerLine = Math.max(8, Math.floor(cellWidth / 6.0));
+
+                    let lines = 0;
+                    text.split('\n').forEach(line => {
+                        lines += Math.max(1, Math.ceil(line.length / maxCharsPerLine));
+                    });
+                    if (lines > maxLines) maxLines = lines;
                 }
-
-                // ~6 characters per line estimation for font size 11
-                const maxCharsPerLine = Math.max(10, Math.floor(cellWidth / 6.0));
-
-                let lines = 0;
-                text.split('\n').forEach(line => {
-                    lines += Math.max(1, Math.ceil(line.length / maxCharsPerLine));
-                });
-                if (lines > maxLines) maxLines = lines;
             }
         }
 
@@ -215,7 +220,7 @@ export function triggerPrint() {
             totalHeight += (rowlen[i] !== undefined ? rowlen[i] : 26);
         }
 
-        container.style.height = (totalHeight + 200) + 'px';
+        container.style.height = (totalHeight + 150) + 'px';
         try {
             luckysheet.resize();
         } catch (e) { }
