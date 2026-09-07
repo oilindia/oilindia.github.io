@@ -1,4 +1,4 @@
-﻿@page "/coststatic"
+@page "/coststatic"
 @using Supabase.Postgrest.Attributes
 @using Supabase.Postgrest.Models
 
@@ -243,7 +243,7 @@
     private DateTime? _startDate = DateTime.Today.AddMonths(-1);
     private DateTime? _endDate = DateTime.Today;
     private const double HourlyOvertimeRate = 750.00;
-    private const double VehicleMileageKmPerLiter = 8.0;
+    private const double VehicleMileageKmPerLiter = 8.0; // Set your fleet's standard mileage here
 
     public double TotalCalculatedCost { get; set; }
     public double TotalOvertimeHours { get; set; }
@@ -255,6 +255,7 @@
     public double TotalTravelCost { get; set; }
 
     public List<AssignmentGridRow> GridRows { get; set; } = new();
+
     public List<EngineerOtRow> EmployeeOtRows { get; set; } = new();
 
     public class EngineerOtRow
@@ -266,182 +267,183 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDashboardDataAsync();
+        await RefreshDashboardAsync();
+
+        await GetOTGridData();
     }
+
+    // private async Task GetOTGridData()
+    // {
+    //     try
+    //     {
+    //         var start = (_startDate ?? DateTime.Today.AddMonths(-4)).Date;
+    //         var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+    //         var assignmentResponse = await SupabaseClient.From<JobAssignmentModel>()
+    //                 .Select("*").Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+    //                 .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd")).Get();
+    //         var assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
+
+
+    //         var fourMonthsAgo = DateTime.Today.AddMonths(-4);
+    //         var filteredAssignments = assignments.Where(a => a.CreatedAt >= fourMonthsAgo).ToList();
+
+    //         var otLookup = new Dictionary<long, double>();
+
+    //         foreach (var assignment in filteredAssignments)
+    //         {
+    //             double ot = assignment.JobOvertime ?? 0;
+    //             if (ot > 0 && assignment.PersonnelIds != null)
+    //             {
+    //                 foreach (var pIdStr in assignment.PersonnelIds)
+    //                 {
+    //                     if (long.TryParse(pIdStr, out long empId))
+    //                     {
+    //                         if (!otLookup.ContainsKey(empId)) otLookup[empId] = 0;
+    //                         otLookup[empId] += ot;
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
+    //         var employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
+
+    //         EmployeeOtRows = employees
+    //             .Where(e => otLookup.ContainsKey(e.Id))
+    //             .Select(e => new EngineerOtRow
+    //             {
+    //                 FullName = e.FullName ?? "N/A",
+    //                 EmpCode = e.EmpCode,
+    //                 TotalOtHours = otLookup[e.Id]
+    //             })
+    //             .OrderByDescending(x => x.TotalOtHours)
+    //             .ToList();
+
+    //         StateHasChanged(); // Refresh UI
+
+    //     }
+    //     catch(Exception ex)
+    //     {
+    //         Console.WriteLine($"Method Error: {ex.Message}");
+    //         Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+    //     }
+    // }
+
 
     private async Task RefreshDashboardAsync()
     {
-        await LoadDashboardDataAsync();
-    }
+        
 
-    private async Task LoadDashboardDataAsync()
-    {
+
         _loading = true;
         StateHasChanged();
 
+        TotalCalculatedCost = 0; TotalOvertimeHours = 0; TotalPmReportsMatched = 0; TotalAssignmentsProcessed = 0;
+        TotalOvertimeCost = 0; TotalSparesCost = 0; TotalEmployeeCost = 0; TotalTravelCost = 0;
+        GridRows.Clear();
+
+        List<JobAssignmentModel> assignments = new();
+        List<PmReportModel> pmReports = new();
+        List<JobModel> jobs = new();
+        List<EmployeeEngineerModel> employees = new();
+        List<Location> locations = new();
+        List<DieselPriceModel> dieselPrices = new();
+
+        var start = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
+        var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
         try
         {
-            var dashStart = (_startDate ?? DateTime.Today.AddMonths(-1)).Date;
-            var dashEnd = (_endDate ?? DateTime.Today).Date.AddDays(1);
-            var otFourMonthsAgo = DateTime.Today.AddMonths(-4).Date;
+            var assignmentResponse = await SupabaseClient.From<JobAssignmentModel>()
+                .Select("*").Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd")).Get();
+            assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
 
-            // Fetch from the earliest start date to cover both Dashboard and OT Grid in a single DB pass
-            var minStart = dashStart < otFourMonthsAgo ? dashStart : otFourMonthsAgo;
 
-            // 1. Parallel DB Fetching (1 Network Round-Trip including Store tables)
-            var assignmentTask = SupabaseClient.From<JobAssignmentModel>()
-                .Select("*")
-                .Filter("created_at", Operator.GreaterThanOrEqual, minStart.ToString("yyyy-MM-dd"))
-                .Filter("created_at", Operator.LessThanOrEqual, dashEnd.ToString("yyyy-MM-dd"))
-                .Get();
+            Console.WriteLine($"assignmentResponse: {assignmentResponse.Models.Count()}");
 
-            var pmReportTask = SupabaseClient.From<PmReportModel>().Select("*").Get();
-            var jobsTask = SupabaseClient.From<JobModel>().Select("*").Get();
-            var employeeTask = SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
-            var locationTask = SupabaseClient.From<Location>().Select("*").Get();
-            var dieselTask = SupabaseClient.From<DieselPriceModel>().Select("*").Get();
+            var pmReportResponse = await SupabaseClient.From<PmReportModel>().Select("*").Get();
+            pmReports = pmReportResponse.Models ?? new List<PmReportModel>();
 
-            // Store Material Tasks for Spare Cost Calculation
-            var issuancesTask = SupabaseClient.From<StoreIssuanceModel>().Select("id, job_id").Get();
-            var issuanceItemsTask = SupabaseClient.From<StoreIssuanceItemModel>().Select("issuance_id, total_cost").Get();
-            var returnsTask = SupabaseClient.From<StoreReturnModel>().Select("id, job_id").Get();
-            var returnItemsTask = SupabaseClient.From<StoreReturnItemModel>().Select("return_id, total_refund").Get();
+            Console.WriteLine($"pmReportResponse: {pmReportResponse.Models.Count()}");
 
-            await Task.WhenAll(
-                assignmentTask, pmReportTask, jobsTask, employeeTask, locationTask, dieselTask,
-                issuancesTask, issuanceItemsTask, returnsTask, returnItemsTask
-            );
+            var jobsResponse = await SupabaseClient.From<JobModel>().Select("*").Get();
+            jobs = jobsResponse.Models ?? new List<JobModel>();
 
-            var allAssignments = assignmentTask.Result.Models ?? new List<JobAssignmentModel>();
-            var pmReports = pmReportTask.Result.Models ?? new List<PmReportModel>();
-            var jobs = jobsTask.Result.Models ?? new List<JobModel>();
-            var employees = employeeTask.Result.Models ?? new List<EmployeeEngineerModel>();
-            var locations = locationTask.Result.Models ?? new List<Location>();
-            var dieselPrices = dieselTask.Result.Models ?? new List<DieselPriceModel>();
+            Console.WriteLine($"jobsResponse: {jobsResponse.Models.Count()}");
 
-            var issuances = issuancesTask.Result.Models ?? new List<StoreIssuanceModel>();
-            var issuanceItems = issuanceItemsTask.Result.Models ?? new List<StoreIssuanceItemModel>();
-            var returns = returnsTask.Result.Models ?? new List<StoreReturnModel>();
-            var returnItems = returnItemsTask.Result.Models ?? new List<StoreReturnItemModel>();
+            var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
+            employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
 
-            // 2. Build In-Memory Lookups for O(1) Search Speed
-            var jobDict = jobs
-                .Where(j => !string.IsNullOrWhiteSpace(j.Id))
-                .GroupBy(j => j.Id.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"employeeResponse: {employeeResponse.Models.Count()}");
 
-            var pmReportLookup = pmReports
-                .Where(p => !string.IsNullOrWhiteSpace(p.JobId))
-                .ToLookup(p => p.JobId.Trim(), StringComparer.OrdinalIgnoreCase);
+            var locationResponse = await SupabaseClient.From<Location>().Select("*").Get();
+            locations = locationResponse.Models ?? new List<Location>();
 
-            var employeeDict = employees.ToDictionary(e => e.Id);
-            var locationDict = locations.ToDictionary(l => l.Id);
+            Console.WriteLine($"locationResponse: {locationResponse.Models.Count()}");
 
-            var validDieselPrices = dieselPrices
-                .Where(p => p.PriceDate.HasValue && p.DieselPrice.HasValue && p.DieselPrice > 0)
-                .ToList();
+            var dieselResponse = await SupabaseClient.From<DieselPriceModel>().Select("*").Get();
+            dieselPrices = dieselResponse.Models ?? new List<DieselPriceModel>();
 
-            // --- Dynamic Net Spare Cost Calculation per Job (Issuances - Returns) ---
-            var netSparesCostByJob = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"dieselResponse: {dieselResponse.Models.Count()}");
 
-            var issuanceJobMap = issuances
-                .Where(i => !string.IsNullOrWhiteSpace(i.JobId))
-                .ToDictionary(i => i.Id, i => i.JobId!.Trim(), StringComparer.OrdinalIgnoreCase);
+            if (_startDate.HasValue) assignments = assignments.Where(a => a.CreatedAt >= _startDate.Value).ToList();
+            if (_endDate.HasValue) assignments = assignments.Where(a => a.CreatedAt <= _endDate.Value).ToList();
 
-            foreach (var item in issuanceItems)
-            {
-                if (!string.IsNullOrWhiteSpace(item.IssuanceId) &&
-                    issuanceJobMap.TryGetValue(item.IssuanceId, out var jobId))
-                {
-                    netSparesCostByJob.TryAdd(jobId, 0);
-                    netSparesCostByJob[jobId] += item.TotalCost ?? 0;
-                }
-            }
+            TotalAssignmentsProcessed = assignments.Count;
 
-            var returnJobMap = returns
-                .Where(r => !string.IsNullOrWhiteSpace(r.JobId))
-                .ToDictionary(r => r.Id, r => r.JobId!.Trim(), StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"dieselResponse: {TotalAssignmentsProcessed}");
 
-            foreach (var item in returnItems)
-            {
-                if (!string.IsNullOrWhiteSpace(item.ReturnId) &&
-                    returnJobMap.TryGetValue(item.ReturnId, out var jobId))
-                {
-                    netSparesCostByJob.TryAdd(jobId, 0);
-                    netSparesCostByJob[jobId] -= item.TotalRefund ?? 0;
-                }
-            }
-            // -------------------------------------------------------------------------
-
-            // Reset Aggregates
-            TotalCalculatedCost = 0; TotalOvertimeHours = 0; TotalPmReportsMatched = 0; TotalAssignmentsProcessed = 0;
-            TotalOvertimeCost = 0; TotalSparesCost = 0; TotalEmployeeCost = 0; TotalTravelCost = 0;
-            GridRows.Clear();
-
-            // Filter for Dashboard Date Range
-            var dashAssignments = allAssignments
-                .Where(a => a.CreatedAt >= dashStart && a.CreatedAt < dashEnd)
-                .ToList();
-
-            TotalAssignmentsProcessed = dashAssignments.Count;
-
-            var uniqueDates = dashAssignments.Select(a => a.CreatedAt.Date).Distinct().OrderBy(d => d).ToList();
+            var uniqueDates = assignments.Select(a => a.CreatedAt.Date).Distinct().OrderBy(d => d).ToList();
             string[] labelsDaily = uniqueDates.Select(d => d.ToString("dd MMM")).ToArray();
 
             double[] dailyOvertime = new double[uniqueDates.Count];
             double[] dailySpares = new double[uniqueDates.Count];
             double[] dailyEmployee = new double[uniqueDates.Count];
             double[] dailyTravel = new double[uniqueDates.Count];
+
             double[] dailyPersonnelCount = new double[uniqueDates.Count];
             double[] dailyOtHours = new double[uniqueDates.Count];
 
-            var dateToIndexMap = uniqueDates.Select((date, index) => new { date, index })
-                .ToDictionary(x => x.date, x => x.index);
+            var dateToIndexMap = uniqueDates.Select((date, index) => new { date, index }).ToDictionary(x => x.date, x => x.index);
 
             double[] quarterlyOvertime = new double[4];
             double[] quarterlySpares = new double[4];
             double[] quarterlyEmployee = new double[4];
             double[] quarterlyTravel = new double[4];
 
-            // 3. Process Dashboard Data
-            foreach (var assignment in dashAssignments)
+            foreach (var assignment in assignments)
             {
-                if (assignment.CreatedAt == DateTime.MinValue) continue;
+                //Console.WriteLine($"foreach assignment: {assignment}");
 
+                // if (assignment.CreatedAt == DateTime.MinValue) continue;
+                // int quarter = (assignment.CreatedAt.Month - 1) / 3;
+                // if (quarter < 0 || quarter > 3) quarter = 0;
+
+                // var gridRowItem = new AssignmentGridRow { AssignmentId = assignment.Id, CreatedAt = assignment.CreatedAt };
+
+                // double otHours = assignment.JobOvertime ?? 0;
+                // TotalOvertimeHours += otHours;
+                // double calculatedOtCost = otHours * HourlyOvertimeRate;
+                // quarterlyOvertime[quarter] += calculatedOtCost;
+                // TotalOvertimeCost += calculatedOtCost;
+                // gridRowItem.OvertimeHours = otHours;
+                // gridRowItem.OvertimeCost = calculatedOtCost;
+
+                if (assignment.CreatedAt == DateTime.MinValue) continue;
                 int quarter = (assignment.CreatedAt.Month - 1) / 3;
                 if (quarter < 0 || quarter > 3) quarter = 0;
 
                 var gridRowItem = new AssignmentGridRow { AssignmentId = assignment.Id, CreatedAt = assignment.CreatedAt };
+
+                // Clean assignment JobIds
                 var cleanAssignmentJobIds = GetCleanJobIds(assignment.JobIds);
 
-                double otHours = 0;
-                double totalPartsCost = 0;
-                double totalPmCost = 0;
-                var locationIds = new HashSet<long>();
-
-                foreach (var cleanId in cleanAssignmentJobIds)
-                {
-                    if (jobDict.TryGetValue(cleanId, out var job))
-                    {
-                        otHours += job.OvertimeApproved ?? 0;
-                        if (job.LocationId.HasValue) locationIds.Add(job.LocationId.Value);
-                    }
-
-                    // Use dynamically calculated Net Spare Cost (Issuances minus Returns)
-                    if (netSparesCostByJob.TryGetValue(cleanId, out var dynamicSpareCost))
-                    {
-                        totalPartsCost += Math.Max(0, dynamicSpareCost);
-                    }
-
-                    if (pmReportLookup.Contains(cleanId))
-                    {
-                        foreach (var pm in pmReportLookup[cleanId])
-                        {
-                            totalPmCost += pm.ApproxTotalCost ?? 0;
-                            TotalPmReportsMatched++;
-                        }
-                    }
-                }
+                // Calculate OT Hours directly from matched Jobs' overtime_approved column
+                double otHours = jobs
+                    .Where(j => !string.IsNullOrWhiteSpace(j.Id) && cleanAssignmentJobIds.Any(cleanId => string.Equals(j.Id.Trim(), cleanId, StringComparison.OrdinalIgnoreCase)))
+                    .Sum(j => j.OvertimeApproved ?? 0);
 
                 TotalOvertimeHours += otHours;
                 double calculatedOtCost = otHours * HourlyOvertimeRate;
@@ -450,16 +452,18 @@
                 gridRowItem.OvertimeHours = otHours;
                 gridRowItem.OvertimeCost = calculatedOtCost;
 
-                // Employee Cost Calculation
                 double calculatedEmployeeCost = 0;
                 int personnelCount = assignment.PersonnelIds?.Count ?? 0;
                 if (assignment.PersonnelIds != null)
                 {
                     foreach (var pIdStr in assignment.PersonnelIds)
                     {
-                        if (long.TryParse(pIdStr, out long empId) && employeeDict.TryGetValue(empId, out var emp))
+                        //Console.WriteLine($"foreach pIdStr: {pIdStr}");
+
+                        if (long.TryParse(pIdStr, out long empId))
                         {
-                            if (emp.AnnualCost.HasValue) calculatedEmployeeCost += (emp.AnnualCost.Value / 365.0);
+                            var emp = employees.FirstOrDefault(e => e.Id == empId);
+                            if (emp != null && emp.AnnualCost.HasValue) calculatedEmployeeCost += (emp.AnnualCost.Value / 365.0);
                         }
                     }
                 }
@@ -468,38 +472,145 @@
                 gridRowItem.PersonnelCount = personnelCount;
                 gridRowItem.EmployeeCost = calculatedEmployeeCost;
 
-                // Travel Logistics Calculation
+                // --- TRAVEL LOGISTICS LOOKUP START ---
                 double calculatedTravelCost = 0;
-                if (locationIds.Count > 0)
+
+                if (assignment.JobIds != null && assignment.JobIds.Any())
                 {
-                    double totalRoundTripDistance = 0;
-                    foreach (var locId in locationIds)
-                    {
-                        if (locationDict.TryGetValue(locId, out var loc))
-                        {
-                            totalRoundTripDistance += (loc.DistanceFhqKm ?? 0f) * 2;
-                        }
-                    }
+                    // 1. Get unique location IDs for all jobs in this assignment to handle multi-stop routes
+                    var locationIds = jobs
+                        .Where(j => assignment.JobIds.Any(id => string.Equals(j.Id, id.Trim(), StringComparison.OrdinalIgnoreCase)) && j.LocationId.HasValue)
+                        .Select(j => j.LocationId!.Value)
+                        .Distinct();
+
+                    //Console.WriteLine($"locationIds: {locationIds}");
+
+
+                    // 2. Fetch the corresponding locations
+                    var assignmentLocations = locations.Where(l => locationIds.Contains(l.Id));
+
+                    //Console.WriteLine($"assignmentLocations: {assignmentLocations}");
+
+                    // 3. Sum the round-trip distance (DistanceFhqKm * 2)
+                    double totalRoundTripDistance = assignmentLocations.Sum(l => (l.DistanceFhqKm ?? 0f) * 2);
 
                     if (totalRoundTripDistance > 0)
                     {
-                        double dieselPrice = GetNearestDieselPrice(validDieselPrices, assignment.CreatedAt.Date);
+                        var assignmentDate = assignment.CreatedAt.Date;
+
+                        // 4. Fetch the nearest available Diesel Price
+                        var nearestDieselRecord = dieselPrices
+                            .Where(p => p.PriceDate.HasValue && p.DieselPrice.HasValue && p.DieselPrice > 0)
+                            .OrderBy(p => Math.Abs((p.PriceDate.Value - assignmentDate).TotalDays))
+                            .FirstOrDefault();
+
+                        // Added 90.00 fallback in case diesel table is completely empty
+                        double dieselPrice = nearestDieselRecord?.DieselPrice ?? 90.00;
+
+                        // 5. Calculate: (Total Round Trip Distance / Mileage) * Diesel Price
                         calculatedTravelCost = (totalRoundTripDistance / VehicleMileageKmPerLiter) * dieselPrice;
+
+                        Console.WriteLine($"calculatedTravelCost: {calculatedTravelCost}");
                     }
                 }
+                else
+                {
+                    Console.WriteLine($"calculatedTravelCost  ELSE BLOCK: {calculatedTravelCost}");
+                }
+
+
 
                 quarterlyTravel[quarter] += calculatedTravelCost;
                 TotalTravelCost += calculatedTravelCost;
                 gridRowItem.TravelCost = calculatedTravelCost;
+                // --- TRAVEL LOGISTICS LOOKUP END ---
 
-                // Spares Cost Calculation
-                double itemSparesCost = totalPartsCost + totalPmCost;
+                // double itemSparesCost = 0;
+                // if (assignment.JobIds != null && assignment.JobIds.Any())
+                // {
+                //     foreach (var jobId in assignment.JobIds)
+                //     {
+                //         if (string.IsNullOrWhiteSpace(jobId)) continue;
+                //         var matchedPm = pmReports.FirstOrDefault(p => string.Equals(p.JobId, jobId, StringComparison.OrdinalIgnoreCase));
+                //         if (matchedPm != null) { itemSparesCost += matchedPm.ApproxTotalCost ?? 0; TotalPmReportsMatched++; }
+                //         var matchedJob = jobs.FirstOrDefault(j => string.Equals(j.Id, jobId, StringComparison.OrdinalIgnoreCase));
+                //         if (matchedJob != null) { itemSparesCost += matchedJob.PartsCost ?? 0; }
+                //     }
+                // }
+                // quarterlySpares[quarter] += itemSparesCost;
+                // TotalSparesCost += itemSparesCost;
+                // gridRowItem.SparesCost = itemSparesCost;
+
+                // gridRowItem.RowTotalCost = calculatedOtCost + calculatedEmployeeCost + calculatedTravelCost + itemSparesCost;
+                // GridRows.Add(gridRowItem);
+
+                // --- SPARES COST CALCULATION START ---
+                double itemSparesCost = 0;
+
+                
+
+
+
+                if (assignment.JobIds != null && assignment.JobIds.Any())
+                {
+                    // 1. Clean the incoming IDs to prevent whitespace mismatches
+                    // var cleanAssignmentJobIds = assignment.JobIds
+                    //     .Where(id => !string.IsNullOrWhiteSpace(id))
+                    //     .Select(id => id.Trim())
+                    //     .ToList();
+
+                    //var cleanAssignmentJobIds = new List<string>();
+                    if (assignment.JobIds != null)
+                    {
+                        foreach (var rawId in assignment.JobIds)
+                        {
+                            if (string.IsNullOrWhiteSpace(rawId)) continue;
+                            var splitIds = rawId.Split(new[] { '[', ']', '"', '\'', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                            cleanAssignmentJobIds.AddRange(splitIds);
+                        }
+                    }
+
+                    //Console.WriteLine($"cleanAssignmentJobIds: {cleanAssignmentJobIds}");
+
+                    if (cleanAssignmentJobIds.Any())
+                    {
+                        // 2. Sum parts_cost from ALL matching jobs
+                        var assignmentJobs = jobs
+                            .Where(j => !string.IsNullOrWhiteSpace(j.Id)
+                                        && cleanAssignmentJobIds.Any(cleanId => string.Equals(j.Id.Trim(), cleanId, StringComparison.OrdinalIgnoreCase)))
+                            .ToList();
+
+                        //Console.WriteLine($"assignmentJobs: {assignmentJobs}");
+
+                        double totalPartsCost = assignmentJobs.Sum(j => j.PartsCost ?? 0);
+
+                        // 3. Sum approx_total_cost from ALL matching PM reports
+                        var assignmentPmReports = pmReports
+                            .Where(p => !string.IsNullOrWhiteSpace(p.JobId)
+                                        && cleanAssignmentJobIds.Any(cleanId => string.Equals(p.JobId.Trim(), cleanId, StringComparison.OrdinalIgnoreCase)))
+                            .ToList();
+
+                        //Console.WriteLine($"assignmentPmReports: {assignmentPmReports}");
+
+                        double totalPmCost = assignmentPmReports.Sum(p => p.ApproxTotalCost ?? 0);
+
+                        // Update the dashboard counter
+                        TotalPmReportsMatched += assignmentPmReports.Count;
+
+                        // 4. Combine both sums
+                        itemSparesCost = totalPartsCost + totalPmCost;
+                    }
+                }
+
                 quarterlySpares[quarter] += itemSparesCost;
                 TotalSparesCost += itemSparesCost;
                 gridRowItem.SparesCost = itemSparesCost;
+                // --- SPARES COST CALCULATION END ---
 
+                // ⚠️ CRITICAL: Ensure these two lines were not accidentally deleted!
                 gridRowItem.RowTotalCost = calculatedOtCost + calculatedEmployeeCost + calculatedTravelCost + itemSparesCost;
                 GridRows.Add(gridRowItem);
+
 
                 if (dateToIndexMap.TryGetValue(assignment.CreatedAt.Date, out int dayIndex))
                 {
@@ -522,12 +633,9 @@
                 cumulativeTotal[i] = running;
             }
 
-            // 4. Process OT Grid using pre-fetched dataset
-            ProcessOtGridData(allAssignments, otFourMonthsAgo, jobDict, employees);
-
             var chartPayload = new
             {
-                labelsDaily,
+                labelsDaily = labelsDaily,
                 labelsQuarterly = new[] { "Q1", "Q2", "Q3", "Q4" },
                 costNames = new[] { "Overtime", "Spares", "Employee", "Travel" },
                 totals = new[] { TotalOvertimeCost, TotalSparesCost, TotalEmployeeCost, TotalTravelCost },
@@ -560,6 +668,7 @@
 
             Console.WriteLine("===== FULL ERROR =====");
             Console.WriteLine(ex.ToString());
+
             if (ex.InnerException != null)
             {
                 Console.WriteLine("===== INNER ERROR =====");
@@ -570,73 +679,7 @@
         }
     }
 
-    private void ProcessOtGridData(
-        List<JobAssignmentModel> allAssignments,
-        DateTime fourMonthsAgo,
-        Dictionary<string, JobModel> jobDict,
-        List<EmployeeEngineerModel> employees)
-    {
-        var filteredAssignments = allAssignments.Where(a => a.CreatedAt >= fourMonthsAgo).ToList();
-        var otLookup = new Dictionary<long, double>();
-
-        foreach (var assignment in filteredAssignments)
-        {
-            var cleanJobIds = GetCleanJobIds(assignment.JobIds);
-            double ot = 0;
-
-            foreach (var cleanId in cleanJobIds)
-            {
-                if (jobDict.TryGetValue(cleanId, out var job))
-                {
-                    ot += job.OvertimeApproved ?? 0;
-                }
-            }
-
-            if (ot > 0 && assignment.PersonnelIds != null)
-            {
-                foreach (var pIdStr in assignment.PersonnelIds)
-                {
-                    if (long.TryParse(pIdStr, out long empId))
-                    {
-                        if (!otLookup.ContainsKey(empId)) otLookup[empId] = 0;
-                        otLookup[empId] += ot;
-                    }
-                }
-            }
-        }
-
-        EmployeeOtRows = employees
-            .Where(e => otLookup.ContainsKey(e.Id))
-            .Select(e => new EngineerOtRow
-            {
-                FullName = e.FullName ?? "N/A",
-                EmpCode = e.EmpCode,
-                TotalOtHours = otLookup[e.Id]
-            })
-            .OrderByDescending(x => x.TotalOtHours)
-            .ToList();
-    }
-
-    private static double GetNearestDieselPrice(List<DieselPriceModel> validPrices, DateTime date)
-    {
-        if (validPrices.Count == 0) return 90.00;
-
-        double minDiff = double.MaxValue;
-        double bestPrice = 90.00;
-
-        foreach (var p in validPrices)
-        {
-            double diff = Math.Abs((p.PriceDate!.Value - date).TotalDays);
-            if (diff < minDiff)
-            {
-                minDiff = diff;
-                bestPrice = p.DieselPrice!.Value;
-            }
-        }
-        return bestPrice;
-    }
-
-    private static List<string> GetCleanJobIds(List<string>? rawJobIds)
+    private List<string> GetCleanJobIds(List<string>? rawJobIds)
     {
         var cleanIds = new List<string>();
         if (rawJobIds == null) return cleanIds;
@@ -648,6 +691,71 @@
             cleanIds.AddRange(split);
         }
         return cleanIds;
+    }
+    private async Task GetOTGridData()
+    {
+        try
+        {
+            var start = (_startDate ?? DateTime.Today.AddMonths(-4)).Date;
+            var end = (_endDate ?? DateTime.Today).Date.AddDays(1);
+
+            var assignmentResponse = await SupabaseClient.From<JobAssignmentModel>()
+                    .Select("*").Filter("created_at", Operator.GreaterThanOrEqual, start.ToString("yyyy-MM-dd"))
+                    .Filter("created_at", Operator.LessThanOrEqual, end.ToString("yyyy-MM-dd")).Get();
+            var assignments = assignmentResponse.Models ?? new List<JobAssignmentModel>();
+
+            // Fetch Jobs to get overtime_approved
+            var jobsResponse = await SupabaseClient.From<JobModel>().Select("*").Get();
+            var jobs = jobsResponse.Models ?? new List<JobModel>();
+
+            var fourMonthsAgo = DateTime.Today.AddMonths(-4);
+            var filteredAssignments = assignments.Where(a => a.CreatedAt >= fourMonthsAgo).ToList();
+
+            var otLookup = new Dictionary<long, double>();
+
+            foreach (var assignment in filteredAssignments)
+            {
+                var cleanJobIds = GetCleanJobIds(assignment.JobIds);
+
+                // Sum overtime_approved from matched jobs
+                double ot = jobs
+                    .Where(j => !string.IsNullOrWhiteSpace(j.Id) && cleanJobIds.Any(cId => string.Equals(j.Id.Trim(), cId, StringComparison.OrdinalIgnoreCase)))
+                    .Sum(j => j.OvertimeApproved ?? 0);
+
+                if (ot > 0 && assignment.PersonnelIds != null)
+                {
+                    foreach (var pIdStr in assignment.PersonnelIds)
+                    {
+                        if (long.TryParse(pIdStr, out long empId))
+                        {
+                            if (!otLookup.ContainsKey(empId)) otLookup[empId] = 0;
+                            otLookup[empId] += ot;
+                        }
+                    }
+                }
+            }
+
+            var employeeResponse = await SupabaseClient.From<EmployeeEngineerModel>().Select("*").Get();
+            var employees = employeeResponse.Models ?? new List<EmployeeEngineerModel>();
+
+            EmployeeOtRows = employees
+                .Where(e => otLookup.ContainsKey(e.Id))
+                .Select(e => new EngineerOtRow
+                {
+                    FullName = e.FullName ?? "N/A",
+                    EmpCode = e.EmpCode,
+                    TotalOtHours = otLookup[e.Id]
+                })
+                .OrderByDescending(x => x.TotalOtHours)
+                .ToList();
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Method Error: {ex.Message}");
+            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+        }
     }
 
     public class AssignmentGridRow
@@ -671,6 +779,10 @@
         [Column("job_ids")] public List<string>? JobIds { get; set; }
         [Column("personnel_ids")] public List<string>? PersonnelIds { get; set; }
         [Column("job_overtime")] public double? JobOvertime { get; set; }
+
+
+
+
     }
 
     [Table("locations")]
@@ -730,35 +842,5 @@
         [Column("created_at")] public DateTime? CreatedAt { get; set; }
         [Column("annual_cost")] public long? AnnualCost { get; set; }
         [Column("team_group")] public int? TeamGroup { get; set; }
-    }
-
-    [Table("store_material_issuances")]
-    public class StoreIssuanceModel : BaseModel
-    {
-        [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
-        [Column("job_id")] public string? JobId { get; set; }
-    }
-
-    [Table("store_material_issuance_items")]
-    public class StoreIssuanceItemModel : BaseModel
-    {
-        [PrimaryKey("id", false)] public long Id { get; set; }
-        [Column("issuance_id")] public string IssuanceId { get; set; } = string.Empty;
-        [Column("total_cost")] public double? TotalCost { get; set; }
-    }
-
-    [Table("store_material_returns")]
-    public class StoreReturnModel : BaseModel
-    {
-        [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
-        [Column("job_id")] public string? JobId { get; set; }
-    }
-
-    [Table("store_material_return_items")]
-    public class StoreReturnItemModel : BaseModel
-    {
-        [PrimaryKey("id", false)] public long Id { get; set; }
-        [Column("return_id")] public string ReturnId { get; set; } = string.Empty;
-        [Column("total_refund")] public double? TotalRefund { get; set; }
     }
 }

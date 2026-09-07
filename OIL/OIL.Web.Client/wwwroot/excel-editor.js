@@ -1,4 +1,4 @@
-﻿export async function initLuckysheet(containerId, dotNetRef) {
+﻿export async function initLuckysheet(containerId, dotNetRef, initialData = null) {
     if (typeof luckysheet === 'undefined') {
         console.error("Luckysheet dependencies are missing.");
         return false;
@@ -10,23 +10,8 @@
         return false;
     }
 
-    // Insert clean HTML logo overlay directly over cells B1:B5
-    const existingLogo = document.getElementById('excel-logo-overlay');
-    if (!existingLogo) {
-        const logoImg = document.createElement('img');
-        logoImg.id = 'excel-logo-overlay';
-        logoImg.src = '_content/OIL.Shared/imgs/oil2.png';
-        logoImg.style.position = 'absolute';
-        logoImg.style.left = '10px';
-        logoImg.style.top = '3px';
-        logoImg.style.width = '115px';
-        logoImg.style.height = '138px';
-        logoImg.style.zIndex = '50';
-        logoImg.style.pointerEvents = 'none';
-        container.appendChild(logoImg);
-    }
-
-    const sheetData = generateHeaderGridData();
+    ensureLogoOverlay(container);
+    const sheetData = initialData ? null : generateHeaderGridData();
 
     try {
         luckysheet.create({
@@ -41,7 +26,7 @@
             rowHeaderWidth: 0,
             columnHeaderHeight: 0,
             allowEdit: true,
-            data: [
+            data: initialData || [
                 {
                     name: "Report",
                     color: "",
@@ -52,17 +37,17 @@
                         rowlen: {
                             0: 35, 1: 30, 2: 30, 3: 30, 4: 30, 5: 30, 6: 35, 7: 35
                         },
-                        // Strict A4 portrait width optimization (~725px total)
+                        // Exact A4 portrait width optimization (Total: ~790px)
                         columnlen: {
-                            0: 10,
-                            1: 115, // Logo / Section Column
-                            2: 70,  // Unit
-                            3: 85,  // Instrument
-                            4: 85,  // Make & Model
-                            5: 75,  // Range
-                            6: 75,  // Servicing - Clean
-                            7: 85,  // Calibration Certificate No.
-                            8: 125  // Remarks
+                            0: 5,   // Margin / Padding
+                            1: 125, // Logo / Section Column
+                            2: 75,  // Unit
+                            3: 95,  // Instrument
+                            4: 95,  // Make & Model
+                            5: 80,  // Range
+                            6: 80,  // Servicing - Clean
+                            7: 95,  // Calibration Certificate No.
+                            8: 140  // Remarks
                         },
                         merge: {
                             "0_1": { r: 0, c: 1, rs: 5, cs: 1 },
@@ -90,7 +75,7 @@
                     }, 350);
 
                     try {
-                        dotNetRef.invokeMethodAsync('OnDataChanged');
+                        if (dotNetRef) dotNetRef.invokeMethodAsync('OnDataChanged');
                     } catch (err) { }
                 }
             }
@@ -107,7 +92,100 @@
     }
 }
 
-// Robust auto-fit and text-wrap enforcer for all rows and cells
+export function getExcelData() {
+    if (typeof luckysheet !== "undefined") {
+        const fileData = luckysheet.getluckysheetfile();
+        return JSON.stringify(fileData);
+    }
+    return null;
+}
+
+export function loadExcelData(containerId, jsonString, dotNetRef) {
+    if (typeof luckysheet === "undefined" || !jsonString) return false;
+
+    try {
+        const parsedData = JSON.parse(jsonString);
+        luckysheet.destroy();
+        return initLuckysheet(containerId, dotNetRef, parsedData);
+    } catch (ex) {
+        console.error("Failed to load sheet data:", ex);
+        return false;
+    }
+}
+
+// Fixed print function that resizes canvas to exact full A4 printable width
+export function triggerPrint() {
+    const container = document.getElementById('excel-container');
+    if (!container) {
+        window.print();
+        return;
+    }
+
+    autoFitAllRows();
+
+    const file = luckysheet.flowdata();
+    let maxRow = 10;
+    if (file) {
+        for (let r = 0; r < file.length; r++) {
+            if (!file[r]) continue;
+            for (let c = 0; c < file[r].length; c++) {
+                const cell = file[r][c];
+                if (cell && cell.v !== null && cell.v !== undefined && cell.v !== "") {
+                    maxRow = Math.max(maxRow, r);
+                }
+            }
+        }
+    }
+
+    const cfg = luckysheet.getConfig() || {};
+    const rowlen = cfg.rowlen || {};
+    let populatedHeight = 0;
+
+    const targetRow = Math.min(file ? file.length : 100, maxRow + 2);
+    for (let i = 0; i <= targetRow; i++) {
+        populatedHeight += (rowlen[i] !== undefined ? rowlen[i] : 26);
+    }
+
+    const originalHeight = container.style.height;
+    const originalWidth = container.style.width;
+
+    // Set exact printable width (790px) to stretch canvas across the full page
+    container.style.width = '790px';
+    container.style.height = (populatedHeight + 20) + 'px';
+
+    try {
+        luckysheet.resize();
+    } catch (e) { }
+
+    setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+            container.style.height = originalHeight;
+            container.style.width = originalWidth;
+            try {
+                luckysheet.resize();
+            } catch (e) { }
+        }, 800);
+    }, 300);
+}
+
+function ensureLogoOverlay(container) {
+    const existingLogo = document.getElementById('excel-logo-overlay');
+    if (!existingLogo) {
+        const logoImg = document.createElement('img');
+        logoImg.id = 'excel-logo-overlay';
+        logoImg.src = '_content/OIL.Shared/imgs/oil2.png';
+        logoImg.style.position = 'absolute';
+        logoImg.style.left = '8px';
+        logoImg.style.top = '3px';
+        logoImg.style.width = '120px';
+        logoImg.style.height = '138px';
+        logoImg.style.zIndex = '50';
+        logoImg.style.pointerEvents = 'none';
+        container.appendChild(logoImg);
+    }
+}
+
 function autoFitRow(r) {
     try {
         const file = luckysheet.flowdata();
@@ -115,22 +193,19 @@ function autoFitRow(r) {
 
         const cfg = luckysheet.getConfig() || {};
         const merges = cfg.merge || {};
-        const colWidths = { 0: 10, 1: 115, 2: 70, 3: 85, 4: 85, 5: 75, 6: 75, 7: 85, 8: 125, 9: 90 };
+        const colWidths = { 0: 5, 1: 125, 2: 75, 3: 95, 4: 95, 5: 80, 6: 80, 7: 95, 8: 140 };
 
         let maxLines = 1;
 
         for (let c = 0; c < file[r].length; c++) {
             const cell = file[r][c];
             if (cell) {
-                // Force text wrapping (tb: 2) on every cell so text never gets hidden
                 cell.tb = 2;
-
                 if (cell.v !== null && cell.v !== undefined && cell.v !== "") {
                     const text = cell.v.toString();
-
-                    // Calculate width accounting for merged column spans (cs)
                     let cellWidth = colWidths[c] || 85;
                     const mergeKey = `${r}_${c}`;
+
                     if (merges[mergeKey]) {
                         const cs = merges[mergeKey].cs || 1;
                         cellWidth = 0;
@@ -139,9 +214,7 @@ function autoFitRow(r) {
                         }
                     }
 
-                    // ~6 characters per line estimation for font size 11
                     const maxCharsPerLine = Math.max(8, Math.floor(cellWidth / 6.0));
-
                     let lines = 0;
                     text.split('\n').forEach(line => {
                         lines += Math.max(1, Math.ceil(line.length / maxCharsPerLine));
@@ -156,7 +229,7 @@ function autoFitRow(r) {
 
         luckysheet.setRowHeight({ [r]: newHeight });
     } catch (e) {
-        console.error("Error auto-fitting row " + r, e);
+        Console.error("Error auto-fitting row " + r, e);
     }
 }
 
@@ -182,7 +255,7 @@ function generateHeaderGridData() {
             ht: align === "center" ? 0 : (align === "right" ? 2 : 1),
             vt: 0,
             fs: size,
-            tb: 2 // Text wrapping enabled
+            tb: 2
         };
     }
 
@@ -197,43 +270,4 @@ function generateHeaderGridData() {
     setCell(7, 1, "Notification Number: ", true, "left", "11");
 
     return data;
-}
-
-export function triggerPrint() {
-    const container = document.getElementById('excel-container');
-    if (!container) {
-        window.print();
-        return;
-    }
-
-    autoFitAllRows();
-    const originalHeight = container.style.height;
-
-    setTimeout(() => {
-        const sheetFile = luckysheet.flowdata();
-        const totalRows = sheetFile ? sheetFile.length : 100;
-        let totalHeight = 0;
-        const cfg = luckysheet.getConfig() || {};
-        const rowlen = cfg.rowlen || {};
-
-        for (let i = 0; i < totalRows; i++) {
-            totalHeight += (rowlen[i] !== undefined ? rowlen[i] : 26);
-        }
-
-        container.style.height = (totalHeight + 150) + 'px';
-        try {
-            luckysheet.resize();
-        } catch (e) { }
-
-        setTimeout(() => {
-            window.print();
-
-            setTimeout(() => {
-                container.style.height = originalHeight;
-                try {
-                    luckysheet.resize();
-                } catch (e) { }
-            }, 1000);
-        }, 300);
-    }, 200);
 }

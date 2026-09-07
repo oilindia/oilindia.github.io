@@ -1,69 +1,97 @@
 @page "/excel"
 @using Microsoft.JSInterop
+@using System.Text
+@using System.Text.Json
 @inject IJSRuntime JSRuntime
+@inject HttpClient Http
 @implements IAsyncDisposable
 
 <div class="toolbar" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
     <button class="btn btn-primary" style="padding: 8px 16px; font-weight: bold; cursor: pointer;" @onclick="PrintToA4">
         🖨️ Print to A4
     </button>
-    <span style="color: #666; font-size: 14px;">
-        *Header and layout loaded successfully.
-    </span>
+    <button class="btn btn-success" style="padding: 8px 16px; font-weight: bold; cursor: pointer;" @onclick="SaveToSupabase">
+        💾 Save to Supabase
+    </button>
+    <button class="btn btn-info" style="padding: 8px 16px; font-weight: bold; cursor: pointer;" @onclick="LoadFromSupabase">
+        📂 Load Latest Sheet
+    </button>
+    <span style="color: #666; font-size: 14px; margin-left: 10px;">@statusMessage</span>
 </div>
 
 <div class="excel-editor-wrapper" style="width: 100%; height: 800px; padding: 0; margin: 0; position: relative;">
     <div id="excel-container" style="margin:0px;padding:0px;position:absolute;width:100%;height:100%;left:0px;top:0px;"></div>
 </div>
 
-
 <style>
-        @@media print {
-            @@page {
-                size: A4 portrait;
-                margin: 6mm;
-            }
-
-            body, html {
-                background: #fff !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
-            }
-
-                body * {
-                    visibility: hidden !important;
-                }
-
-            #excel-container,
-            #excel-container * {
-                visibility: visible !important;
-            }
-
-            #excel-container {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                border: none !important;
-                transform: scale(0.95);
-                transform-origin: top left;
-            }
-
-            .luckysheet-scrollbar-x,
-            .luckysheet-scrollbar-y,
-            .luckysheet-sheet-area,
-            .luckysheet-stat-area,
-            #luckysheet-bottom-cont {
-                display: none !important;
-            }
+    @@media print {
+        @@page {
+            size: A4 portrait;
+            margin: 4mm;
         }
-    </style>
+
+        body, html {
+            background: #fff !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+        .excel-editor-wrapper,
+        #excel-container,
+        #excel-container * {
+            visibility: visible !important;
+        }
+
+        .toolbar, .sidebar, nav, header {
+            display: none !important;
+        }
+
+        #excel-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border: none !important;
+            transform: none !important; /* Removed transform scale */
+            margin: 0 auto !important;
+        }
+            /* Ensure Luckysheet canvas elements expand to full width */
+            #excel-container canvas,
+            .luckysheet-cell-main,
+            .luckysheet-workarea {
+                width: 100% !important;
+            }
+
+        .luckysheet-scrollbar-x,
+        .luckysheet-scrollbar-y,
+        .luckysheet-sheet-area,
+        .luckysheet-stat-area,
+        .luckysheet-cols-h-cells,
+        .luckysheet-rows-h-cells,
+        #luckysheet-bottom-cont {
+            display: none !important;
+        }
+    }
+
+    
+</style>
 
 @code {
     private IJSObjectReference? _jsModule;
     private DotNetObjectReference<ExcelEditor>? _dotNetRef;
+    private string statusMessage = "Header and layout loaded successfully.";
+
+    // Configure your Supabase connection parameters
+    private const string SupabaseUrl = "https://YOUR_SUPABASE_PROJECT_ID.supabase.co";
+    private const string SupabaseAnonKey = "YOUR_SUPABASE_ANON_KEY";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -91,6 +119,89 @@
         {
             await Task.Delay(100);
             await _jsModule.InvokeVoidAsync("triggerPrint");
+        }
+    }
+
+    public async Task SaveToSupabase()
+    {
+        if (_jsModule == null) return;
+
+        statusMessage = "Saving sheet...";
+        string? jsonData = await _jsModule.InvokeAsync<string>("getExcelData");
+
+        if (string.IsNullOrEmpty(jsonData))
+        {
+            statusMessage = "Failed to extract sheet data.";
+            return;
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{SupabaseUrl}/rest/v1/excel_reports");
+            request.Headers.Add("apikey", SupabaseAnonKey);
+            request.Headers.Add("Authorization", $"Bearer {SupabaseAnonKey}");
+
+            var payload = new
+            {
+                title = "OIL India PM Report",
+                sheet_data = JsonSerializer.Deserialize<object>(jsonData)
+            };
+
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                statusMessage = "Sheet saved to Supabase database successfully!";
+            }
+            else
+            {
+                statusMessage = $"Error saving: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Save exception: {ex.Message}";
+        }
+    }
+
+    public async Task LoadFromSupabase()
+    {
+        if (_jsModule == null) return;
+
+        statusMessage = "Retrieving latest sheet...";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{SupabaseUrl}/rest/v1/excel_reports?select=sheet_data&order=updated_at.desc&limit=1");
+            request.Headers.Add("apikey", SupabaseAnonKey);
+            request.Headers.Add("Authorization", $"Bearer {SupabaseAnonKey}");
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonResult = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(jsonResult);
+                var root = doc.RootElement;
+
+                if (root.GetArrayLength() > 0)
+                {
+                    var sheetDataJson = root[0].GetProperty("sheet_data").GetRawText();
+                    await _jsModule.InvokeVoidAsync("loadExcelData", "excel-container", sheetDataJson, _dotNetRef);
+                    statusMessage = "Loaded latest sheet from Supabase database!";
+                }
+                else
+                {
+                    statusMessage = "No saved sheet records found in Supabase.";
+                }
+            }
+            else
+            {
+                statusMessage = $"Error loading: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Load exception: {ex.Message}";
         }
     }
 
