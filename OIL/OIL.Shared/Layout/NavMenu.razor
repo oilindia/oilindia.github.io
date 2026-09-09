@@ -60,7 +60,7 @@
 
                 <MudNavLink Href="/excel">New Excel Entry</MudNavLink>
 
-                <MudNavLink Href="/PmDB">PM Dashboard</MudNavLink>
+                <MudNavLink Href="/pmdbstatic">PM Dashboard</MudNavLink>
                 <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
                 <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
                 <MudNavLink Href="/PMrn">PM Reports</MudNavLink>
@@ -144,7 +144,7 @@
             @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
                 <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.Storage">
-                    <MudNavLink Href="/PmDB">PM Dashboard</MudNavLink>
+                    <MudNavLink Href="/pmdbstatic">PM Dashboard</MudNavLink>
                     <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
                     <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
                     <MudNavLink Href="/PMrn">PM Reports</MudNavLink>
