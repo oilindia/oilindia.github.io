@@ -20,7 +20,8 @@
     <MudText Typo="Typo.h4" Class="mb-4"><b>Store Material Masterdata</b></MudText>
 
     <MudPaper Class="pa-4 mb-4" Elevation="2">
-        <MudToolBar DisableGutters="true" Class="gap-4">
+        <MudToolBar DisableGutters="true" Class="gap-4 flex-wrap">
+            <MudButton Variant="Variant.Filled" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddModal" Disabled="_loading">Add New Material</MudButton>
             <MudFileUpload T="IBrowserFile" FilesChanged="UploadExcel" Accept=".xlsx,.xls">
                 <ActivatorContent>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" Disabled="_loading">Upload & Sync</MudButton>
@@ -31,27 +32,133 @@
             <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="DownloadMasterData" Disabled="_loading">Download Master Data</MudButton>
             
             <MudSpacer />
-            <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Search by Material, Desc, or Plant..." 
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <MudTextField @bind-Value="_searchString" Immediate="true" Placeholder="Search across all fields (case-insensitive & smart spell)..." 
+                         Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                         IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 380px;" />
         </MudToolBar>
     </MudPaper>
 
+    <!-- Add New Material Modal Form -->
+    @if (_isAddModalOpen)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" ZIndex="9998">
+            <MudCard Class="pa-6" Style="width: 650px; max-height: 90vh; overflow-y: auto;">
+                <MudText Typo="Typo.h6" Class="mb-4"><b>Add New Material Master Data</b></MudText>
+                <MudForm @ref="_form">
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Material *" @bind-Value="_newModel.Material" Required="true" RequiredError="Material is required!" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Plant *" @bind-Value="_newModel.Plant" Required="true" RequiredError="Plant is required!" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Storage Location *" @bind-Value="_newModel.StorageLocation" Required="true" RequiredError="Storage Location is required!" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Batch *" @bind-Value="_newModel.Batch" Required="true" RequiredError="Batch is required!" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField Label="Material Description" @bind-Value="_newModel.MaterialDescription" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Valuation Type" @bind-Value="_newModel.ValuationType" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Company Code" @bind-Value="_newModel.CompanyCode" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Valuation Area" @bind-Value="_newModel.ValuationArea" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Valuation Class" @bind-Value="_newModel.ValuationClass" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="G/L Account" @bind-Value="_newModel.GLAccount" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Material Type" @bind-Value="_newModel.MaterialType" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Material Group" @bind-Value="_newModel.MaterialGroup" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Base Unit of Measure" @bind-Value="_newModel.BaseUnitOfMeasure" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField Label="Currency" @bind-Value="_newModel.Currency" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="Qty" @bind-Value="_newModel.StockQuantityOnPeriodEnd" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="StartQty" @bind-Value="_newModel.StockQuantityOnPeriodStart" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="EndTotal (Stock Value)" @bind-Value="_newModel.StockValueOnPeriodEnd" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="GR QtyTotal" @bind-Value="_newModel.TotalGoodsReceiptQuantity" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="GI Qty" @bind-Value="_newModel.TotalGoodsIssueQuantity" />
+                        </MudItem>
+                    </MudGrid>
+                    <div class="d-flex justify-end gap-2 mt-6">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CloseAddModal">Cancel</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveNewMaterial">Save & Insert</MudButton>
+                    </div>
+                </MudForm>
+            </MudCard>
+        </MudOverlay>
+    }
+
     <MudTable Items="@_materials" Dense="true" Hover="true" FixedHeader="true" Height="600px" 
-              Loading="_loading" Filter="new Func<MaterialStock, bool>(FilterFunc)">
+              Loading="_loading" Filter="new Func<MaterialStock, bool>(FilterFunc)"
+              HorizontalScrollbar="true" Breakpoint="Breakpoint.None">
         <HeaderContent>
             <MudTh>Material</MudTh>
             <MudTh>Description</MudTh>
+            <MudTh>Valuation Type</MudTh>
             <MudTh>Plant</MudTh>
-            <MudTh>Qty End</MudTh>
-            <MudTh>Value End</MudTh>
+            <MudTh>Storage Location</MudTh>
+            <MudTh>Qty</MudTh>
+            <MudTh>StartQty</MudTh>
+            <MudTh>EndValue</MudTh>
+            <MudTh>EndTotal</MudTh>
+            <MudTh>GR QtyTotal</MudTh>
+            <MudTh>GI Qty</MudTh>
+            <MudTh>Batch</MudTh>
+            <MudTh>Company Code</MudTh>
+            <MudTh>Valuation Area</MudTh>
+            <MudTh>Valuation Class</MudTh>
+            <MudTh>G/L Account</MudTh>
+            <MudTh>Material Type</MudTh>
+            <MudTh>Material Group</MudTh>
+            <MudTh>Base UoM</MudTh>
+            <MudTh>Currency</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd>@context.Material</MudTd>
-            <MudTd>@context.MaterialDescription</MudTd>
-            <MudTd>@context.Plant</MudTd>
-            <MudTd>@context.StockQuantityOnPeriodEnd</MudTd>
-            <MudTd>@context.StockValueOnPeriodEnd</MudTd>
+            <MudTd DataLabel="Material">@context.Material</MudTd>
+            <MudTd DataLabel="Description">@context.MaterialDescription</MudTd>
+            <MudTd DataLabel="Valuation Type">@context.ValuationType</MudTd>
+            <MudTd DataLabel="Plant">@context.Plant</MudTd>
+            <MudTd DataLabel="Storage Location">@context.StorageLocation</MudTd>
+            <MudTd DataLabel="Qty">@context.StockQuantityOnPeriodEnd</MudTd>
+            <MudTd DataLabel="StartQty">@context.StockQuantityOnPeriodStart</MudTd>
+            <MudTd DataLabel="EndValue">@((context.StockQuantityOnPeriodEnd.HasValue && context.StockQuantityOnPeriodEnd.Value != 0 && context.StockValueOnPeriodEnd.HasValue) ? Math.Round(context.StockValueOnPeriodEnd.Value / context.StockQuantityOnPeriodEnd.Value, 2) : 0)</MudTd>
+            <MudTd DataLabel="EndTotal">@context.StockValueOnPeriodEnd</MudTd>
+            <MudTd DataLabel="GR QtyTotal">@context.TotalGoodsReceiptQuantity</MudTd>
+            <MudTd DataLabel="GI Qty">@context.TotalGoodsIssueQuantity</MudTd>
+            <MudTd DataLabel="Batch">@context.Batch</MudTd>
+            <MudTd DataLabel="Company Code">@context.CompanyCode</MudTd>
+            <MudTd DataLabel="Valuation Area">@context.ValuationArea</MudTd>
+            <MudTd DataLabel="Valuation Class">@context.ValuationClass</MudTd>
+            <MudTd DataLabel="G/L Account">@context.GLAccount</MudTd>
+            <MudTd DataLabel="Material Type">@context.MaterialType</MudTd>
+            <MudTd DataLabel="Material Group">@context.MaterialGroup</MudTd>
+            <MudTd DataLabel="Base UoM">@context.BaseUnitOfMeasure</MudTd>
+            <MudTd DataLabel="Currency">@context.Currency</MudTd>
         </RowTemplate>
         <PagerContent>
             <MudTablePager />
@@ -65,14 +172,136 @@
     private string _currentUserId = "Admin"; 
     private string _searchString = "";
 
+    // Add Material Modal State
+    private bool _isAddModalOpen = false;
+    private MudForm? _form;
+    private MaterialStock _newModel = new();
+
     protected override async Task OnInitializedAsync() => await LoadData();
+
+    private void OpenAddModal()
+    {
+        _newModel = new MaterialStock();
+        _isAddModalOpen = true;
+    }
+
+    private void CloseAddModal()
+    {
+        _isAddModalOpen = false;
+    }
+
+    private async Task SaveNewMaterial()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_form.IsValid) return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newModel.Material) || 
+            string.IsNullOrWhiteSpace(_newModel.Plant) || 
+            string.IsNullOrWhiteSpace(_newModel.StorageLocation) || 
+            string.IsNullOrWhiteSpace(_newModel.Batch))
+        {
+            Snackbar.Add("Material, Plant, Storage Location, and Batch are required fields.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _loading = true;
+
+            var exists = _materials.Any(m => 
+                m.Material.Equals(_newModel.Material, StringComparison.OrdinalIgnoreCase) &&
+                m.Plant.Equals(_newModel.Plant, StringComparison.OrdinalIgnoreCase) &&
+                m.StorageLocation.Equals(_newModel.StorageLocation, StringComparison.OrdinalIgnoreCase) &&
+                m.Batch.Equals(_newModel.Batch, StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+            {
+                Snackbar.Add($"Material '{_newModel.Material}' with this Plant, Storage Location, and Batch already exists!", Severity.Error);
+                return;
+            }
+
+            _newModel.Id = null; 
+            await SupabaseClient.From<MaterialStock>().Insert(_newModel);
+            await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(_newModel, "Insert new"));
+
+            Snackbar.Add("New material added successfully!", Severity.Success);
+            _isAddModalOpen = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add material: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static readonly Dictionary<string, string[]> CommonMisspellings = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "gauge", new[] { "guage" } },
+        { "guage", new[] { "gauge" } },
+        { "temperature", new[] { "temprature" } },
+        { "temprature", new[] { "temperature" } },
+        { "pressure", new[] { "presure" } },
+        { "presure", new[] { "pressure" } },
+        { "regulator", new[] { "regultr" } },
+        { "regultr", new[] { "regulator" } },
+        { "transmitter", new[] { "transmiter" } },
+        { "transmiter", new[] { "transmitter" } },
+        { "controller", new[] { "contoller" } },
+        { "contoller", new[] { "controller" } },
+        { "assembly", new[] { "assly", "assy" } },
+        { "assly", new[] { "assembly", "assy" } },
+        { "assy", new[] { "assembly", "assly" } },
+        { "digital", new[] { "digtal" } },
+        { "digtal", new[] { "digital" } },
+        { "analog", new[] { "anlog" } },
+        { "anlog", new[] { "analog" } },
+        { "stainless", new[] { "stainles" } },
+        { "stainles", new[] { "stainless" } }
+    };
 
     private bool FilterFunc(MaterialStock item)
     {
         if (string.IsNullOrWhiteSpace(_searchString)) return true;
-        return item.Material.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
-               (item.MaterialDescription?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
-               item.Plant.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+
+        var query = _searchString.Trim();
+
+        var searchTerms = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { query };
+
+        foreach (var pair in CommonMisspellings)
+        {
+            if (query.Contains(pair.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var alt in pair.Value)
+                {
+                    searchTerms.Add(query.Replace(pair.Key, alt, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+        }
+
+        bool Matches(string? value) => value != null &&
+            searchTerms.Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+        return Matches(item.Material) ||
+               Matches(item.MaterialDescription) ||
+               Matches(item.ValuationType) ||
+               Matches(item.Plant) ||
+               Matches(item.StorageLocation) ||
+               Matches(item.Batch) ||
+               Matches(item.CompanyCode) ||
+               Matches(item.ValuationArea) ||
+               Matches(item.ValuationClass) ||
+               Matches(item.GLAccount) ||
+               Matches(item.MaterialType) ||
+               Matches(item.MaterialGroup) ||
+               Matches(item.BaseUnitOfMeasure) ||
+               Matches(item.Currency);
     }
 
     private async Task LoadData() {
@@ -84,110 +313,71 @@
         finally { _loading = false; }
     }
 
-    // private async Task UploadExcel(IBrowserFile file) {
-    //     _loading = true;
-    //     try {
-    //         using var memoryStream = new MemoryStream();
-    //         await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
-    //         memoryStream.Position = 0;
-    //         var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
-            
-    //         var existingData = await SupabaseClient.From<MaterialStock>().Get();
-    //         var existingDict = existingData.Models.ToDictionary(m => m.Material);
-            
-    //         var processedMaterials = new HashSet<string>();
-
-    //         foreach (var newRow in uploadedRows) {
-    //             // Prevent processing duplicates from the Excel file
-    //             if (!processedMaterials.Add(newRow.Material)) continue;
-
-    //             if (existingDict.TryGetValue(newRow.Material, out var existing)) {
-    //                 if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
-    //                     await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
-    //                     newRow.Id = existing.Id;
-    //                     await SupabaseClient.From<MaterialStock>().Update(newRow);
-    //                 }
-    //             } else {
-    //                 newRow.Id = null; // Forces DB auto-increment
-    //                 await SupabaseClient.From<MaterialStock>().Insert(newRow);
-    //                 await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
-    //             }
-    //         }
-    //         Snackbar.Add("Data synced successfully!", Severity.Success);
-    //         await LoadData();
-    //     } catch (Exception ex) { Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); }
-    //     finally { _loading = false; }
-    // }
-
     private async Task UploadExcel(IBrowserFile file) {
-    _loading = true;
-    int newCount = 0;
-    int updatedCount = 0;
+        _loading = true;
+        int newCount = 0;
+        int updatedCount = 0;
 
-    try {
-        using var memoryStream = new MemoryStream();
-        await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-        
-        var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
-        var existingData = await SupabaseClient.From<MaterialStock>().Get();
-        
-        var existingDict = existingData.Models.ToDictionary(m => 
-            $"{m.Material}_{m.Plant}_{m.StorageLocation}_{m.Batch}".ToLower());
-        
-        var processedKeys = new HashSet<string>();
-
-        foreach (var newRow in uploadedRows) {
-            var key = $"{newRow.Material}_{newRow.Plant}_{newRow.StorageLocation}_{newRow.Batch}".ToLower();
+        try {
+            using var memoryStream = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 20).CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
             
-            if (!processedKeys.Add(key)) continue;
+            var uploadedRows = memoryStream.Query<MaterialStock>().ToList();
+            var existingData = await SupabaseClient.From<MaterialStock>().Get();
+            
+            var existingDict = existingData.Models.ToDictionary(m => 
+                $"{m.Material}_{m.Plant}_{m.StorageLocation}_{m.Batch}".ToLower());
+            
+            var processedKeys = new HashSet<string>();
 
-            if (existingDict.TryGetValue(key, out var existing)) {
-                if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
-                    // 1. Log historical state
-                    await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
-                    
-                    // 2. Perform safe, explicit update
-                    await SupabaseClient.From<MaterialStock>()
-                        .Where(m => m.Id == existing.Id)
-                        .Set(m => m.StockQuantityOnPeriodEnd, newRow.StockQuantityOnPeriodEnd)
-                        .Set(m => m.StockValueOnPeriodEnd, newRow.StockValueOnPeriodEnd)
-                        .Update();
-                    
-                    updatedCount++;
+            foreach (var newRow in uploadedRows) {
+                var key = $"{newRow.Material}_{newRow.Plant}_{newRow.StorageLocation}_{newRow.Batch}".ToLower();
+                
+                if (!processedKeys.Add(key)) continue;
+
+                if (existingDict.TryGetValue(key, out var existing)) {
+                    if (existing.StockQuantityOnPeriodEnd != newRow.StockQuantityOnPeriodEnd) {
+                        await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(existing, "Update"));
+                        
+                        await SupabaseClient.From<MaterialStock>()
+                            .Where(m => m.Id == existing.Id)
+                            .Set(m => m.StockQuantityOnPeriodEnd, newRow.StockQuantityOnPeriodEnd)
+                            .Set(m => m.StockValueOnPeriodEnd, newRow.StockValueOnPeriodEnd)
+                            .Update();
+                        
+                        updatedCount++;
+                    }
+                } else {
+                    newRow.Id = null; 
+                    await SupabaseClient.From<MaterialStock>().Insert(newRow);
+                    await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
+                    newCount++;
                 }
-            } else {
-                newRow.Id = null; 
-                await SupabaseClient.From<MaterialStock>().Insert(newRow);
-                await SupabaseClient.From<MaterialHistory>().Insert(MapToHistory(newRow, "Insert new"));
-                newCount++;
             }
+            
+            Snackbar.Add($"Sync Complete: {newCount} new items, {updatedCount} updated.", Severity.Success);
+            await LoadData();
+        } 
+        catch (Exception ex) { 
+            Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); 
         }
-        
-        Snackbar.Add($"Sync Complete: {newCount} new items, {updatedCount} updated.", Severity.Success);
-        await LoadData();
-    } 
-    catch (Exception ex) { 
-        Snackbar.Add($"Upload Failed: {ex.Message}", Severity.Error); 
+        finally { 
+            _loading = false; 
+        }
     }
-    finally { 
-        _loading = false; 
-    }
-}
 
     private async Task DownloadMasterData()
     {
         _loading = true;
         try
         {
-            // Fetch fresh data from DB to ensure the "Manual Check" is accurate
             var response = await SupabaseClient.From<MaterialStock>().Get();
             var data = response.Models;
 
             using var stream = new MemoryStream();
             stream.SaveAs(data);
 
-            // Use your existing JS Interop to trigger the file download
             await JS.InvokeVoidAsync("downloadFile", $"MasterData_Export_{DateTime.Now:yyyyMMdd}.xlsx", Convert.ToBase64String(stream.ToArray()));
 
             Snackbar.Add("Master data downloaded successfully.", Severity.Success);
@@ -211,23 +401,20 @@
             {
                 var worksheet = workbook.Worksheets.Add("MaterialData");
 
-                // 1. Set Headers
                 var headers = new string[] {
-                "Material", "Material Description", "Valuation Type", "Plant",
-                "Storage Location", "Batch", "Company Code", "Valuation Area",
-                "Valuation Class", "G/L Account", "Material Type", "Material Group",
-                "Base Unit of Measure", "Currency", "Stock Quantity on Period End",
-                "Stock Value on Period End", "Stock Quantity on Period Start",
-                "Total Goods Receipt Quantity", "Total Goods Issue Quantity"
-            };
+                    "Material", "Material Description", "Valuation Type", "Plant",
+                    "Storage Location", "Qty", "StartQty", "EndValue", "EndTotal",
+                    "GR QtyTotal", "GI Qty", "Batch", "Company Code", "Valuation Area",
+                    "Valuation Class", "G/L Account", "Material Type", "Material Group",
+                    "Base Unit of Measure", "Currency"
+                };
 
                 for (int i = 0; i < headers.Length; i++)
                 {
                     worksheet.Cell(1, i + 1).Value = headers[i];
-                    worksheet.Cell(1, i + 1).Style.Font.Bold = true; // Optional: Makes headers bold
+                    worksheet.Cell(1, i + 1).Style.Font.Bold = true;
                 }
 
-                // 2. Map Data
                 int row = 2;
                 foreach (var item in _materials)
                 {
@@ -236,33 +423,31 @@
                     worksheet.Cell(row, 3).Value = item.ValuationType;
                     worksheet.Cell(row, 4).Value = item.Plant;
                     worksheet.Cell(row, 5).Value = item.StorageLocation;
-                    worksheet.Cell(row, 6).Value = item.Batch;
-                    worksheet.Cell(row, 7).Value = item.CompanyCode;
-                    worksheet.Cell(row, 8).Value = item.ValuationArea;
-                    worksheet.Cell(row, 9).Value = item.ValuationClass;
-                    worksheet.Cell(row, 10).Value = item.GLAccount;
-                    worksheet.Cell(row, 11).Value = item.MaterialType;
-                    worksheet.Cell(row, 12).Value = item.MaterialGroup;
-                    worksheet.Cell(row, 13).Value = item.BaseUnitOfMeasure;
-                    worksheet.Cell(row, 14).Value = item.Currency;
-                    worksheet.Cell(row, 15).Value = item.StockQuantityOnPeriodEnd;
-                    worksheet.Cell(row, 16).Value = item.StockValueOnPeriodEnd;
-                    worksheet.Cell(row, 17).Value = item.StockQuantityOnPeriodStart;
-                    worksheet.Cell(row, 18).Value = item.TotalGoodsReceiptQuantity;
-                    worksheet.Cell(row, 19).Value = item.TotalGoodsIssueQuantity;
+                    worksheet.Cell(row, 6).Value = item.StockQuantityOnPeriodEnd ?? 0;
+                    worksheet.Cell(row, 7).Value = item.StockQuantityOnPeriodStart ?? 0;
+                    worksheet.Cell(row, 8).Value = (item.StockQuantityOnPeriodEnd.HasValue && item.StockQuantityOnPeriodEnd.Value != 0 && item.StockValueOnPeriodEnd.HasValue) ? Math.Round(item.StockValueOnPeriodEnd.Value / item.StockQuantityOnPeriodEnd.Value, 2) : 0;
+                    worksheet.Cell(row, 9).Value = item.StockValueOnPeriodEnd ?? 0;
+                    worksheet.Cell(row, 10).Value = item.TotalGoodsReceiptQuantity ?? 0;
+                    worksheet.Cell(row, 11).Value = item.TotalGoodsIssueQuantity ?? 0;
+                    worksheet.Cell(row, 12).Value = item.Batch;
+                    worksheet.Cell(row, 13).Value = item.CompanyCode;
+                    worksheet.Cell(row, 14).Value = item.ValuationArea;
+                    worksheet.Cell(row, 15).Value = item.ValuationClass;
+                    worksheet.Cell(row, 16).Value = item.GLAccount;
+                    worksheet.Cell(row, 17).Value = item.MaterialType;
+                    worksheet.Cell(row, 18).Value = item.MaterialGroup;
+                    worksheet.Cell(row, 19).Value = item.BaseUnitOfMeasure;
+                    worksheet.Cell(row, 20).Value = item.Currency;
                     row++;
                 }
 
-                // 3. Auto-fit columns for readability
                 worksheet.Columns().AdjustToContents();
 
-                // 4. Save to MemoryStream
                 using (var stream = new MemoryStream())
                 {
                     workbook.SaveAs(stream);
                     var fileName = $"MasterData_{DateTime.Now:yyyyMMdd}.xlsx";
 
-                    // 5. Trigger download
                     using var streamRef = new DotNetStreamReference(stream: new MemoryStream(stream.ToArray()));
                     await JS.InvokeVoidAsync("downloadFileFromStreamTemplate", fileName, streamRef);
                 }
@@ -277,15 +462,6 @@
             _loading = false;
         }
     }
-    // private async Task DownloadExcel() {
-    //     _loading = true;
-    //     try {
-    //         var stream = new MemoryStream();
-    //         stream.SaveAs(_materials);
-    //         await JS.InvokeVoidAsync("downloadFile", "MasterData.xlsx", Convert.ToBase64String(stream.ToArray()));
-    //     } catch (Exception ex) { Snackbar.Add($"Download Error: {ex.Message}", Severity.Error); }
-    //     finally { _loading = false; }
-    // }
 
     private MaterialHistory MapToHistory(MaterialStock m, string action)
     {
@@ -343,6 +519,26 @@
         [Column("storage_location")]
         public string StorageLocation { get; set; } = "";
 
+        [ExcelColumnName("Qty")]
+        [Column("stock_quantity_on_period_end")]
+        public decimal? StockQuantityOnPeriodEnd { get; set; }
+
+        [ExcelColumnName("StartQty")]
+        [Column("stock_quantity_on_period_start")]
+        public decimal? StockQuantityOnPeriodStart { get; set; }
+
+        [ExcelColumnName("EndTotal")]
+        [Column("stock_value_on_period_end")]
+        public decimal? StockValueOnPeriodEnd { get; set; }
+
+        [ExcelColumnName("GR QtyTotal")]
+        [Column("total_goods_receipt_quantity")]
+        public decimal? TotalGoodsReceiptQuantity { get; set; }
+
+        [ExcelColumnName("GI Qty")]
+        [Column("total_goods_issue_quantity")]
+        public decimal? TotalGoodsIssueQuantity { get; set; }
+
         [ExcelColumnName("Batch")]
         [Column("batch")]
         public string Batch { get; set; } = "";
@@ -378,26 +574,6 @@
         [ExcelColumnName("Currency")]
         [Column("currency")]
         public string? Currency { get; set; }
-
-        [ExcelColumnName("Stock Quantity on Period End")]
-        [Column("stock_quantity_on_period_end")]
-        public decimal? StockQuantityOnPeriodEnd { get; set; }
-
-        [ExcelColumnName("Stock Value on Period End")]
-        [Column("stock_value_on_period_end")]
-        public decimal? StockValueOnPeriodEnd { get; set; }
-
-        [ExcelColumnName("Stock Quantity on Period Start")]
-        [Column("stock_quantity_on_period_start")]
-        public decimal? StockQuantityOnPeriodStart { get; set; }
-
-        [ExcelColumnName("Total Goods Receipt Quantity")]
-        [Column("total_goods_receipt_quantity")]
-        public decimal? TotalGoodsReceiptQuantity { get; set; }
-
-        [ExcelColumnName("Total Goods Issue Quantity")]
-        [Column("total_goods_issue_quantity")]
-        public decimal? TotalGoodsIssueQuantity { get; set; }
     }
 
     [Table("store_material_history")]
@@ -409,6 +585,11 @@
         [Column("valuation_type")] public string? ValuationType { get; set; }
         [Column("plant")] public string Plant { get; set; } = "";
         [Column("storage_location")] public string StorageLocation { get; set; } = "";
+        [Column("stock_quantity_on_period_end")] public decimal? StockQuantityOnPeriodEnd { get; set; }
+        [Column("stock_quantity_on_period_start")] public decimal? StockQuantityOnPeriodStart { get; set; }
+        [Column("stock_value_on_period_end")] public decimal? StockValueOnPeriodEnd { get; set; }
+        [Column("total_goods_receipt_quantity")] public decimal? TotalGoodsReceiptQuantity { get; set; }
+        [Column("total_goods_issue_quantity")] public decimal? TotalGoodsIssueQuantity { get; set; }
         [Column("batch")] public string Batch { get; set; } = "";
         [Column("company_code")] public string? CompanyCode { get; set; }
         [Column("valuation_area")] public string? ValuationArea { get; set; }
@@ -418,11 +599,6 @@
         [Column("material_group")] public string? MaterialGroup { get; set; }
         [Column("base_unit_of_measure")] public string? BaseUnitOfMeasure { get; set; }
         [Column("currency")] public string? Currency { get; set; }
-        [Column("stock_quantity_on_period_end")] public decimal? StockQuantityOnPeriodEnd { get; set; }
-        [Column("stock_value_on_period_end")] public decimal? StockValueOnPeriodEnd { get; set; }
-        [Column("stock_quantity_on_period_start")] public decimal? StockQuantityOnPeriodStart { get; set; }
-        [Column("total_goods_receipt_quantity")] public decimal? TotalGoodsReceiptQuantity { get; set; }
-        [Column("total_goods_issue_quantity")] public decimal? TotalGoodsIssueQuantity { get; set; }
 
         [Column("action")] public string Action { get; set; } = "";
         [Column("changed_at")] public DateTime ChangedAt { get; set; }

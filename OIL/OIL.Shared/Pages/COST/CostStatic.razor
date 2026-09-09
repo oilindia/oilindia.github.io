@@ -192,7 +192,7 @@
         <MudText Typo="Typo.h6" Class="mb-3">Processed Job Assignment Manifest</MudText>
         <MudTable Items="@GridRows" Hover="true" Striped="true" FixedHeader="true" Height="400px" Loading="@_loading" LoadingProgressColor="Color.Info">
             <HeaderContent>
-                <MudTh>Assignment ID</MudTh>
+                <MudTh>Job Name</MudTh>
                 <MudTh>Execution Date</MudTh>
                 <MudTh Style="text-align: right;">OT Hours</MudTh>
                 <MudTh Style="text-align: right;">OT Cost</MudTh>
@@ -203,7 +203,7 @@
                 <MudTh Style="text-align: right; font-weight: bold;">Aggregate Cost</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Assignment ID"><MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">@context.AssignmentId</MudChip></MudTd>
+                <MudTd DataLabel="Job Name"><MudText>@context.JobNames</MudText></MudTd>
                 <MudTd DataLabel="Execution Date">@context.CreatedAt.ToString("dd-MM-yyyy HH:mm")</MudTd>
                 <MudTd DataLabel="OT Hours" Style="text-align: right;">@context.OvertimeHours.ToString("N1")</MudTd>
                 <MudTd DataLabel="OT Cost" Style="text-align: right; color: var(--mud-palette-error);">₹ @context.OvertimeCost.ToString("N2")</MudTd>
@@ -411,13 +411,14 @@
                 int quarter = (assignment.CreatedAt.Month - 1) / 3;
                 if (quarter < 0 || quarter > 3) quarter = 0;
 
-                var gridRowItem = new AssignmentGridRow { AssignmentId = assignment.Id, CreatedAt = assignment.CreatedAt };
+                var gridRowItem = new AssignmentGridRow { CreatedAt = assignment.CreatedAt };
                 var cleanAssignmentJobIds = GetCleanJobIds(assignment.JobIds);
 
                 double otHours = 0;
                 double totalPartsCost = 0;
                 double totalPmCost = 0;
                 var locationIds = new HashSet<long>();
+                var jobNameList = new List<string>();
 
                 foreach (var cleanId in cleanAssignmentJobIds)
                 {
@@ -425,9 +426,14 @@
                     {
                         otHours += job.OvertimeApproved ?? 0;
                         if (job.LocationId.HasValue) locationIds.Add(job.LocationId.Value);
+
+                        var nameToDisplay = !string.IsNullOrWhiteSpace(job.JobName) ? job.JobName : (!string.IsNullOrWhiteSpace(job.Name) ? job.Name : cleanId);
+                        if (!jobNameList.Contains(nameToDisplay))
+                        {
+                            jobNameList.Add(nameToDisplay);
+                        }
                     }
 
-                    // Use dynamically calculated Net Spare Cost (Issuances minus Returns)
                     if (netSparesCostByJob.TryGetValue(cleanId, out var dynamicSpareCost))
                     {
                         totalPartsCost += Math.Max(0, dynamicSpareCost);
@@ -442,6 +448,8 @@
                         }
                     }
                 }
+
+                gridRowItem.JobNames = jobNameList.Count > 0 ? string.Join(", ", jobNameList) : "N/A";
 
                 TotalOvertimeHours += otHours;
                 double calculatedOtCost = otHours * HourlyOvertimeRate;
@@ -652,7 +660,7 @@
 
     public class AssignmentGridRow
     {
-        public string AssignmentId { get; set; } = string.Empty;
+        public string JobNames { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public double OvertimeHours { get; set; }
         public double OvertimeCost { get; set; }
@@ -699,6 +707,8 @@
     public class JobModel : BaseModel
     {
         [PrimaryKey("id", false)] public string Id { get; set; } = string.Empty;
+        [Column("job_name")] public string? JobName { get; set; }
+        [Column("name")] public string? Name { get; set; }
         [Column("job_spare_cost")] public double? PartsCost { get; set; }
         [Column("location_id")] public long? LocationId { get; set; }
         [Column("overtime_approved")] public double? OvertimeApproved { get; set; }
