@@ -56,16 +56,18 @@
             </MudNavGroup>
 
             <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.AutoMode">
-                <MudNavLink Href="/npme">New Entry</MudNavLink>
+               @*  <MudNavLink Href="/npme">New Entry</MudNavLink> *@
 
-                <MudNavLink Href="/excel">New Excel Entry</MudNavLink>
+                <MudNavLink Href="/pmpdfupload">PM PDF Upload</MudNavLink>
+
+                @* <MudNavLink Href="/pmexcelupload">PM Excel Upload</MudNavLink> *@
 
                 <MudNavLink Href="/pmdbstatic">PM Dashboard</MudNavLink>
                 <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
-                <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
-                <MudNavLink Href="/PMrn">PM Reports</MudNavLink>
+                @* <MudNavLink Href="/pmexecution">PM Execution</MudNavLink> *@
+                <MudNavLink Href="/pmpdfreports">PM PDF Reports</MudNavLink>
 
-                <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
+                @* <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink> *@
 
                 <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
 
@@ -144,12 +146,15 @@
             @if (context.User.IsInRole("Engineer") || context.User.IsInRole("Manager") || context.User.IsInRole("Admin"))
             {
                 <MudNavGroup Title="PM & Calibration" Icon="@Icons.Material.Filled.Storage">
+
+                    <MudNavLink Href="/pmpdfupload">PM PDF Upload</MudNavLink>
+
                     <MudNavLink Href="/pmdbstatic">PM Dashboard</MudNavLink>
                     <MudNavLink Href="/pmschedule">PM Scheduling</MudNavLink>
-                    <MudNavLink Href="/pmexecution">PM Execution</MudNavLink>
-                    <MudNavLink Href="/PMrn">PM Reports</MudNavLink>
+                    @* <MudNavLink Href="/pmexcelupload">PM Excel Upload</MudNavLink> *@
+                    <MudNavLink Href="/pmpdfreports">PM PDF Reports</MudNavLink>
 
-                    <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink>
+                    @* <MudNavLink Href="/CalibrationCert">Calibration Certificates</MudNavLink> *@
 
                     <MudNavLink Href="/mastercalibrators">Master Calibrators</MudNavLink>
 

@@ -1,0 +1,337 @@
+﻿@page "/pmpdfreports"
+
+@using MudBlazor
+@using Supabase
+@using Supabase.Postgrest.Attributes
+@using Supabase.Postgrest.Models
+@inject ISnackbar Snackbar
+@inject Supabase.Client SupabaseClient
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-8 no-print">
+    <MudPaper Elevation="3" Class="pa-4">
+        @* --- HEADER --- *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h5">PM PDF Upload Reports & Certificates</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadData">
+                Refresh Data
+            </MudButton>
+        </MudStack>
+
+        @* --- FILTERS --- *@
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="3">
+                <MudDateRangePicker Label="Report Date Range" @bind-DateRange="_dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudTextField @bind-Value="_searchLocation" Label="Filter Location" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_searchString" Label="Search Notification / Uploaded By" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true" OnClick="LoadData">Apply Filters</MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @* --- DATA GRID (Lightweight Initial Load) --- *@
+        <MudDataGrid T="DynamicReportSummaryModel" Items="@_filteredReports" Loading="@_loading" Dense="true" Hover="true" Bordered="true" Striped="true">
+            <Columns>
+                <TemplateColumn Title="Action" HeaderStyle="width: 120px;">
+                    <CellTemplate>
+                        <MudStack Row="true" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenViewModal(context.Item.Id))" Title="View Report" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenViewModal(context.Item.Id))" Title="Print Report" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.ReportDate" Format="yyyy-MM-dd" Title="Date" />
+                <PropertyColumn Property="x => x.LocationName" Title="Location" />
+                <PropertyColumn Property="x => x.DocumentType" Title="Document Type" />
+                <PropertyColumn Property="x => x.NotificationNumber" Title="Notification No." />
+                <PropertyColumn Property="x => x.UploadedBy" Title="Uploaded By" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
+
+@* --- LOADING OVERLAY FOR FULL REPORT FETCH --- *@
+@if (_isFetchingDetails)
+{
+    <div class="modal-backdrop-custom">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        <MudText Typo="Typo.subtitle1" Class="text-white mt-3">Loading report content...</MudText>
+    </div>
+}
+
+@* --- DETAILED VIEW & PRINTABLE MODAL OVERLAY --- *@
+@if (_isModalOpen && !_isFetchingDetails)
+{
+    <div class="modal-backdrop-custom">
+        <div class="modal-dialog-box">
+            <div class="modal-toolbar no-print">
+                <MudText Typo="Typo.h6" Color="Color.Inherit">PM Report Preview: @_viewingReport.DocumentType</MudText>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintReport">Print Report</MudButton>
+                    <MudButton Variant="Variant.Outlined" Style="background: white; color: black;" StartIcon="@Icons.Material.Filled.Close" OnClick="CloseModal">Close</MudButton>
+                </div>
+            </div>
+
+            <div class="a4-page-wrapper">
+                <div id="printable-report-area" class="excel-preview-container">
+                    @((MarkupString)_viewingReport.HtmlContent)
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .modal-backdrop-custom {
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.75);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow-y: auto;
+        backdrop-filter: blur(4px);
+        padding: 20px;
+        box-sizing: border-box;
+    }
+
+    .modal-dialog-box {
+        display: flex;
+        flex-direction: column;
+        width: 210mm;
+        max-width: 100%;
+        max-height: 95vh;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        overflow: hidden;
+        background: white;
+    }
+
+    .modal-toolbar {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #212529;
+        color: white;
+        padding: 12px 20px;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+
+    .a4-page-wrapper {
+        display: flex;
+        justify-content: center;
+        background-color: #e9ecef;
+        width: 100%;
+        overflow-y: auto;
+        flex-grow: 1;
+        padding: 20px 0;
+    }
+
+    .excel-preview-container {
+        background-color: white;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 12mm 15mm;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+    }
+
+    .pdf-page-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    @@media print {
+        @@page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
+        body, html {
+            background-color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+            body * {
+                visibility: hidden !important;
+            }
+
+        .excel-preview-container, .excel-preview-container * {
+            visibility: visible !important;
+        }
+
+        .modal-backdrop-custom {
+            position: static !important;
+            background: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+
+        .modal-dialog-box {
+            box-shadow: none !important;
+            max-height: none !important;
+            width: 100% !important;
+            display: block !important;
+        }
+
+        .modal-toolbar, .no-print {
+            display: none !important;
+        }
+
+        .a4-page-wrapper {
+            background-color: white !important;
+            padding: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+        }
+
+        .excel-preview-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
+            box-shadow: none !important;
+            padding: 12mm 15mm !important;
+            margin: 0 !important;
+            background: white !important;
+        }
+    }
+</style>
+
+@code {
+    [Table("pm_excel_upload_reports")]
+    public class DynamicReportSummaryModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("location_name")] public string LocationName { get; set; } = string.Empty;
+        [Column("report_date")] public DateTime ReportDate { get; set; } = DateTime.Today;
+        [Column("document_type")] public string DocumentType { get; set; } = "PM Report";
+        [Column("notification_number")] public string NotificationNumber { get; set; } = string.Empty;
+        [Column("uploaded_by")] public string UploadedBy { get; set; } = string.Empty;
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    [Table("pm_excel_upload_reports")]
+    public class DynamicReportModel : BaseModel
+    {
+        [PrimaryKey("id", false)] public int Id { get; set; }
+        [Column("location_name")] public string LocationName { get; set; } = string.Empty;
+        [Column("report_date")] public DateTime ReportDate { get; set; } = DateTime.Today;
+        [Column("document_type")] public string DocumentType { get; set; } = "PM Report";
+        [Column("html_content")] public string HtmlContent { get; set; } = string.Empty;
+        [Column("notification_number")] public string NotificationNumber { get; set; } = string.Empty;
+        [Column("uploaded_by")] public string UploadedBy { get; set; } = string.Empty;
+        [Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    private List<DynamicReportSummaryModel> _reports = new();
+    private List<DynamicReportSummaryModel> _filteredReports => _reports
+        .Where(r => string.IsNullOrWhiteSpace(_searchLocation) || r.LocationName.Contains(_searchLocation, StringComparison.OrdinalIgnoreCase))
+        .Where(r => string.IsNullOrWhiteSpace(_searchString) ||
+                    (!string.IsNullOrEmpty(r.NotificationNumber) && r.NotificationNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(r.UploadedBy) && r.UploadedBy.Contains(_searchString, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+
+    private DynamicReportModel _viewingReport = new();
+    private bool _loading = true;
+    private bool _isFetchingDetails = false;
+    private bool _isModalOpen = false;
+    private string _searchLocation = "";
+    private string _searchString = "";
+    private DateRange _dateRange = new DateRange(DateTime.Now.AddMonths(-3), DateTime.Now);
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            var start = _dateRange.Start ?? DateTime.Now.AddMonths(-3);
+            var end = _dateRange.End ?? DateTime.Now;
+
+            // Only fetch summary metadata columns during initial load (excludes heavy html_content)
+            var response = await SupabaseClient.From<DynamicReportSummaryModel>()
+                .Select("id,location_name,report_date,document_type,notification_number,uploaded_by,created_at")
+                .Where(x => x.ReportDate >= start && x.ReportDate <= end)
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+
+            _reports = response.Models;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading reports: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenViewModal(int reportId)
+    {
+        _isFetchingDetails = true;
+        StateHasChanged();
+
+        try
+        {
+            // Fetch the full report including html_content on demand when viewed/printed
+            var response = await SupabaseClient.From<DynamicReportModel>()
+                .Where(x => x.Id == reportId)
+                .Single();
+
+            if (response != null)
+            {
+                _viewingReport = response;
+                _isModalOpen = true;
+            }
+            else
+            {
+                Snackbar.Add("Report not found.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching report content: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isFetchingDetails = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseModal()
+    {
+        _isModalOpen = false;
+        _viewingReport = new();
+    }
+
+    private async Task PrintReport()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+}

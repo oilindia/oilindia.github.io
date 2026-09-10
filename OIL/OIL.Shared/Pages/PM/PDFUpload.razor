@@ -1,0 +1,585 @@
+﻿@page "/pmpdfupload"
+@inject IJSRuntime JS
+@inject Supabase.Client SupabaseClient
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+
+<div class="report-manager-container">
+    <!-- Controls Section (Hidden during print) -->
+    <div class="controls-section no-print">
+        <div class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center mb-4 gap-4 border-b pb-4">
+            <div>
+                <MudText Typo="Typo.h5" Color="Color.Primary" Style="font-weight: 800; letter-spacing: -0.5px;">
+                    PM EXECUTION & REPORT MANAGER
+                </MudText>
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Style="font-weight: 500;">
+                    Workflow Grouping Mode: <span class="text-primary font-weight-bold">@(_detectedType ?? "SELECT ACTIVE JOB")</span>
+                </MudText>
+            </div>
+        </div>
+
+        @if (_isSearching)
+        {
+            <div class="d-flex flex-column align-center my-4">
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Fetching processing schemas and jobs...</MudText>
+            </div>
+        }
+
+        <MudGrid Class="mb-4" Spacing="2">
+            <MudItem xs="12" md="4">
+                <MudSelect T="Job" Label="Select Target Job Workflow" Value="_selectedJob" ValueChanged="OnJobChanged" ToStringFunc="@(j => j?.JobName ?? "")" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var job in _pendingJobs)
+                    {
+                        <MudSelectItem Value="@job" />
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="_workPermit" Label="Notification Number" Variant="Variant.Outlined" AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="_assignedTo" Label="Assigned Operations Specialist / Uploaded By" Variant="Variant.Outlined" AdornmentIcon="@Icons.Material.Filled.AssignmentInd" Margin="Margin.Dense" />
+            </MudItem>
+        </MudGrid>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Select Location:</label>
+                <input type="text" @bind="locationName" class="form-control" placeholder="e.g. HAPJAN" />
+            </div>
+
+            <div class="form-group">
+                <label>Report Date:</label>
+                <input type="date" @bind="reportDate" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <label>Document Type:</label>
+                <select @bind="documentType" class="form-control">
+                    <option value="PM Report">PM Report</option>
+                    <option value="PM Certificate">PM Certificate</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Upload PDF File:</label>
+                <InputFile OnChange="HandlePdfSelected" accept=".pdf" />
+            </div>
+        </div>
+
+        @if (isProcessing)
+        {
+            <div class="d-flex align-center gap-2 mt-3">
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
+                <p class="status-text m-0">Converting PDF pages and skipping blank first page...</p>
+            </div>
+        }
+
+        <div class="action-bar" style="margin-top: 15px;">
+            <div class="selector-box" style="display: inline-block; margin-right: 15px;">
+                <label>Load Saved Report: </label>
+                <select @onchange="OnReportSelected" class="form-control" style="display:inline-block; width: 250px;">
+                    <option value="">-- Choose saved report --</option>
+                    @foreach (var report in savedReports)
+                    {
+                        <option value="@report.Id">@report.LocationName (@report.DocumentType) - @report.ReportDate.ToString("yyyy-MM-dd") [Notif: @report.NotificationNumber]</option>
+                    }
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(selectedHtmlContent))
+            {
+                <button class="save-btn" @onclick="SaveToDatabase">💾 Save to Database</button>
+                <button class="print-btn" @onclick="PrintReport">🖨️ Print A4 Report</button>
+            }
+        </div>
+    </div>
+
+    <hr class="no-print" />
+
+    <!-- A4 Paper Preview Container -->
+    <div class="a4-page-wrapper">
+        <div class="excel-preview-container">
+            @if (isFetchingReport)
+            {
+                <div class="d-flex flex-column align-center justify-center py-5">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.subtitle1" Class="mt-3 text-secondary">Loading report content from database...</MudText>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(selectedHtmlContent))
+            {
+                <div id="editable-report-area" class="editable-area">
+                    @((MarkupString)selectedHtmlContent)
+                </div>
+            }
+            else
+            {
+                <p class="no-print placeholder-text">Upload a PDF document or select a saved report to preview and save directly into Supabase!</p>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .report-manager-container {
+        padding: 20px;
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+    }
+
+    .controls-section {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+        font-size: 13px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    .status-text {
+        color: #0066cc;
+        font-style: italic;
+    }
+
+    .save-btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+        .save-btn:hover {
+            background-color: #0056b3;
+        }
+
+    .print-btn {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+        .print-btn:hover {
+            background-color: #218838;
+        }
+
+    .a4-page-wrapper {
+        display: flex;
+        justify-content: center;
+        background-color: #e9ecef;
+        padding: 30px 10px;
+    }
+
+    .excel-preview-container {
+        background-color: white;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 12mm 15mm;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        box-sizing: border-box;
+    }
+
+    .pdf-page-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    .placeholder-text {
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        padding: 50px;
+    }
+
+    @@media print {
+        @@page {
+            size: A4 portrait;
+            margin: 8mm;
+        }
+
+        body {
+            background-color: white !important;
+            margin: 0;
+            padding: 0;
+        }
+
+            body * {
+                visibility: hidden;
+            }
+
+        .excel-preview-container, .excel-preview-container * {
+            visibility: visible;
+        }
+
+        .a4-page-wrapper {
+            background-color: white !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+
+        .excel-preview-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+    }
+</style>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
+
+    private bool isProcessing = false;
+    private bool isFetchingReport = false;
+    private bool _isSearching = true;
+    private string locationName = "HAPJAN";
+    private DateTime reportDate = DateTime.Today;
+    private string documentType = "PM Report";
+    private List<DynamicReportSummaryModel> savedReports = new();
+    private string selectedHtmlContent = string.Empty;
+
+    private string _email = "";
+    private string _fullName = "";
+    private string _designation = "";
+    private string _detectedType = string.Empty;
+    private string _workPermit = string.Empty;
+    private string _assignedTo = string.Empty;
+    private Job? _selectedJob;
+    private List<Job> _pendingJobs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isSearching = true;
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var authState = await AuthStateTask;
+                var user = authState.User;
+                if (user.Identity?.IsAuthenticated == true)
+                {
+                    _email = user.FindFirst(c => c.Type.Contains("email"))?.Value ?? "";
+                    _fullName = user.Identity.Name ?? "";
+                }
+            }
+
+            var jobRes = await SupabaseClient.From<Job>()
+                .Where(x => x.Status == "pending" || x.Status == "assigned")
+                .Where(x => x.JobType == "preventive")
+                .Get();
+            _pendingJobs = jobRes.Models;
+
+            _assignedTo = string.IsNullOrEmpty(_fullName) ? "Operations Specialist" : _fullName;
+
+            await LoadReportsList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading initialization data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+
+        await JS.InvokeVoidAsync("eval", @"
+            if (typeof pdfjsLib === 'undefined') {
+                var script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                document.head.appendChild(script);
+                
+                var workerScript = document.createElement('script');
+                workerScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                document.head.appendChild(workerScript);
+            }
+
+            window.convertPdfPagesToBase64Images = async (fileStream) => {
+                const arrayBuffer = await fileStream.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdfDoc = await loadingTask.promise;
+                
+                let imagesHtml = '';
+                
+                let startPage = pdfDoc.numPages > 1 ? 2 : 1;
+                
+                for (let i = startPage; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const viewport = page.getViewport({ scale: 1.25 }); 
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    
+                    const base64Data = canvas.toDataURL('image/jpeg', 0.75);
+                    imagesHtml += `<img src=""${base64Data}"" class=""pdf-page-img"" alt=""Page ${i}"" />`;
+                }
+                
+                return imagesHtml;
+            };
+        ");
+    }
+
+    private async Task OnJobChanged(Job job)
+    {
+        _selectedJob = job;
+        if (job != null)
+        {
+            _detectedType = job.JobType;
+            try
+            {
+                var locRes = await SupabaseClient.From<Location>().Where(x => x.Id == job.LocationId).Get();
+                var loc = locRes.Models.FirstOrDefault();
+                if (loc != null && !string.IsNullOrEmpty(loc.InstallationName))
+                {
+                    locationName = loc.InstallationName;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching location: {ex.Message}");
+            }
+        }
+        else
+        {
+            _detectedType = string.Empty;
+        }
+    }
+
+    private async Task LoadReportsList()
+    {
+        try
+        {
+            // Fetch lightweight summary metadata columns only (excludes html_content)
+            var response = await SupabaseClient.From<DynamicReportSummaryModel>()
+                .Select("id,location_name,report_date,document_type,notification_number,uploaded_by,created_at")
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+            savedReports = response.Models;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading report list: {ex.Message}");
+        }
+    }
+
+    private async Task HandlePdfSelected(InputFileChangeEventArgs e)
+    {
+        isProcessing = true;
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            using var dotNetStreamRef = new DotNetStreamReference(stream);
+
+            string htmlContent = await JS.InvokeAsync<string>("convertPdfPagesToBase64Images", dotNetStreamRef);
+            selectedHtmlContent = htmlContent;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing PDF: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task SaveToDatabase()
+    {
+        isProcessing = true;
+        try
+        {
+            var newRecord = new DynamicReportModel
+            {
+                LocationName = string.IsNullOrWhiteSpace(locationName) ? "Unknown Location" : locationName,
+                ReportDate = reportDate,
+                DocumentType = documentType,
+                HtmlContent = selectedHtmlContent,
+                NotificationNumber = string.IsNullOrWhiteSpace(_workPermit) ? "N/A" : _workPermit,
+                UploadedBy = string.IsNullOrWhiteSpace(_assignedTo) ? "System User" : _assignedTo,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var insertResponse = await SupabaseClient.From<DynamicReportModel>().Insert(newRecord);
+            var inserted = insertResponse.Models.FirstOrDefault();
+
+            if (inserted != null)
+            {
+                // Add newly saved item to summary list
+                savedReports.Insert(0, new DynamicReportSummaryModel
+                {
+                    Id = inserted.Id,
+                    LocationName = inserted.LocationName,
+                    ReportDate = inserted.ReportDate,
+                    DocumentType = inserted.DocumentType,
+                    NotificationNumber = inserted.NotificationNumber,
+                    UploadedBy = inserted.UploadedBy,
+                    CreatedAt = inserted.CreatedAt
+                });
+                Snackbar.Add("Optimized PDF report successfully saved to Supabase database!", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving report: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task OnReportSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int reportId))
+        {
+            var match = savedReports.FirstOrDefault(r => r.Id == reportId);
+            if (match != null)
+            {
+                locationName = match.LocationName;
+                reportDate = match.ReportDate;
+                documentType = match.DocumentType;
+                _workPermit = match.NotificationNumber;
+                _assignedTo = match.UploadedBy;
+
+                // Load actual html_content on demand using spinner
+                isFetchingReport = true;
+                selectedHtmlContent = string.Empty;
+                StateHasChanged();
+
+                try
+                {
+                    var response = await SupabaseClient.From<DynamicReportModel>()
+                        .Where(x => x.Id == reportId)
+                        .Single();
+
+                    if (response != null)
+                    {
+                        selectedHtmlContent = response.HtmlContent;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error fetching report content: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    isFetchingReport = false;
+                }
+            }
+        }
+        else
+        {
+            selectedHtmlContent = string.Empty;
+        }
+    }
+
+    private async Task PrintReport()
+    {
+        await JS.InvokeVoidAsync("window.print");
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_excel_upload_reports")]
+    public class DynamicReportSummaryModel : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id", false)] public int Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("location_name")] public string LocationName { get; set; } = string.Empty;
+        [Supabase.Postgrest.Attributes.Column("report_date")] public DateTime ReportDate { get; set; } = DateTime.Today;
+        [Supabase.Postgrest.Attributes.Column("document_type")] public string DocumentType { get; set; } = "PM Report";
+        [Supabase.Postgrest.Attributes.Column("notification_number")] public string NotificationNumber { get; set; } = string.Empty;
+        [Supabase.Postgrest.Attributes.Column("uploaded_by")] public string UploadedBy { get; set; } = string.Empty;
+        [Supabase.Postgrest.Attributes.Column("created_at")] public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    [Supabase.Postgrest.Attributes.Table("pm_excel_upload_reports")]
+    public class DynamicReportModel : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id", false)]
+        public int Id { get; set; }
+
+        [Supabase.Postgrest.Attributes.Column("location_name")]
+        public string LocationName { get; set; } = string.Empty;
+
+        [Supabase.Postgrest.Attributes.Column("report_date")]
+        public DateTime ReportDate { get; set; } = DateTime.Today;
+
+        [Supabase.Postgrest.Attributes.Column("document_type")]
+        public string DocumentType { get; set; } = "PM Report";
+
+        [Supabase.Postgrest.Attributes.Column("html_content")]
+        public string HtmlContent { get; set; } = string.Empty;
+
+        [Supabase.Postgrest.Attributes.Column("notification_number")]
+        public string NotificationNumber { get; set; } = string.Empty;
+
+        [Supabase.Postgrest.Attributes.Column("uploaded_by")]
+        public string UploadedBy { get; set; } = string.Empty;
+
+        [Supabase.Postgrest.Attributes.Column("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    [Supabase.Postgrest.Attributes.Table("jobs")]
+    public class Job : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public Guid Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_name")] public string JobName { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("status")] public string Status { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("location_id")] public int LocationId { get; set; }
+        [Supabase.Postgrest.Attributes.Column("job_type")] public string JobType { get; set; } = "";
+        [Supabase.Postgrest.Attributes.Column("job_spare_replaced")] public string SparesConsumed { get; set; } = "";
+    }
+
+    [Supabase.Postgrest.Attributes.Table("locations")]
+    public class Location : Supabase.Postgrest.Models.BaseModel
+    {
+        [Supabase.Postgrest.Attributes.PrimaryKey("id")] public int Id { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_type")] public string? InstallationType { get; set; }
+        [Supabase.Postgrest.Attributes.Column("installation_name")] public string? InstallationName { get; set; }
+    }
+}
