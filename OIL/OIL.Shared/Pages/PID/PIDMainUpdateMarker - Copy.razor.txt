@@ -49,9 +49,9 @@
             <!-- LEFT PANEL -->
             <MudItem xs="12" md="4">
 
-                <MudPaper Class="pa-4" Style="height:80vh; overflow-y:auto; overflow-x:hidden;">
+                <MudPaper Class="pa-2" Style="height:80vh; overflow:auto;">
 
-                    <MudText Typo="Typo.h6" Class="mb-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">
                         Unmapped Instruments
                     </MudText>
 
@@ -61,53 +61,15 @@
                                   Elevation="2"
                                   @onclick="() => SelectMarker(marker)">
 
-                            <MudText Typo="Typo.subtitle1" Color="Color.Primary">
+                            <MudText>
                                 <b>@marker.TagNumber</b>
                             </MudText>
 
-                            <MudDivider Class="my-2" />
-
-                            <div class="d-flex flex-column gap-1">
-                                @if (!string.IsNullOrWhiteSpace(marker.InstrumentName))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        <b>Instrument:</b> @marker.InstrumentName
-                                    </MudText>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(marker.InstrumentType))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        <b>Type:</b> @marker.InstrumentType
-                                    </MudText>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(marker.DeviceLocation))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        <b>Location:</b> @marker.DeviceLocation
-                                    </MudText>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(marker.MakeModelType))
-                                {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                        <b>Make/Model:</b> @marker.MakeModelType
-                                    </MudText>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(marker.Range))
-                                {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                        <b>Range:</b> @marker.Range
-                                    </MudText>
-                                }
-                            </div>
+                            <MudText Typo="Typo.caption">
+                                @marker.InstrumentType
+                            </MudText>
 
                         </MudPaper>
-                    }
-
-                    @if (_unmappedMarkers.Count == 0)
-                    {
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary text-center mt-4">
-                            All instruments have been mapped.
-                        </MudText>
                     }
 
                 </MudPaper>
@@ -130,15 +92,17 @@
                         @foreach (var marker in _mappedMarkers)
                         {
                             <div style="
-                                position:absolute;
-                                left:@($"{marker.CoordX}%");
-                                top:@($"{marker.CoordY}%");
-                                transform:translate(-50%,-50%);
-                                z-index:10;">
+                                    position:absolute;
+                                    left:@($"{marker.CoordX}%");
+                                    top:@($"{marker.CoordY}%");
+                                    transform:translate(-50%,-50%);
+                                    z-index:10;">
 
                                 <MudTooltip Text="@marker.TagNumber">
+
                                     <MudIcon Icon="@Icons.Material.Filled.LocationOn"
                                              Style="color:red;" />
+
                                 </MudTooltip>
 
                             </div>
@@ -147,11 +111,11 @@
                         @if (_clickPreviewX.HasValue)
                         {
                             <div style="
-                                position:absolute;
-                                left:@($"{_clickPreviewX}%");
-                                top:@($"{_clickPreviewY}%");
-                                transform:translate(-50%,-50%);
-                                z-index:20;">
+                                    position:absolute;
+                                    left:@($"{_clickPreviewX}%");
+                                    top:@($"{_clickPreviewY}%");
+                                    transform:translate(-50%,-50%);
+                                    z-index:20;">
 
                                 <MudIcon Icon="@Icons.Material.Filled.AddLocation"
                                          Style="color:lime; font-size:40px;" />
@@ -167,31 +131,44 @@
 
         </MudGrid>
     }
+
 </MudContainer>
 
 <style>
-    .pointer-item {
-        cursor: pointer;
-        transition: all 0.2s;
+
+    .pointer-item
+    {
+        cursor:pointer;
+        transition:all 0.2s;
     }
 
-        .pointer-item:hover {
-            background: #f5f5f5;
-        }
-
-    .selected-item {
-        border: 2px solid var(--mud-palette-primary);
-        background: var(--mud-palette-primary-hover);
+    .pointer-item:hover
+    {
+        background:#eeeeee;
     }
+
+    .selected-item
+    {
+        border:2px solid #1976d2;
+        background:#e3f2fd;
+    }
+
 </style>
 
 @code {
+
     private List<Location> _locations = new();
+
     private Location _selectedLocation;
+
     private List<Marker> _allMarkers = new();
+
     private List<Marker> _unmappedMarkers = new();
+
     private List<Marker> _mappedMarkers = new();
+
     private Marker _selectedMarker;
+
     private double? _clickPreviewX;
     private double? _clickPreviewY;
 
@@ -223,32 +200,11 @@
         [Column("instrument_type")]
         public string InstrumentType { get; set; }
 
-        [Column("make_model_type")]
-        public string MakeModelType { get; set; }
-
-        [Column("range")]
-        public string Range { get; set; }
-
         [Column("coord_x")]
         public double? CoordX { get; set; }
 
         [Column("coord_y")]
         public double? CoordY { get; set; }
-
-        [Column("replacement_cost")]
-        public long? ReplacementCost { get; set; }
-
-        [Column("device_location")]
-        public string DeviceLocation { get; set; }
-
-        [Column("serial_number")]
-        public string SerialNumber { get; set; }
-
-        [Column("Instrument")]
-        public string InstrumentName { get; set; }
-
-        [Column("location_type")]
-        public string LocationType { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -263,8 +219,8 @@
     private string GetMarkerClass(Marker marker)
     {
         return marker == _selectedMarker
-            ? "pa-3 mb-3 pointer-item selected-item"
-            : "pa-3 mb-3 pointer-item";
+            ? "pa-2 mb-2 pointer-item selected-item"
+            : "pa-2 mb-2 pointer-item";
     }
 
     private async Task LoadData()
@@ -314,7 +270,9 @@
             "eval",
             @"(() => {
                 const img = document.getElementById('pid-image');
+
                 const rect = img.getBoundingClientRect();
+
                 return {
                     Width: rect.width,
                     Height: rect.height
@@ -337,7 +295,9 @@
             .Set(x => x.CoordY, _selectedMarker.CoordY)
             .Update();
 
-        Snackbar.Add($"{_selectedMarker.TagNumber} mapped", Severity.Success);
+        Snackbar.Add(
+            $"{_selectedMarker.TagNumber} mapped",
+            Severity.Success);
 
         await LoadData();
 
@@ -349,6 +309,8 @@
     public class ImageDimensions
     {
         public double Width { get; set; }
+
         public double Height { get; set; }
     }
+
 }

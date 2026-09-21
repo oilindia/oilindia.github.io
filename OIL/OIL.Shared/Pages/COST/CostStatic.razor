@@ -522,6 +522,9 @@
 
             TotalCalculatedCost = TotalOvertimeCost + TotalSparesCost + TotalEmployeeCost + TotalTravelCost;
 
+            // Sort grid rows by CreatedAt descending (newest first)
+            GridRows = GridRows.OrderByDescending(x => x.CreatedAt).ToList();
+
             double[] cumulativeTotal = new double[uniqueDates.Count];
             double running = 0;
             for (int i = 0; i < uniqueDates.Count; i++)
