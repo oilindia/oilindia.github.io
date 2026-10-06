@@ -7,6 +7,7 @@
     .ot-dashboard {
         font-family: Arial, sans-serif;
         padding: 20px;
+        position: relative;
     }
 
     .header-controls {
@@ -35,19 +36,20 @@
     .ot-grid {
         border-collapse: collapse;
         width: 100%;
-        min-width: 600px;
+        min-width: 700px;
     }
 
         .ot-grid th, .ot-grid td {
             border: 2px solid black;
             padding: 0;
             text-align: center;
+            min-width: 75px;
         }
 
         .ot-grid th {
             background-color: #f1f1f1;
             font-weight: bold;
-            padding: 10px;
+            padding: 10px 5px;
         }
 
         .ot-grid td.cell-active {
@@ -67,6 +69,7 @@
         width: 100%;
         height: 100%;
         min-height: 38px;
+        min-width: 70px;
         box-sizing: border-box;
         text-align: center;
         border: none;
@@ -140,10 +143,19 @@
         font-size: 16px;
         font-weight: bold;
         border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
-        .btn-bulk-save:hover {
+        .btn-bulk-save:hover:not(:disabled) {
             background-color: #218838;
+        }
+
+        .btn-bulk-save:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.8;
         }
 
     .btn-close {
@@ -188,12 +200,55 @@
         border: 1px solid #ddd;
         padding: 15px;
         background: white;
-        height: 350px; /* Forces a fixed, aesthetic height */
-        position: relative; /* Required for Chart.js to scale correctly */
+        height: 350px;
+        position: relative;
         display: flex;
-        justify-content: center; /* Centers the pie chart nicely */
+        justify-content: center;
+    }
+
+    /* Fullscreen Spinner Overlay */
+    .spinner-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        color: white;
+    }
+
+    .spinner {
+        border: 6px solid #f3f3f3;
+        border-top: 6px solid #0d6efd;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
     }
 </style>
+
+@if (IsSaving)
+{
+    <div class="spinner-overlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 18px; font-weight: bold; font-size: 18px;">Saving entries to database...</p>
+    </div>
+}
 
 <div class="ot-dashboard">
     <h2>Instrumentation Department - Overtime Entry</h2>
@@ -217,9 +272,18 @@
             <label>To Date:</label>
             <input type="date" @bind="EndDate" />
         </div>
-        <button @onclick="LoadGridData" class="btn-save">Load Grid</button>
+        <button @onclick="LoadGridData" class="btn-save" disabled="@IsSaving">Load Grid</button>
 
-        <button @onclick="SaveAllChanges" class="btn-bulk-save" style="margin-left: auto;">💾 Save All Changes</button>
+        <button @onclick="SaveAllChanges" class="btn-bulk-save" disabled="@IsSaving" style="margin-left: auto;">
+            @if (IsSaving)
+            {
+                <span>⏳ Saving...</span>
+            }
+            else
+            {
+                <span>💾 Save All Changes</span>
+            }
+        </button>
     </div>
 
     <div class="main-content">
@@ -229,7 +293,7 @@
                 <table class="ot-grid">
                     <thead>
                         <tr>
-                            <th>Employee Name</th>
+                            <th style="min-width: 180px;">Employee Name</th>
                             @foreach (var date in GridDates)
                             {
                                 <th>@date.Day</th>
@@ -240,18 +304,19 @@
                         @foreach (var emp in Employees)
                         {
                             <tr>
-                                <td style="white-space: nowrap; padding: 10px;"><strong>@emp.Name</strong></td>
+                                <td style="white-space: nowrap; padding: 10px; text-align: left;"><strong>@emp.Name</strong></td>
                                 @foreach (var date in GridDates)
                                 {
                                     var key = $"{emp.Id}_{date:yyyyMMdd}";
                                     var isSelected = SelectedEmpId == emp.Id && SelectedDate == date;
+                                    var entry = GetGridEntry(key);
 
                                     <td class="cell-active @(isSelected ? "selected" : "")"
                                         @onclick="() => OpenPanel(emp, date, key)">
-                                        <!-- Editable Textbox directly in the grid -->
-                                        <input type="number" step="0.5" min="0"
+                                        <input type="number"
                                                class="ot-input"
-                                               @bind="GridState[key].Hours"
+                                               value="@(entry.Hours == 0 ? "" : entry.Hours.ToString("0.#"))"
+                                               @onchange="(e) => OnGridHoursInputChanged(e, key)"
                                                @onclick="() => OpenPanel(emp, date, key)"
                                                @onfocus="() => OpenPanel(emp, date, key)" />
                                     </td>
@@ -276,7 +341,10 @@
 
                 <div class="form-group">
                     <label>OT Hours (F1)</label>
-                    <input type="number" step="0.5" min="0" @bind="CurrentEntry.Hours" />
+                    <input type="text"
+                           value="@(CurrentEntry.Hours == 0 ? "" : CurrentEntry.Hours.ToString("0.#"))"
+                           @onchange="OnPanelHoursInputChanged"
+                           placeholder="0.0" />
                 </div>
                 <div class="form-group">
                     <label>From Time (F2)</label>
@@ -323,7 +391,7 @@
                         <tr>
                             <td>@rank</td>
                             <td>@stat.Name</td>
-                            <td>@stat.TotalHours</td>
+                            <td>@stat.TotalHours.ToString("0.#")</td>
                             <td>@stat.TotalDays</td>
                         </tr>
                         rank++;
@@ -362,6 +430,7 @@
     private List<EmployeeStat> Top20Employees = new();
 
     private bool IsPanelOpen = false;
+    private bool IsSaving = false;
     private long SelectedEmpId;
     private string SelectedEmpName;
     private DateTime SelectedDate;
@@ -378,13 +447,28 @@
         await LoadGridData();
     }
 
+    private OTEntry GetGridEntry(string key)
+    {
+        if (GridState.TryGetValue(key, out var entry))
+        {
+            return entry;
+        }
+
+        return new OTEntry();
+    }
+
+    private string FormatDateKey(DateTime dt)
+    {
+        return dt.ToString("yyyy-MM-dd");
+    }
+
     private async Task LoadGridData()
     {
         IsPanelOpen = false;
         GridDates.Clear();
         GridState.Clear();
 
-        for (var dt = StartDate; dt <= EndDate; dt = dt.AddDays(1))
+        for (var dt = StartDate.Date; dt <= EndDate.Date; dt = dt.AddDays(1))
         {
             GridDates.Add(dt);
         }
@@ -398,7 +482,7 @@
         Employees = empResponse.Models;
 
         var entryResponse = await SupabaseClient.From<OTEntry>()
-            .Where(x => x.Date >= StartDate && x.Date <= EndDate)
+            .Where(x => x.Date >= StartDate.Date && x.Date <= EndDate.Date)
             .Get();
         AllEntries = entryResponse.Models;
 
@@ -407,7 +491,11 @@
             foreach (var date in GridDates)
             {
                 var key = $"{emp.Id}_{date:yyyyMMdd}";
-                var existing = AllEntries.FirstOrDefault(e => e.EmployeeId == emp.Id && e.Date.Date == date.Date);
+                var formattedTargetDate = FormatDateKey(date);
+
+                var existing = AllEntries.FirstOrDefault(e =>
+                    e.EmployeeId == emp.Id &&
+                    FormatDateKey(e.Date) == formattedTargetDate);
 
                 if (existing != null)
                 {
@@ -415,8 +503,8 @@
                     {
                         Id = existing.Id,
                         EmployeeId = existing.EmployeeId,
-                        Date = existing.Date,
-                        Hours = existing.Hours,
+                        Date = date,
+                        Hours = Math.Round(existing.Hours, 1),
                         FromTime = existing.FromTime,
                         ToTime = existing.ToTime,
                         Reason = existing.Reason
@@ -426,6 +514,7 @@
                 {
                     GridState[key] = new OTEntry
                     {
+                        Id = 0,
                         EmployeeId = emp.Id,
                         Date = date,
                         Hours = 0
@@ -445,58 +534,109 @@
         SelectedEmpName = emp.Name;
         SelectedDate = date;
 
-        CurrentEntry = GridState[key];
+        CurrentEntry = GetGridEntry(key);
         IsPanelOpen = true;
+    }
+
+    private void OnGridHoursInputChanged(ChangeEventArgs e, string key)
+    {
+        var entry = GetGridEntry(key);
+        if (decimal.TryParse(e.Value?.ToString(), out decimal parsed))
+        {
+            entry.Hours = Math.Round(parsed, 1);
+        }
+        else
+        {
+            entry.Hours = 0;
+        }
+    }
+
+    private void OnPanelHoursInputChanged(ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out decimal parsed))
+        {
+            CurrentEntry.Hours = Math.Round(parsed, 1);
+        }
+        else
+        {
+            CurrentEntry.Hours = 0;
+        }
     }
 
     private async Task SaveAllChanges()
     {
-        var entriesToInsert = new List<OTEntry>();
-        var entriesToUpdate = new List<OTEntry>();
-
-        foreach (var kvp in GridState)
-        {
-            var entry = kvp.Value;
-            var entryDateStr = entry.Date.ToString("yyyy-MM-dd");
-
-            // Check if a record for this employee and date already exists in the database
-            var existingInDb = AllEntries.FirstOrDefault(e =>
-                e.EmployeeId == entry.EmployeeId &&
-                e.Date.ToString("yyyy-MM-dd") == entryDateStr);
-
-            if (existingInDb != null)
-            {
-                // Record already exists: assign the existing DB ID so it performs an UPDATE
-                entry.Id = existingInDb.Id;
-                entriesToUpdate.Add(entry);
-            }
-            else
-            {
-                // Brand new record: only insert if hours are greater than 0
-                if (entry.Hours > 0)
-                {
-                    entry.Id = 0;
-                    entriesToInsert.Add(entry);
-                }
-            }
-        }
-
-        if (!entriesToInsert.Any() && !entriesToUpdate.Any())
-        {
-            await JS.InvokeVoidAsync("alert", "No changes detected to save.");
-            return;
-        }
+        if (IsSaving) return;
 
         try
         {
-            foreach (var item in entriesToInsert)
+            IsSaving = true;
+            StateHasChanged();
+            await Task.Delay(50); // Yield control to ensure UI renders loader spinner immediately
+
+            var dbResponse = await SupabaseClient.From<OTEntry>()
+                .Where(x => x.Date >= StartDate.Date && x.Date <= EndDate.Date)
+                .Get();
+            var dbEntries = dbResponse.Models;
+
+            var entriesToUpdate = new List<OTEntry>();
+            var entriesToInsert = new List<OTEntry>();
+
+            foreach (var kvp in GridState)
             {
-                await SupabaseClient.From<OTEntry>().Insert(item);
+                var entry = kvp.Value;
+                entry.Hours = Math.Round(entry.Hours, 1);
+                var targetDateString = FormatDateKey(entry.Date);
+
+                var existingInDb = dbEntries.FirstOrDefault(e =>
+                    e.EmployeeId == entry.EmployeeId &&
+                    FormatDateKey(e.Date) == targetDateString);
+
+                if (existingInDb != null)
+                {
+                    entry.Id = existingInDb.Id;
+                }
+
+                if (entry.Hours > 0 || entry.Id > 0)
+                {
+                    var cleanItem = new OTEntry
+                    {
+                        EmployeeId = entry.EmployeeId,
+                        Date = DateTime.SpecifyKind(entry.Date.Date, DateTimeKind.Utc),
+                        Hours = entry.Hours,
+                        FromTime = entry.FromTime,
+                        ToTime = entry.ToTime,
+                        Reason = entry.Reason
+                    };
+
+                    if (entry.Id > 0)
+                    {
+                        cleanItem.Id = entry.Id;
+                        entriesToUpdate.Add(cleanItem);
+                    }
+                    else
+                    {
+                        // New entry: leave Id as default/0 so Insert omits it and Postgres auto-generates primary key via sequence
+                        entriesToInsert.Add(cleanItem);
+                    }
+                }
             }
 
+            if (!entriesToUpdate.Any() && !entriesToInsert.Any())
+            {
+                await JS.InvokeVoidAsync("alert", "No changes detected to save.");
+                return;
+            }
+
+            // Update existing records
             foreach (var item in entriesToUpdate)
             {
                 await SupabaseClient.From<OTEntry>().Update(item);
+            }
+
+            // Bulk insert new records
+            if (entriesToInsert.Any())
+            {
+                await SupabaseClient.From<OTEntry>().Insert(entriesToInsert);
             }
 
             await JS.InvokeVoidAsync("alert", "All changes saved successfully!");
@@ -505,6 +645,11 @@
         catch (Exception ex)
         {
             await JS.InvokeVoidAsync("alert", $"Error saving entries: {ex.Message}");
+        }
+        finally
+        {
+            IsSaving = false;
+            StateHasChanged();
         }
     }
 
@@ -524,7 +669,7 @@
             .Select(g => new EmployeeStat
             {
                 Name = Employees.FirstOrDefault(emp => emp.Id == g.Key)?.Name ?? "Unknown",
-                TotalHours = g.Sum(e => e.Hours),
+                TotalHours = Math.Round(g.Sum(e => e.Hours), 1),
                 TotalDays = g.Count(e => e.Hours > 0)
             })
             .OrderByDescending(x => x.TotalHours)

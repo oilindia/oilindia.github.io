@@ -1749,49 +1749,84 @@
         }
     }
 
-
-
-    private async void HandleDeptSearchTyping(ChangeEventArgs e)
+    private async Task HandleDeptSearchTyping(ChangeEventArgs e)
     {
         deptSearchQuery = e.Value?.ToString() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(deptSearchQuery) || deptSearchQuery.Length < 1)
+
+        // Match the 2-character minimum threshold used in the Job Search
+        if (deptSearchQuery.Length >= 2)
+        {
+            isSearching = true;
+            try
+            {
+                var response = await Supabase.From<StoreMaterial>()
+                    .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
+                    {
+                        new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%"),
+                        new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%")
+                    })
+                    .Limit(10)
+                    .Get();
+
+                deptFilteredSpares = response.Models;
+            }
+            catch
+            {
+                deptFilteredSpares = new List<StoreMaterial>();
+            }
+            finally
+            {
+                isSearching = false;
+                await InvokeAsync(StateHasChanged); // Force the UI to paint the results immediately
+            }
+        }
+        else
         {
             deptFilteredSpares.Clear();
-            return;
         }
-
-        // var query = deptSearchQuery.ToLower();
-        // deptFilteredSpares = allSpares.Where(s =>
-        //     s.Material.ToLower().Contains(query) ||
-        //     s.MaterialDescription.ToLower().Contains(query)
-        // ).Take(8).ToList();
-
-        isSearching = true;
-        try
-        {
-            // Fix: Pass an explicit List of IPostgrestQueryFilter objects
-            // Fix: Added global:: modifier to bypass variable name collision
-            var response = await Supabase.From<StoreMaterial>()
-                .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
-                {
-                    new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%"),
-                    new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%")
-                })
-                .Limit(10)
-                .Get();
-
-            deptFilteredSpares = response.Models;
-        }
-        catch
-        {
-            deptFilteredSpares = new List<StoreMaterial>();
-        }
-        finally
-        {
-            isSearching = false;
-        }
-
     }
+
+    // private async void HandleDeptSearchTyping(ChangeEventArgs e)
+    // {
+    //     deptSearchQuery = e.Value?.ToString() ?? string.Empty;
+    //     if (string.IsNullOrWhiteSpace(deptSearchQuery) || deptSearchQuery.Length < 1)
+    //     {
+    //         deptFilteredSpares.Clear();
+    //         return;
+    //     }
+
+    //     // var query = deptSearchQuery.ToLower();
+    //     // deptFilteredSpares = allSpares.Where(s =>
+    //     //     s.Material.ToLower().Contains(query) ||
+    //     //     s.MaterialDescription.ToLower().Contains(query)
+    //     // ).Take(8).ToList();
+
+    //     isSearching = true;
+    //     try
+    //     {
+    //         // Fix: Pass an explicit List of IPostgrestQueryFilter objects
+    //         // Fix: Added global:: modifier to bypass variable name collision
+    //         var response = await Supabase.From<StoreMaterial>()
+    //             .Or(new List<Supabase.Postgrest.Interfaces.IPostgrestQueryFilter>
+    //             {
+    //                 new Supabase.Postgrest.QueryFilter("material", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%"),
+    //                 new Supabase.Postgrest.QueryFilter("material_description", global::Supabase.Postgrest.Constants.Operator.ILike, $"%{deptSearchQuery}%")
+    //             })
+    //             .Limit(10)
+    //             .Get();
+
+    //         deptFilteredSpares = response.Models;
+    //     }
+    //     catch
+    //     {
+    //         deptFilteredSpares = new List<StoreMaterial>();
+    //     }
+    //     finally
+    //     {
+    //         isSearching = false;
+    //     }
+
+    // }
 
     private void AddMaterialToDeptGrid(StoreMaterial spare)
     {
