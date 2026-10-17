@@ -610,47 +610,98 @@ else
 
     protected override async Task OnInitializedAsync() => await RefreshData();
 
+    // private async Task RefreshData()
+    // {
+    //     _loading = true;
+    //     try
+    //     {
+    //         _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
+    //         _jobs = (await SupabaseClient.From<Job>().Get()).Models;
+    //         _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
+    //         _locations = (await SupabaseClient.From<Location>().Get()).Models;
+    //         _markers = (await SupabaseClient.From<Marker>().Get()).Models;
+
+
+    //         // Construct unambiguous IST boundaries explicitly for the API request
+    //         string prevStartStr = $"{_prevDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
+    //         string prevEndStr = $"{_prevDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
+
+    //         string todayStartStr = $"{_todayDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
+    //         string todayEndStr = $"{_todayDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
+
+    //         var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
+    //         .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStartStr)
+    //         .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, prevEndStr)
+    //         .Get()).Models;
+
+    //         var rawTodayEntries = (await SupabaseClient.From<Assignment>()
+    //             .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStartStr)
+    //             .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayEndStr)
+    //             .Get()).Models;
+
+    //         // var todayStr = _todayDate?.ToString("yyyy-MM-dd");
+    //         // var prevStr = _prevDate?.ToString("yyyy-MM-dd");
+
+    //         // var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
+    //         //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
+    //         //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
+    //         //     .Get()).Models;
+
+    //         // var rawTodayEntries = (await SupabaseClient.From<Assignment>()
+    //         //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
+    //         //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
+    //         //     .Get()).Models;
+
+    //         if (!string.IsNullOrEmpty(selectedFieldType))
+    //         {
+    //             _prevDayEntries = FilterAssignmentsByFieldType(rawPrevDayEntries, selectedFieldType);
+    //             _todayEntries = FilterAssignmentsByFieldType(rawTodayEntries, selectedFieldType);
+    //         }
+    //         else
+    //         {
+    //             _prevDayEntries = rawPrevDayEntries;
+    //             _todayEntries = rawTodayEntries;
+    //         }
+    //     }
+    //     finally
+    //     {
+    //         _loading = false;
+    //         StateHasChanged();
+    //     }
+    // }
     private async Task RefreshData()
     {
         _loading = true;
         try
         {
-            _drivers = (await SupabaseClient.From<Driver>().Get()).Models;
-            _jobs = (await SupabaseClient.From<Job>().Get()).Models;
-            _engineers = (await SupabaseClient.From<Engineer>().Get()).Models;
-            _locations = (await SupabaseClient.From<Location>().Get()).Models;
-            _markers = (await SupabaseClient.From<Marker>().Get()).Models;
+            // Bypass Supabase default 1,000-row limit
+            _drivers = (await SupabaseClient.From<Driver>().Limit(5000).Get()).Models;
+            _jobs = (await SupabaseClient.From<Job>().Limit(5000).Get()).Models;
+            _engineers = (await SupabaseClient.From<Engineer>().Limit(5000).Get()).Models;
+            _locations = (await SupabaseClient.From<Location>().Limit(5000).Get()).Models;
+            _markers = (await SupabaseClient.From<Marker>().Limit(5000).Get()).Models;
 
+            DateTime prevDateVal = _prevDate ?? DateTime.Today.AddDays(-1);
+            DateTime todayDateVal = _todayDate ?? DateTime.Today;
 
-            // Construct unambiguous IST boundaries explicitly for the API request
-            string prevStartStr = $"{_prevDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
-            string prevEndStr = $"{_prevDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
+            // Build unambiguous ISO range boundaries with +05:30 IST offset
+            string prevStartStr = $"{prevDateVal:yyyy-MM-dd}T00:00:00+05:30";
+            string prevEndStr = $"{prevDateVal:yyyy-MM-dd}T23:59:59.999+05:30";
 
-            string todayStartStr = $"{_todayDate?.ToString("yyyy-MM-dd")}T00:00:00+05:30";
-            string todayEndStr = $"{_todayDate?.AddDays(1).ToString("yyyy-MM-dd")}T00:00:00+05:30";
+            string todayStartStr = $"{todayDateVal:yyyy-MM-dd}T00:00:00+05:30";
+            string todayEndStr = $"{todayDateVal:yyyy-MM-dd}T23:59:59.999+05:30";
 
             var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStartStr)
-            .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, prevEndStr)
-            .Get()).Models;
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStartStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, prevEndStr)
+                .Limit(1000)
+                .Get()).Models;
 
             var rawTodayEntries = (await SupabaseClient.From<Assignment>()
                 .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStartStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, todayEndStr)
+                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, todayEndStr)
+                .Limit(1000)
                 .Get()).Models;
-
-            // var todayStr = _todayDate?.ToString("yyyy-MM-dd");
-            // var prevStr = _prevDate?.ToString("yyyy-MM-dd");
-
-            // var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
-            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStr)
-            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _prevDate?.AddDays(1).ToString("yyyy-MM-dd"))
-            //     .Get()).Models;
-
-            // var rawTodayEntries = (await SupabaseClient.From<Assignment>()
-            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStr)
-            //     .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThan, _todayDate?.AddDays(1).ToString("yyyy-MM-dd"))
-            //     .Get()).Models;
 
             if (!string.IsNullOrEmpty(selectedFieldType))
             {
@@ -669,7 +720,6 @@ else
             StateHasChanged();
         }
     }
-
     private void ExecuteTimeCalculations()
     {
         string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
@@ -735,20 +785,46 @@ else
 
     private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
     {
+        if (string.IsNullOrEmpty(fieldType))
+            return assignments;
+
+        // Find location IDs matching the selected field type (case-insensitive)
         var validLocationIds = _locations
-            .Where(l => string.Equals(l.FieldType, fieldType, StringComparison.OrdinalIgnoreCase))
+            .Where(l => !string.IsNullOrEmpty(l.FieldType) &&
+                        string.Equals(l.FieldType.Trim(), fieldType.Trim(), StringComparison.OrdinalIgnoreCase))
             .Select(l => l.Id)
             .ToHashSet();
 
+        // Find job IDs belonging to those valid locations
         var validJobIds = _jobs
             .Where(j => j.LocationId.HasValue && validLocationIds.Contains(j.LocationId.Value))
             .Select(j => j.Id)
             .ToHashSet();
 
-        return assignments
-            .Where(a => a.JobIds != null && a.JobIds.Any(id => validJobIds.Contains(id)))
+        // Keep assignments that contain at least one valid job ID, OR keep all if none are mapped yet
+        var filtered = assignments
+            .Where(a => a.JobIds == null || !a.JobIds.Any() || a.JobIds.Any(id => validJobIds.Contains(id)))
             .ToList();
+
+        return filtered;
     }
+
+    // private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
+    // {
+    //     var validLocationIds = _locations
+    //         .Where(l => string.Equals(l.FieldType, fieldType, StringComparison.OrdinalIgnoreCase))
+    //         .Select(l => l.Id)
+    //         .ToHashSet();
+
+    //     var validJobIds = _jobs
+    //         .Where(j => j.LocationId.HasValue && validLocationIds.Contains(j.LocationId.Value))
+    //         .Select(j => j.Id)
+    //         .ToHashSet();
+
+    //     return assignments
+    //         .Where(a => a.JobIds != null && a.JobIds.Any(id => validJobIds.Contains(id)))
+    //         .ToList();
+    // }
 
     private string GetLocationName(long? locationId)
     {

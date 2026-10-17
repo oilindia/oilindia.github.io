@@ -865,117 +865,223 @@
 
     // --- POST TRANSACTION ENTRY ---
 
+    // private async Task SubmitJob()
+    // {
+    //     if (_isProcessing) return;
+
+    //     if (_form == null || !_success) return;
+
+    //     // Ensure the manual location text is accurately bound to the prefix if applicable
+    //     if (_isManualLocation && !string.IsNullOrEmpty(_manualLocationText))
+    //     {
+    //         string expectedPrefix = $"{_manualLocationText} : ";
+    //         if (!_newJob.JobName.StartsWith(expectedPrefix))
+    //         {
+    //             // Remove any generic or stale location prefix if it exists
+    //             string rawTitle = _newJob.JobName;
+    //             if (rawTitle.Contains(" : "))
+    //             {
+    //                 rawTitle = rawTitle.Split(new[] { " : " }, StringSplitOptions.None).LastOrDefault() ?? "";
+    //             }
+    //             _newJob.JobName = $"{_manualLocationText} : {rawTitle.Trim()}";
+    //         }
+    //     }
+
+
+
+    //     _isProcessing = true;
+    //     try
+    //     {
+    //         var manualCompilation = new List<string>();
+
+    //         // Compile Locations metadata safely
+    //         if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText))
+    //             manualCompilation.Add($"[Inst Loc: {_manualLocationText}]");
+
+    //         // Compile dynamic sub-dropdown metrics
+    //         if (_selectedInstType == "GCS")
+    //         {
+    //             var gcsVal = _isManualGCSInstrument ? _manualGCSInstrumentText : _selectedGCSInstrument;
+    //             if (!string.IsNullOrWhiteSpace(gcsVal) && gcsVal != _manualTextPlaceholder)
+    //                 manualCompilation.Add($"[GCS Inst: {gcsVal}]");
+    //         }
+
+    //         var devVal = _isManualDeviceLocation ? _manualDeviceLocationText : _selectedDeviceLocation;
+    //         if (!string.IsNullOrWhiteSpace(devVal) && devVal != _manualTextPlaceholder)
+    //             manualCompilation.Add($"[Device Loc: {devVal}]");
+
+    //         var typeVal = _isManualInstrumentType ? _manualInstrumentTypeText : _selectedInstrumentType;
+    //         if (!string.IsNullOrWhiteSpace(typeVal) && typeVal != _manualTextPlaceholder)
+    //             manualCompilation.Add($"[Inst Type: {typeVal}]");
+
+    //         // Unified & Optional Tag Number Evaluation Block
+    //         var tagVal = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
+    //         if (!string.IsNullOrWhiteSpace(tagVal) && tagVal != _manualTextPlaceholder)
+    //         {
+    //             manualCompilation.Add($"[Tag No: {tagVal}]");
+    //             _newJob.Loc_Tag_Number = tagVal; // Directly populates the structural table field
+    //         }
+    //         else
+    //         {
+    //             _newJob.Loc_Tag_Number = null; // Cleanly falls back to null if skipped or cleared
+    //         }
+
+    //         // Append metadata tags directly down onto details payload summary string column
+    //         if (manualCompilation.Any())
+    //         {
+    //             _newJob.Description = $"{string.Join(" ", manualCompilation)} - {_newJob.Description}".TrimEnd(' ', '-');
+    //         }
+
+    //         var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
+    //         _newJob.Id = Guid.NewGuid();
+    //         _newJob.CreatedAt = _newJob.CreatedAt;
+    //         _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
+
+    //         _newJob.ReportedById = _email?.ToString() ?? "unknown";
+
+    //         var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
+    //         var confirmed = jobRes.Models.FirstOrDefault();
+
+    //         if (confirmed != null && _tempFiles.Any())
+    //         {
+    //             foreach (var file in _tempFiles)
+    //             {
+    //                 var path = $"{confirmed.Id}/{Guid.NewGuid()}_{file.Name}";
+    //                 using var stream = file.OpenReadStream(10 * 1024 * 1024);
+    //                 using var ms = new MemoryStream();
+    //                 await stream.CopyToAsync(ms);
+    //                 await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+    //                 await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel { Id = Guid.NewGuid(), JobId = confirmed.Id, StoragePath = path });
+    //             }
+    //         }
+    //         Snackbar.Add("Job Logged successfully!", Severity.Success);
+
+    //         _tempFiles.Clear();
+    //         _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown" };
+    //         _selectedFieldArea = "All";
+    //         _selectedInstType = "All";
+    //         ResetAllCascadingFormDropdowns();
+    //         _filteredLocations = _allLocations;
+    //         await LoadData();
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
+    //     }
+    //     finally
+    //     {
+    //         _isProcessing = false;
+    //         StateHasChanged();
+    //     }
+    // }
+
     private async Task SubmitJob()
+{
+    if (_isProcessing) return;
+    if (_form == null || !_success) return;
+
+    if (_isManualLocation && !string.IsNullOrEmpty(_manualLocationText))
     {
-        if (_isProcessing) return;
-
-        if (_form == null || !_success) return;
-
-        // Ensure the manual location text is accurately bound to the prefix if applicable
-        if (_isManualLocation && !string.IsNullOrEmpty(_manualLocationText))
+        string expectedPrefix = $"{_manualLocationText} : ";
+        if (!_newJob.JobName.StartsWith(expectedPrefix))
         {
-            string expectedPrefix = $"{_manualLocationText} : ";
-            if (!_newJob.JobName.StartsWith(expectedPrefix))
+            string rawTitle = _newJob.JobName;
+            if (rawTitle.Contains(" : "))
             {
-                // Remove any generic or stale location prefix if it exists
-                string rawTitle = _newJob.JobName;
-                if (rawTitle.Contains(" : "))
-                {
-                    rawTitle = rawTitle.Split(new[] { " : " }, StringSplitOptions.None).LastOrDefault() ?? "";
-                }
-                _newJob.JobName = $"{_manualLocationText} : {rawTitle.Trim()}";
+                rawTitle = rawTitle.Split(new[] { " : " }, StringSplitOptions.None).LastOrDefault() ?? "";
             }
-        }
-
-
-
-        _isProcessing = true;
-        try
-        {
-            var manualCompilation = new List<string>();
-
-            // Compile Locations metadata safely
-            if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText))
-                manualCompilation.Add($"[Inst Loc: {_manualLocationText}]");
-
-            // Compile dynamic sub-dropdown metrics
-            if (_selectedInstType == "GCS")
-            {
-                var gcsVal = _isManualGCSInstrument ? _manualGCSInstrumentText : _selectedGCSInstrument;
-                if (!string.IsNullOrWhiteSpace(gcsVal) && gcsVal != _manualTextPlaceholder)
-                    manualCompilation.Add($"[GCS Inst: {gcsVal}]");
-            }
-
-            var devVal = _isManualDeviceLocation ? _manualDeviceLocationText : _selectedDeviceLocation;
-            if (!string.IsNullOrWhiteSpace(devVal) && devVal != _manualTextPlaceholder)
-                manualCompilation.Add($"[Device Loc: {devVal}]");
-
-            var typeVal = _isManualInstrumentType ? _manualInstrumentTypeText : _selectedInstrumentType;
-            if (!string.IsNullOrWhiteSpace(typeVal) && typeVal != _manualTextPlaceholder)
-                manualCompilation.Add($"[Inst Type: {typeVal}]");
-
-            // Unified & Optional Tag Number Evaluation Block
-            var tagVal = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
-            if (!string.IsNullOrWhiteSpace(tagVal) && tagVal != _manualTextPlaceholder)
-            {
-                manualCompilation.Add($"[Tag No: {tagVal}]");
-                _newJob.Loc_Tag_Number = tagVal; // Directly populates the structural table field
-            }
-            else
-            {
-                _newJob.Loc_Tag_Number = null; // Cleanly falls back to null if skipped or cleared
-            }
-
-            // Append metadata tags directly down onto details payload summary string column
-            if (manualCompilation.Any())
-            {
-                _newJob.Description = $"{string.Join(" ", manualCompilation)} - {_newJob.Description}".TrimEnd(' ', '-');
-            }
-
-            var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
-            _newJob.Id = Guid.NewGuid();
-            _newJob.CreatedAt = _newJob.CreatedAt;
-            _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
-
-            _newJob.ReportedById = _email?.ToString() ?? "unknown";
-
-            var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
-            var confirmed = jobRes.Models.FirstOrDefault();
-
-            if (confirmed != null && _tempFiles.Any())
-            {
-                foreach (var file in _tempFiles)
-                {
-                    var path = $"{confirmed.Id}/{Guid.NewGuid()}_{file.Name}";
-                    using var stream = file.OpenReadStream(10 * 1024 * 1024);
-                    using var ms = new MemoryStream();
-                    await stream.CopyToAsync(ms);
-                    await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
-                    await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel { Id = Guid.NewGuid(), JobId = confirmed.Id, StoragePath = path });
-                }
-            }
-            Snackbar.Add("Job Logged successfully!", Severity.Success);
-
-            _tempFiles.Clear();
-            _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown" };
-            _selectedFieldArea = "All";
-            _selectedInstType = "All";
-            ResetAllCascadingFormDropdowns();
-            _filteredLocations = _allLocations;
-            await LoadData();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
-        }
-        finally
-        {
-            _isProcessing = false;
-            StateHasChanged();
+            _newJob.JobName = $"{_manualLocationText} : {rawTitle.Trim()}";
         }
     }
 
+    _isProcessing = true;
+    try
+    {
+        var manualCompilation = new List<string>();
 
+        if (_isManualLocation && !string.IsNullOrWhiteSpace(_manualLocationText))
+            manualCompilation.Add($"[Inst Loc: {_manualLocationText}]");
+
+        if (_selectedInstType == "GCS")
+        {
+            var gcsVal = _isManualGCSInstrument ? _manualGCSInstrumentText : _selectedGCSInstrument;
+            if (!string.IsNullOrWhiteSpace(gcsVal) && gcsVal != _manualTextPlaceholder)
+                manualCompilation.Add($"[GCS Inst: {gcsVal}]");
+        }
+
+        var devVal = _isManualDeviceLocation ? _manualDeviceLocationText : _selectedDeviceLocation;
+        if (!string.IsNullOrWhiteSpace(devVal) && devVal != _manualTextPlaceholder)
+            manualCompilation.Add($"[Device Loc: {devVal}]");
+
+        var typeVal = _isManualInstrumentType ? _manualInstrumentTypeText : _selectedInstrumentType;
+        if (!string.IsNullOrWhiteSpace(typeVal) && typeVal != _manualTextPlaceholder)
+            manualCompilation.Add($"[Inst Type: {typeVal}]");
+
+        var tagVal = _isManualTagNumber ? _manualTagNumberText : _selectedTagNumber;
+        if (!string.IsNullOrWhiteSpace(tagVal) && tagVal != _manualTextPlaceholder)
+        {
+            manualCompilation.Add($"[Tag No: {tagVal}]");
+            _newJob.Loc_Tag_Number = tagVal;
+        }
+        else
+        {
+            _newJob.Loc_Tag_Number = null;
+        }
+
+        if (manualCompilation.Any())
+        {
+            _newJob.Description = $"{string.Join(" ", manualCompilation)} - {_newJob.Description}".TrimEnd(' ', '-');
+        }
+
+        // --- IST TO UTC DATETIME CONVERSION ---
+        string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+        TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+        DateTime selectedJobDate = _newJob.CreatedAt ?? DateTime.Now;
+        DateTime istDateTime = new DateTime(selectedJobDate.Year, selectedJobDate.Month, selectedJobDate.Day, selectedJobDate.Hour, selectedJobDate.Minute, selectedJobDate.Second, DateTimeKind.Unspecified);
+        DateTime utcJobDate = TimeZoneInfo.ConvertTimeToUtc(istDateTime, istZone);
+        // ---------------------------------------
+
+        var user = (await AuthProvider.GetAuthenticationStateAsync()).User;
+        _newJob.Id = Guid.NewGuid();
+        _newJob.CreatedAt = utcJobDate; // Saved reliably as UTC
+        _newJob.ReportedByEmail = user.Identity?.Name ?? "unknown";
+        _newJob.ReportedById = _email?.ToString() ?? "unknown";
+
+        var jobRes = await SupabaseClient.From<JobModel>().Insert(_newJob);
+        var confirmed = jobRes.Models.FirstOrDefault();
+
+        if (confirmed != null && _tempFiles.Any())
+        {
+            foreach (var file in _tempFiles)
+            {
+                var path = $"{confirmed.Id}/{Guid.NewGuid()}_{file.Name}";
+                using var stream = file.OpenReadStream(10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                await SupabaseClient.Storage.From("job-photos").Upload(ms.ToArray(), path);
+                await SupabaseClient.From<JobPhotoModel>().Insert(new JobPhotoModel { Id = Guid.NewGuid(), JobId = confirmed.Id, StoragePath = path });
+            }
+        }
+        Snackbar.Add("Job Logged successfully!", Severity.Success);
+
+        _tempFiles.Clear();
+        _newJob = new JobModel { Priority = "Normal", Status = "pending", JobType = "breakdown", CreatedAt = DateTime.Now };
+        _selectedFieldArea = "All";
+        _selectedInstType = "All";
+        ResetAllCascadingFormDropdowns();
+        _filteredLocations = _allLocations;
+        await LoadData();
+    }
+    catch (Exception ex)
+    {
+        Snackbar.Add("Submission Error: " + ex.Message, Severity.Error);
+    }
+    finally
+    {
+        _isProcessing = false;
+        StateHasChanged();
+    }
+}
 
     private async Task OpenDetails(JobModel job, bool edit) {
         _selectedJob = new JobModel {

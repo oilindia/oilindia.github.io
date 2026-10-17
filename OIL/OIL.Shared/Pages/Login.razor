@@ -1,232 +1,631 @@
 ﻿@page "/"
 @page "/login"
+@page "/resume"
 @using Microsoft.AspNetCore.Authorization
 @attribute [AllowAnonymous]
-@inject OIL.Shared.Services.AuthService AuthService
-@inject NavigationManager Nav
-@namespace OIL.Shared.Pages
 @using Microsoft.AspNetCore.Components.Authorization
 @using OIL.Shared.Services
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
-@* @inject DailyDieselPriceService _dailyDieselPriceService *@
+@inject AuthService AuthService
+@namespace OIL.Shared.Pages
 
-@inject AuthenticationStateProvider AuthProvider
+<div class="oil-portal-wrapper" style="background-color: #FAFAFA; color: #111827; font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between;">
 
+    <!-- HEADER / NAVIGATION (Clean & Minimal) -->
+    <header style="position: sticky; top: 0; z-index: 50; background-color: rgba(255,255,255,0.95); border-bottom: 2px solid #E4E4E7; backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+        <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; height: 5rem; display: flex; align-items: center; justify-content: space-between;">
 
-<MudOverlay Visible="_isProcessingCheck" DarkBackground="true" ZIndex="9999">
-    <div class="d-flex flex-column align-items-center">
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
-        <MudText Typo="Typo.h6" Color="Color.Inherit" Class="mt-4">Syncing with Database...</MudText>
-    </div>
-</MudOverlay>
-
-
-<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 80vh;">
-    <MudPaper Elevation="4" Class="pa-8" Width="100%" MaxWidth="400px" Style="border-radius: 12px;">
-        <MudStack Spacing="4">
-            <div class="d-flex flex-column align-center mb-4">
-                @* Using MudImage for the OIL Logo *@
-                <MudImage Src="_content/OIL.Shared/imgs/oil.png"
-                          Alt="Oil India Limited Logo"
-                          Fluid="true"
-                          Style="max-width: 150px; height: auto;"
-                          Class="mb-2" />
-              
-                <MudText Typo="Typo.h4" Align="Align.Center" Class="mt-2" Style="font-weight: 700;">
-                    @(_isSignup ? "Create Account" : "OIL Login")
-                </MudText>
-    
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
-                    Field Maintenance Portal, Instrumentation Department, FHQ
-                </MudText>
+            <!-- Logo & Title -->
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 3rem; height: 3rem; background-color: #D32F2F; color: #FFFFFF; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.25rem; box-shadow: 0 8px 16px rgba(211,47,47,0.25);">
+                    OIL
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 10px; font-weight: 900; letter-spacing: 0.1em; background-color: #FEE2E2; color: #991B1B; padding: 0.125rem 0.5rem; border-radius: 0.25rem;">OIL INDIA LIMITED</span>
+                    </div>
+                    <h1 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; letter-spacing: -0.025em; margin: 0;">Instrumentation Department</h1>
+                </div>
             </div>
 
-            @* Change this line *@
-            @* <MudCheckBox @bind-Value="_isAdminMode" Label="Admin Mode" Color="Color.Secondary" Class="mb-4" /> *@
+            <!-- Header Action -->
+            <div>
+                <button @onclick="OpenLoginModal" style="background-color: #D32F2F; color: #FFFFFF; font-size: 0.75rem; font-weight: 900; padding: 0.75rem 1.25rem; border-radius: 0.5rem; box-shadow: 0 8px 20px rgba(211,47,47,0.3); border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: background-color 0.2s;">
+                    INSTRUMENTATION FIELDS 
+                </button>
+            </div>
+        </div>
+    </header>
 
-            <MudTextField @bind-Value="_email"
-            Placeholder="Email or Employee Code"
-                          Label="Email"
-                          Variant="Variant.Outlined"
-                          InputType="InputType.Email"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Email"
-                          Immediate="true" />
+    <main style="flex-grow: 1;">
 
+        <!-- SECTION 1: TIMELINE (PLACED FIRST) -->
+        <section id="timeline" style="padding: 5rem 0; background-color: #FFFFFF; color: #111827; position: relative; border-bottom: 4px solid #D32F2F;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
-            @* Placeholder="Abc@1234" *@
+                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #E4E4E7; padding-bottom: 1.5rem; margin-bottom: 3rem;">
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #D32F2F; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; letter-spacing: 0.1em;">
+                            PRIMARY RESUME FEATURE
+                        </div>
+                        <h2 style="font-size: 2.5rem; font-weight: 900; color: #0A0A0A; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: -0.025em; margin-bottom: 0;">
+                            Operational Resume Timeline
+                        </h2>
+                        <p style="color: #52525B; font-size: 0.875rem; margin-top: 0.25rem;">Interactive chronicle of our evolution from 1983 to 2026 and beyond</p>
+                    </div>
 
-            <MudTextField @bind-Value="_password"
-                          Label="Password"
-                          
-                          Variant="Variant.Outlined"
-                          InputType="@_passwordInput"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@_passwordIcon"
-                          OnAdornmentClick="TogglePasswordVisibility"
-                          Immediate="true" />
+                    <div style="margin-top: 1rem; md-margin-top: 0; font-family: monospace; font-size: 0.75rem; background-color: #FEF2F2; border: 1px solid #FCA5A5; padding: 0.75rem 1rem; border-radius: 0.5rem; color: #991B1B; font-weight: bold;">
+                        Chronology: 1983 – 2026+
+                    </div>
+                </div>
 
-            @if (_isSignup)
-            {
-                <MudTextField @bind-Value="_confirmPassword"
-                              Label="Confirm Password"
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Password"
-                              Immediate="true" />
-            }
+                <!-- Year Controls Bar -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); sm-grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 3rem;">
+                    @foreach (var yr in new[] { 1983, 1995, 2010, 2024, 2030 })
+                    {
+                        var isActive = _selectedYear == yr;
+                        var label = yr == 1983 ? "Phase 01" : yr == 1995 ? "Phase 02" : yr == 2010 ? "Phase 03" : yr == 2024 ? "Phase 04" : "Phase 05";
+                        var subtitle = yr == 1983 ? "Foundation" : yr == 1995 ? "Controls & Systems" : yr == 2010 ? "Enterprise Support" : yr == 2024 ? "Digital Transformation" : "Future Vision";
+                        var displayYear = yr == 1995 ? "1990s-2000s" : yr == 2010 ? "2010s-2020s" : yr == 2024 ? "2024-2026" : yr.ToString();
 
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Large"
-                       FullWidth="true"
-                       OnClick="ProcessLogin"
-                       Disabled="@_loading"
-                       Class="mt-4 py-3"
-                       Style="border-radius: 8px;">
-                @if (_loading)
-                {
-                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                    <MudText Class="ms-2">Processing...</MudText>
-                }
-                else
-                {
-                    <MudText>@(_isSignup ? "REGISTER" : "LOGIN")</MudText>
-                }
-            </MudButton>
+                        <button @onclick="() => SetSelectedYear(yr)" style="background-color: @(isActive ? "#D32F2F" : "#FFFFFF"); color: @(isActive ? "#FFFFFF" : "#111827"); border: 2px solid @(isActive ? "#D32F2F" : "#E4E4E7"); padding: 1rem; border-radius: 0.75rem; font-family: monospace; font-weight: bold; text-align: left; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                            <div style="font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: @(isActive ? "#FEE2E2" : "#71717A");">@label</div>
+                            <div style="font-size: 1.25rem; font-weight: 900; margin-top: 0.25rem;">@displayYear</div>
+                            <div style="font-size: 0.625rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.25rem; color: @(isActive ? "#FEE2E2" : "#52525B");">@subtitle</div>
+                        </button>
+                    }
+                </div>
 
-            <MudDivider Class="my-2" />
+                <!-- Timeline Active Details Card -->
+                <div style="background-color: #FFFFFF; border: 2px solid #0A0A0A; border-top: 6px solid #D32F2F; border-radius: 1.5rem; padding: 2.5rem; position: relative; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr; lg-grid-template-columns: 5fr 7fr; gap: 2rem; align-items: center;">
 
-            <div class="d-flex justify-center">
-                
-                <MudLink Underline="Underline.None" Typo="Typo.body2" Style="cursor: pointer;">
-                    @(_isSignup ? "Already have an account? Login" : "***Access to this portal is invite only. For sign up, contact : Field Maintenance Team @ Instrumentation Department. All Rights Reserved. @OIL INDIA LIMITED, FHQ, DJ")
-                </MudLink>
+                        <!-- Left Info -->
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #FEF2F2; border: 1px solid #FCA5A5; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-family: monospace; font-size: 0.75rem; color: #991B1B; font-weight: bold; width: fit-content;">
+                                <span>MILESTONE YEAR:</span>
+                                <span>@CurrentTimeline.Period</span>
+                            </div>
+                            <h3 style="font-size: 2rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin: 0;">@CurrentTimeline.Title</h3>
+                            <p style="color: #3F3F46; font-size: 0.9375rem; line-height: 1.6; margin: 0;">@CurrentTimeline.Description</p>
 
-                @* OnClick="ToggleMode" *@
+                            <div style="padding-top: 1rem; border-top: 1px solid #E4E4E7;">
+                                <span style="font-size: 0.75rem; font-family: monospace; color: #71717A; text-transform: uppercase; display: block; margin-bottom: 0.5rem; font-weight: bold;">Operational Impact:</span>
+                                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    @foreach (var highlight in CurrentTimeline.Highlights)
+                                    {
+                                        <li style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.75rem; color: #3F3F46; font-weight: 500;">
+                                            <span style="width: 0.375rem; height: 0.375rem; background-color: #D32F2F; border-radius: 50%; margin-top: 0.375rem; flex-shrink: 0;"></span>
+                                            <span>@highlight</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Right Graphical Flow Map -->
+                        <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; border-radius: 1rem; padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E4E4E7; padding-bottom: 0.75rem;">
+                                <span style="font-size: 0.75rem; font-family: monospace; color: #71717A; text-transform: uppercase; font-weight: bold;">Interactive Journey Map</span>
+                                <span style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold;">@CurrentTimeline.Badge</span>
+                            </div>
+
+                            <div style="position: relative; padding: 1.5rem 0;">
+                                <div style="position: absolute; left: 0; right: 0; top: 50%; height: 3px; background-color: #E4E4E7; transform: translateY(-50%);"></div>
+                                <div style="position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: center;">
+
+                                    @foreach (var nodeYr in new[] { 1983, 1995, 2010, 2024, 2030 })
+                                    {
+                                        var isNodeActive = _selectedYear == nodeYr;
+                                        var codeStr = nodeYr == 1983 ? "83" : nodeYr == 1995 ? "00s" : nodeYr == 2010 ? "20s" : nodeYr == 2024 ? "26" : "30+";
+                                        var lblStr = nodeYr == 1983 ? "Foundation" : nodeYr == 1995 ? "Controls" : nodeYr == 2010 ? "Support" : nodeYr == 2024 ? "Digital" : "Vision";
+
+                                        <div @onclick="() => SetSelectedYear(nodeYr)" style="cursor: pointer; display: flex; flex-direction: column; align-items: center;">
+                                            <div style="width: @(isNodeActive ? "2.5rem" : "2rem"); height: @(isNodeActive ? "2.5rem" : "2rem"); background-color: @(isNodeActive ? "#D32F2F" : "#FFFFFF"); border: 2px solid @(isNodeActive ? "#0A0A0A" : "#D4D4D8"); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem; color: @(isNodeActive ? "#FFFFFF" : "#52525B"); transition: all 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
+                                                @codeStr
+                                            </div>
+                                            <span style="font-size: 0.625rem; font-family: monospace; margin-top: 0.5rem; color: #52525B; font-weight: bold;">@lblStr</span>
+                                        </div>
+                                    }
+
+                                </div>
+                            </div>
+
+                            <div style="background-color: #FFFFFF; padding: 1rem; border-radius: 0.5rem; border: 1px solid #E4E4E7; font-size: 0.75rem; font-family: monospace; color: #3F3F46;">
+                                <span style="color: #D32F2F; font-weight: bold;">$ info:</span> Instrumentation department handles 100% telemetry verification, SIL interlock integrity checks, and direct field engineering support for all installations.
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
 
             </div>
-        </MudStack>
-    </MudPaper>
-</MudContainer>
+        </section>
 
+        <!-- SECTION 2: EXECUTIVE SUMMARY -->
+        <section id="summary" style="padding: 5rem 0; background-color: #FAFAFA; color: #111827; border-bottom: 2px solid #E4E4E7;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
+                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; gap: 2rem; border-bottom: 2px solid #E4E4E7; padding-bottom: 2rem;">
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #0A0A0A; color: #FFFFFF; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.75rem; border-left: 4px solid #D32F2F; letter-spacing: 0.1em;">
+                            EXECUTIVE OPERATIONAL SUMMARY
+                        </div>
+                        <h2 style="font-size: 3rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; letter-spacing: -0.03em; margin: 0;">
+                            Instrumentation Overview
+                        </h2>
+                        <p style="color: #D32F2F; font-weight: 700; font-size: 1.125rem; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.025em;">
+                            Four Decades of Strategic Evolution, Control Excellence & Industrial Digitalization (1983 – 2026)
+                        </p>
+                    </div>
+                </div>
 
+                <!-- Who We Are Card -->
+                <div style="margin-top: 2rem; background-color: #FFFFFF; color: #111827; border-radius: 1rem; padding: 2.5rem; border: 2px solid #0A0A0A; border-left: 6px solid #D32F2F; box-shadow: 0 10px 30px rgba(0,0,0,0.05); position: relative;">
+                    <div style="position: absolute; top: 0; right: 0; background-color: #D32F2F; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.35rem 1rem; border-bottom-left-radius: 0.75rem; letter-spacing: 0.1em;">
+                        DEPARTMENT IDENTITY
+                    </div>
 
+                    <div style="display: grid; grid-template-columns: 1fr; lg-grid-template-columns: 3fr 2fr; gap: 2rem; align-items: center;">
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <h3 style="font-size: 1.5rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+                                <span style="width: 0.5rem; height: 2rem; background-color: #D32F2F; display: inline-block;"></span>
+                                <span>Who We Are</span>
+                            </h3>
+                            <p style="color: #3F3F46; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+                                From a small maintenance base for 19 IR compressors in 1983, <strong style="color: #0A0A0A; font-weight: bold;">we have evolved into an organization-wide backbone</strong> for measurement, control, automation, safety systems, and digital initiatives.
+                            </p>
+                            <p style="color: #3F3F46; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+                                Today, <strong style="color: #0A0A0A; font-weight: bold;">Instrumentation supports every operating vertical</strong>—drilling, production, safety, security, and digitalization—through reliable control and assurance.
+                            </p>
+                            <div style="padding-top: 0.5rem; border-top: 1px solid #E4E4E7; color: #D32F2F; font-weight: bold; font-size: 0.875rem; font-style: italic;">
+                                "Printing our footprints in every domain of automation and digitalization."
+                            </div>
+                        </div>
 
+                        <div style="background-color: #FAFAFA; border: 1px solid #E4E4E7; border-radius: 0.75rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                            <div style="border-bottom: 1px solid #E4E4E7; padding-bottom: 0.75rem;">
+                                <span style="font-size: 0.75rem; font-weight: 900; color: #D32F2F; text-transform: uppercase; letter-spacing: 0.05em; display: block;">Operational Backbone</span>
+                                <span style="font-size: 0.75rem; color: #52525B;">From maintenance base to enterprise-wide support services</span>
+                            </div>
+                            <div style="border-bottom: 1px solid #E4E4E7; padding-bottom: 0.75rem;">
+                                <span style="font-size: 0.75rem; font-weight: 900; color: #D32F2F; text-transform: uppercase; letter-spacing: 0.05em; display: block;">Automation Custodian</span>
+                                <span style="font-size: 0.75rem; color: #52525B;">Control systems, protection systems, and field intelligence</span>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.75rem; font-weight: 900; color: #D32F2F; text-transform: uppercase; letter-spacing: 0.05em; display: block;">Digital Enabler</span>
+                                <span style="font-size: 0.75rem; color: #52525B;">Reliable data foundation for dashboards, analytics, and decisions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Metrics Strip Grid -->
+                <div style="margin-top: 2.5rem; display: grid; grid-template-columns: repeat(2, 1fr); sm-grid-template-columns: repeat(3, 1fr); lg-grid-template-columns: repeat(7, 1fr); gap: 1rem;">
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #0A0A0A; font-family: monospace;">70+</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Field Installations</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #D32F2F; font-family: monospace;">7000+</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Field Instruments</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #0A0A0A; font-family: monospace;">115+</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Compressor Panels</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #D32F2F; font-family: monospace;">110+</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Burner Mgmt Systems</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #0A0A0A; font-family: monospace;">5</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">DCS Systems</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #D32F2F; font-family: monospace;">12 / 20+</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Ignition & Air Panels</div>
+                    </div>
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 1.75rem; font-weight: 900; color: #0A0A0A; font-family: monospace;">15 / 13</div>
+                        <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">WSS & Steam Units</div>
+                    </div>
+                </div>
 
+            </div>
+        </section>
 
+        <!-- SECTION 3: ASSET PORTFOLIO -->
+        <section id="portfolio" style="padding: 5rem 0; background-color: #FFFFFF; color: #111827; border-bottom: 2px solid #E4E4E7;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
+                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; border-bottom: 2px solid #E4E4E7; padding-bottom: 1.5rem;">
+                    <div>
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #0A0A0A; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem;">
+                            DIRECT INVOLVEMENT
+                        </div>
+                        <h2 style="font-size: 2.5rem; font-weight: 900; color: #0A0A0A; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: -0.025em; margin-bottom: 0;">
+                            Our Asset Base & Portfolio
+                        </h2>
+                        <p style="color: #52525B; font-size: 0.875rem; margin-top: 0.25rem;">Core equipment, safety panels, and control loops maintained by Instrumentation</p>
+                    </div>
+                </div>
+
+                <!-- Asset Grid -->
+                <div style="display: grid; grid-template-columns: repeat(1, 1fr); md-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); transition: border-color 0.2s;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #D32F2F;">7000+</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #D32F2F; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">Field Instruments</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">Installed in production installations covering a radius of 50 km from FHQ.</p>
+                    </div>
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #0A0A0A;">115+</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #0A0A0A; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">Gas Compressor Panels</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">Including 48 high-performance electronic monitoring and control panels.</p>
+                    </div>
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #D32F2F;">110+</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #D32F2F; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">Burner Management Systems</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">SIL compliant automated safety interlocks and furnace safeguard controls.</p>
+                    </div>
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #0A0A0A;">5</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #0A0A0A; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">DCS Systems</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">Centralized plant automation with high-availability fault tolerance.</p>
+                    </div>
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #D32F2F;">12</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #D32F2F; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">Remote Ignition Systems</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">Solar-assisted remote flare ignition for zero-down-time safety.</p>
+                    </div>
+
+                    <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #0A0A0A;">20+</span>
+                            <span style="width: 0.75rem; height: 0.75rem; background-color: #0A0A0A; border-radius: 50%;"></span>
+                        </div>
+                        <h3 style="font-size: 1.125rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; margin-top: 1rem; margin-bottom: 0.5rem;">Air Compressor Panels in GCS</h3>
+                        <p style="font-size: 0.75rem; color: #52525B; line-height: 1.5; margin: 0;">Pneumatic supply assurance and dry instrument air regulation systems.</p>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 4: FIELD PRESENCE -->
+        <section id="presence" style="padding: 5rem 0; background-color: #FAFAFA; color: #111827; border-bottom: 2px solid #E4E4E7;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
+
+                <div style="text-align: center; max-width: 48rem; margin: 0 auto 4rem auto;">
+                    <span style="background-color: #D32F2F; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; letter-spacing: 0.1em;">INDIRECT / FUNCTIONAL INVOLVEMENT</span>
+                    <h2 style="font-size: 2.5rem; font-weight: 900; color: #0A0A0A; margin-top: 0.75rem; text-transform: uppercase; letter-spacing: -0.025em; margin-bottom: 0;">Our Presence Across OIL</h2>
+                    <p style="color: #52525B; font-size: 0.875rem; margin-top: 0.5rem;">Instrumentation delivers critical control engineering across all production verticals</p>
+                </div>
+
+                <!-- Matrix Row 1 -->
+                <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">SCADA Telemetry</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.75rem; color: #3F3F46; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <li>• 44 Nos. RTU and MCS</li>
+                            <li>• Field-wide telemetry & monitoring</li>
+                        </ul>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">LPG Plants</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.75rem; color: #3F3F46; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <li>• DCS and control system</li>
+                            <li>• PLC system of support systems</li>
+                        </ul>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Power Station</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.75rem; color: #3F3F46; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <li>• Turbine control system</li>
+                            <li>• GEG control system</li>
+                        </ul>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Tank Farms</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.75rem; color: #3F3F46; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <li>• Secondary Tank Farm - STF</li>
+                            <li>• ITF - Tengakhat</li>
+                        </ul>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Drilling Operations</div>
+                        <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.75rem; color: #3F3F46; display: flex; flex-direction: column; gap: 0.35rem;">
+                            <li>• Automation on rigs</li>
+                            <li>• Advanced control on VFD rigs</li>
+                        </ul>
+                    </div>
+
+                </div>
+
+                <!-- Matrix Row 2 -->
+                <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem;">
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #0A0A0A; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">OGPS & Utilities</div>
+                        <p style="font-size: 0.75rem; color: #52525B; margin: 0;">Boiler control system, plant controls in CBUS, and WSS unit controls.</p>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #0A0A0A; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Rajasthan Fields</div>
+                        <p style="font-size: 0.75rem; color: #52525B; margin: 0;">Remote field instrumentation support and cross-asset coordination.</p>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #0A0A0A; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Cyber Security</div>
+                        <p style="font-size: 0.75rem; color: #52525B; margin: 0;">OT hygiene adherence as per IEC 62443 standard for operational networks.</p>
+                    </div>
+
+                    <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+                        <div style="font-size: 0.75rem; font-family: monospace; color: #0A0A0A; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">Gas Gathering</div>
+                        <p style="font-size: 0.75rem; color: #52525B; margin: 0;">Central Gas Gathering Station (CGGS) and FGGS - Chabua support.</p>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 5: DIGITALIZATION -->
+        <section id="digitalization" style="padding: 5rem 0; background-color: #FFFFFF; color: #111827;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
+
+                <div style="background-color: #0A0A0A; color: #FFFFFF; border-radius: 1.5rem; padding: 3rem; border: 4px solid #D32F2F; box-shadow: 0 25px 50px rgba(0,0,0,0.1); position: relative; overflow: hidden;">
+                    <div style="max-width: 48rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <span style="background-color: #D32F2F; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; letter-spacing: 0.1em; width: fit-content;">DIGITALIZATION SUPPORT</span>
+                        <h2 style="font-size: 2.5rem; font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.025em; margin: 0;">Our Support in Digitalization Initiatives</h2>
+                        <p style="color: #D4D4D8; font-size: 0.9375rem; line-height: 1.6; margin: 0;">
+                            <strong style="color: #FFFFFF; font-weight: bold;">Instrumentation acts as the data foundation</strong> for SCADA integration, production dashboards, asset health monitoring, Smart P&ID / instrument registers, and future Command & Control Centre initiatives.
+                        </p>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 3rem;">
+
+                        <div style="background-color: #141414; border: 2px solid #262626; padding: 1.5rem; border-radius: 1rem;">
+                            <div style="color: #D32F2F; font-family: monospace; font-weight: 900; font-size: 1.5rem;">01</div>
+                            <h3 style="font-weight: 900; color: #FFFFFF; font-size: 1rem; text-transform: uppercase; margin-top: 0.5rem; margin-bottom: 0.5rem;">Foundation</h3>
+                            <p style="font-size: 0.75rem; color: #A1A1AA; margin: 0;">Field instruments & telemetry supplying continuous real-time parameters.</p>
+                        </div>
+
+                        <div style="background-color: #141414; border: 2px solid #262626; padding: 1.5rem; border-radius: 1rem;">
+                            <div style="color: #FFFFFF; font-family: monospace; font-weight: 900; font-size: 1.5rem;">02</div>
+                            <h3 style="font-weight: 900; color: #FFFFFF; font-size: 1rem; text-transform: uppercase; margin-top: 0.5rem; margin-bottom: 0.5rem;">Command Centre</h3>
+                            <p style="font-size: 0.75rem; color: #A1A1AA; margin: 0;">Central control integration yielding unified operational visibility.</p>
+                        </div>
+
+                        <div style="background-color: #141414; border: 2px solid #262626; padding: 1.5rem; border-radius: 1rem;">
+                            <div style="color: #D32F2F; font-family: monospace; font-weight: 900; font-size: 1.5rem;">03</div>
+                            <h3 style="font-weight: 900; color: #FFFFFF; font-size: 1rem; text-transform: uppercase; margin-top: 0.5rem; margin-bottom: 0.5rem;">Digital Twin</h3>
+                            <p style="font-size: 0.75rem; color: #A1A1AA; margin: 0;">Live virtual asset replicas for predictive health and MTTR reduction.</p>
+                        </div>
+
+                        <div style="background-color: #141414; border: 2px solid #262626; padding: 1.5rem; border-radius: 1rem;">
+                            <div style="color: #FFFFFF; font-family: monospace; font-weight: 900; font-size: 1.5rem;">04</div>
+                            <h3 style="font-weight: 900; color: #FFFFFF; font-size: 1rem; text-transform: uppercase; margin-top: 0.5rem; margin-bottom: 0.5rem;">Outcomes</h3>
+                            <p style="font-size: 0.75rem; color: #A1A1AA; margin: 0;">Enterprise intelligence, boardroom dashboards, and actionable insights.</p>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FOOTER & PORTAL LOGIN LAUNCHER -->
+        <footer style="background-color: #FFFFFF; padding: 5rem 0; color: #111827; border-top: 4px solid #D32F2F; text-align: center;">
+            <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem; display: flex; flex-direction: column; gap: 2rem; align-items: center;">
+
+                <div style="display: inline-flex; align-items: center; gap: 0.75rem; background-color: #FEF2F2; border: 1px solid #FCA5A5; padding: 0.5rem 1rem; border-radius: 9999px; font-family: monospace; font-size: 0.75rem; color: #991B1B; font-weight: bold;">
+                    <span style="width: 0.5rem; height: 0.5rem; background-color: #D32F2F; border-radius: 50%; display: inline-block;"></span>
+                    <span>System Ready • OIL Instrumentation Portal Access Point</span>
+                </div>
+
+                <div style="max-width: 42rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <h2 style="font-size: 2.5rem; font-weight: 900; text-transform: uppercase; color: #0A0A0A; margin: 0; letter-spacing: -0.025em;">Access Secure Portal</h2>
+                    <p style="color: #52525B; font-size: 0.875rem; margin: 0;">
+                        Scroll complete. Authenticate using your OIL Instrumentation credentials to access field SCADA controls and asset health registers.
+                    </p>
+                </div>
+
+                <div>
+                    <button @onclick="OpenLoginModal" style="background-color: #D32F2F; color: #FFFFFF; font-weight: 900; font-size: 1.125rem; padding: 1.25rem 3rem; border-radius: 1rem; box-shadow: 0 15px 30px rgba(211,47,47,0.3); border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; transition: background-color 0.2s;">
+                        ACCESS FIELD ACCESS PORTAL
+                    </button>
+                </div>
+
+                <div style="width: 100%; border-top: 1px solid #E4E4E7; padding-top: 3rem; margin-top: 2rem; font-size: 0.75rem; font-family: monospace; color: #71717A; display: flex; flex-direction: sm-row; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div>OIL INDIA LIMITED • INSTRUMENTATION DEPARTMENT</div>
+                    <div style="color: #52525B;">Blazor Razor Component Architecture</div>
+                </div>
+
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- SECURE PORTAL LOGIN DIALOG / MODAL -->
+    @if (_showLoginModal)
+    {
+        <div style="position: fixed; inset: 0; z-index: 99; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(6px); padding: 1rem;">
+            <div style="background-color: #FFFFFF; border: 4px solid #D32F2F; border-radius: 1.5rem; max-width: 28rem; width: 100%; padding: 2rem; box-shadow: 0 25px 50px rgba(0,0,0,0.2); position: relative; text-align: left;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #E4E4E7;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 2rem; height: 2rem; background-color: #D32F2F; color: #FFFFFF; font-weight: 900; display: flex; align-items: center; justify-content: center; border-radius: 0.25rem; font-family: monospace; font-size: 0.875rem;">OIL</div>
+                        <div>
+                            <h3 style="font-weight: 900; color: #0A0A0A; font-size: 1rem; text-transform: uppercase; margin: 0;">Field Access Portal</h3>
+                            <p style="font-size: 0.625rem; color: #52525B; font-family: monospace; margin: 0;">Instrumentation SCADA Authorization</p>
+                        </div>
+                    </div>
+                    <button @onclick="CloseLoginModal" style="background: none; border: none; color: #71717A; cursor: pointer; font-size: 1.5rem; font-weight: bold;">&times;</button>
+                </div>
+
+                <form @onsubmit="HandleLoginSubmit" style="display: flex; flex-direction: column; gap: 1rem; padding-top: 1.5rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.6875rem; font-family: monospace; font-weight: bold; color: #52525B; text-transform: uppercase; margin-bottom: 0.25rem;">Employee User ID</label>
+                        <input type="text" @bind="_loginUser" required placeholder="e.g. INST-8300" style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; background-color: #FAFAFA; border: 2px solid #E4E4E7; color: #111827; font-size: 0.75rem; font-family: monospace; box-sizing: border-box;" />
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.6875rem; font-family: monospace; font-weight: bold; color: #52525B; text-transform: uppercase; margin-bottom: 0.25rem;">Passcode</label>
+                        <input type="password" @bind="_loginPass" required placeholder="••••••••" style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; background-color: #FAFAFA; border: 2px solid #E4E4E7; color: #111827; font-size: 0.75rem; font-family: monospace; box-sizing: border-box;" />
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.6875rem; font-family: monospace; font-weight: bold; color: #52525B; text-transform: uppercase; margin-bottom: 0.25rem;">Operating Unit</label>
+                        <select @bind="_loginUnit" style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; background-color: #FAFAFA; border: 2px solid #E4E4E7; color: #111827; font-size: 0.75rem; font-family: monospace;">
+                            <option value="fhq">FHQ Duliajan / Central Installations</option>
+                            <option value="scada">SCADA Master Control Station (MCS)</option>
+                            <option value="ggs">Gas Gathering Stations (GCS/GGS)</option>
+                            <option value="lpg">LPG Process Complex</option>
+                            <option value="rigs">VFD Drilling Rigs Automation</option>
+                        </select>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_loginStatus))
+                    {
+                        <div style="font-size: 0.75rem; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid @(_loginSuccess ? "#16a34a" : "#D32F2F"); background-color: @(_loginSuccess ? "#f0fdf4" : "#fef2f2"); color: @(_loginSuccess ? "#15803d" : "#991B1B"); font-family: monospace; font-weight: bold;">
+                            @_loginStatus
+                        </div>
+                    }
+
+                    <div style="padding-top: 0.5rem; display: flex; gap: 0.75rem;">
+                        <button type="button" @onclick="CloseLoginModal" style="flex: 1; background-color: #F4F4F5; color: #3F3F46; font-weight: bold; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; cursor: pointer; border: 1px solid #E4E4E7; text-transform: uppercase;">Cancel</button>
+                        <button type="submit" style="flex: 1; background-color: #D32F2F; color: #FFFFFF; font-weight: 900; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em; border: none; box-shadow: 0 4px 12px rgba(211,47,47,0.3);">Authenticate</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    }
+
+    <!-- PROCESSING OVERLAY -->
+    <MudOverlay Visible="_isProcessing" DarkBackground="true" ZIndex="9999">
+        <div style="display: flex; flex-direction: column; align-items: center; background-color: #FFFFFF; border: 2px solid #D32F2F; padding: 2rem; border-radius: 1rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <MudProgressCircular Color="Color.Error" Indeterminate="true" Size="Size.Large" Style="color: #D32F2F;" />
+            <MudText Typo="Typo.h6" Style="color: #0A0A0A; font-weight: 700;" Class="mt-4">Syncing with Database...</MudText>
+        </div>
+    </MudOverlay>
+
+</div>
 
 @code {
-    private string _email = "";
-    private string _password = "";
-    private string _confirmPassword = "";
-    private bool _isSignup = false;
-    private bool _loading = false;
-    private bool _isProcessingCheck = false;
-    private InputType _passwordInput = InputType.Password;
-    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
-    private readonly CustomAuthStateProvider _authStateProvider;
+    private bool _showLoginModal = false;
+    private bool _isProcessing = false;
+    private int _selectedYear = 2024;
 
-    //public  DailyDieselPriceService _dailyDieselPriceService;
+    private string _loginUser = "";
+    private string _loginPass = "";
+    private string _loginUnit = "fhq";
+    private string _loginStatus = "";
+    private bool _loginSuccess = false;
 
-    private bool _isAdminMode; // Add this variable
-    bool isAdminChecked;
-    private void ToggleMode()
+    private class TimelineItem
     {
-        _isSignup = !_isSignup;
-        _email = "";
-        _password = "";
-        _confirmPassword = "";
+        public string Period { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Description { get; set; } = "";
+        public List<string> Highlights { get; set; } = new();
+        public string Badge { get; set; } = "";
     }
-    private async Task ProcessLogin()
+
+    private Dictionary<int, TimelineItem> _timelineData = new()
     {
+        { 1983, new TimelineItem { Period = "1983", Title = "1983: Foundation", Description = "We established the initial maintenance base dedicated to 19 IR gas compressors, standardizing pneumatic loop checks, calibration, and early safety interlocks.", Highlights = new() { "Pneumatic loop calibrations", "Dedicated maintenance support base", "Foundation for field safety interlocks" }, Badge = "Initial Base Phase" } },
+        { 1995, new TimelineItem { Period = "1990s - 2000s", Title = "Controls & Systems Expansion", Description = "We expanded into distributed control systems (DCS/PLC), automated Gas Gathering Stations (GGS), and deployed field-wide telemetry across a 50 km radius.", Highlights = new() { "DCS & PLC system deployment", "Field-wide telemetry across 50 km", "Automated GGS control desks" }, Badge = "Automation Era" } },
+        { 2010, new TimelineItem { Period = "2010s - 2020s", Title = "Enterprise Support & Safety", Description = "We integrated SIL safety systems, 110+ Burner Management Systems, 44 SCADA RTUs, VFD drilling rig instrumentation, and IEC 62443 cyber security.", Highlights = new() { "110+ Burner Management Systems", "44 SCADA RTUs & MCS", "OT Cyber Security IEC 62443" }, Badge = "Safety & SCADA" } },
+        { 2024, new TimelineItem { Period = "2024 - 2026", Title = "Digital Transformation", Description = "We are pioneering Digital Oilfield Solutions, 3D Digital Twins, Smart P&ID registers, and real-time operational feeds for Command & Control.", Highlights = new() { "Digital Twin virtual replicas", "Smart P&ID & asset registers", "Command & Control integration" }, Badge = "Digital Era" } },
+        { 2030, new TimelineItem { Period = "Future Vision", Title = "Real-Time Control & AI/ML", Description = "One room. Every asset. We are aiming for real-time visibility, predictive asset maintenance, and unified boardroom decision support.", Highlights = new() { "One room, every asset concept", "Predictive AI/ML fault diagnosis", "Enterprise-wide automated analytics" }, Badge = "Future-Ready OT" } }
+    };
+
+    private TimelineItem CurrentTimeline => _timelineData.ContainsKey(_selectedYear) ? _timelineData[_selectedYear] : _timelineData[2024];
+
+    private void SetSelectedYear(int year) => _selectedYear = year;
+    private void OpenLoginModal()
+    {
+        _loginUser = "";
+        _loginPass = "";
+        _loginStatus = "";
+        _loginSuccess = false;
+        _showLoginModal = true;
+    }
+    private void CloseLoginModal() => _showLoginModal = false;
+
+    private async Task HandleLoginSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(_loginUser) || string.IsNullOrWhiteSpace(_loginPass))
+        {
+            _loginStatus = "Error: Please provide User ID and Passcode.";
+            _loginSuccess = false;
+            return;
+        }
+
+        _loginStatus = "Authenticating against OIL Instrumentation SCADA Node...";
+        _loginSuccess = true;
+        StateHasChanged();
+
+        await Task.Delay(1000);
+        _isProcessing = true;
+        StateHasChanged();
+
         try
         {
+            var success = await AuthService.Login(_loginUser, _loginPass, false);
+            await Task.Delay(800);
+            _isProcessing = false;
 
-        }
-        catch(Exception ex)
-        {
-            Console.WriteLine($"Method Error: {ex.Message}");
-            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
-        }
-
-        try
-        {
-            _isProcessingCheck = true;
-
-
-
-            StateHasChanged(); // Show spinner on login button instantly
-
-
-            
-
-            var success = await AuthService.Login(_email, _password, _isAdminMode);
             if (success)
             {
-
-                //await ((CustomAuthStateProvider)AuthStateProvider).UpdateAuthenticationState(_email, response.Role);
-
-                // 3. CRITICAL: Yield thread control back to Android to process the state change event
-                await Task.Delay(550);
-
-                Console.WriteLine("[LoginUI]: Navigation thread cleared. Routing safely to dashboard. Login OK");
-
-                // 4. Navigate now that identity context has caught up
-                //Nav.NavigateTo("homeDB");
-                //_dailyDieselPriceService.GetLatestDieselPrice();
-                // 3. Force a hard reload if necessary, or execute standard routing
+                _loginStatus = "Access Granted! Redirecting to secure dashboard...";
+                StateHasChanged();
+                await Task.Delay(1000);
+                _showLoginModal = false;
                 Nav.NavigateTo("homeDB", forceLoad: false);
-                // Small delay helps the StateProvider sync with the UI components
-                // await Task.Delay(2000);
-                // Nav.NavigateTo("homeDB");
             }
             else
             {
-                Console.WriteLine("Login failed: Session is null.");
-                //return false;
+                _loginStatus = "Authentication failed. Invalid credentials.";
+                _loginSuccess = false;
+                Snackbar.Add("Authentication failed.", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
-            _isProcessingCheck = false;
-            StateHasChanged();
-        }
-
-        finally
-        {
-            _isProcessingCheck = false;
-            StateHasChanged();
-        }
-
-        
-
-
-    }
-
-    private bool _isProcessing = false;
-
-
-
-    
-
-    private void TogglePasswordVisibility()
-    {
-        if (_passwordInput == InputType.Password)
-        {
-            _passwordInput = InputType.Text;
-            _passwordIcon = Icons.Material.Filled.Visibility;
-        }
-        else
-        {
-            _passwordInput = InputType.Password;
-            _passwordIcon = Icons.Material.Filled.VisibilityOff;
+            _isProcessing = false;
+            _loginStatus = $"Error: {ex.Message}";
+            _loginSuccess = false;
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
-    
-    
 }

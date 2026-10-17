@@ -727,109 +727,109 @@ else
     private bool _isJobsLoading = true;
     private List<JobDetailsDto> _jobsGridData = new();
 
-    public async Task LoadJobsGridDataAsync()
-    {
-        try
-        {
-            _isJobsLoading = true;
-            StateHasChanged();
+    // public async Task LoadJobsGridDataAsync()
+    // {
+    //     try
+    //     {
+    //         _isJobsLoading = true;
+    //         StateHasChanged();
 
-            // 1. Fetch 50 Jobs
-            var jobs = (await SupabaseClient.From<Job>()
-                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-                .Limit(50)
-                .Get()).Models;
+    //         // 1. Fetch 50 Jobs
+    //         var jobs = (await SupabaseClient.From<Job>()
+    //             .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+    //             .Limit(50)
+    //             .Get()).Models;
 
-            // 2. Fetch Assignments
-            var assignments = (await SupabaseClient.From<Assignment>()
-                .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-                .Limit(50)
-                .Get()).Models;
+    //         // 2. Fetch Assignments
+    //         var assignments = (await SupabaseClient.From<Assignment>()
+    //             .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+    //             .Limit(50)
+    //             .Get()).Models;
 
-            // 3. Extract IDs for Lookups (Using .Where(x => x != 0) instead of .HasValue)
-            var locationIds = jobs.Where(a => a.JobLocationId != 0).Select(a => a.JobLocationId).Distinct().ToList();
-            var engineerIds = assignments.Where(a => a.PersonnelIds != null && a.PersonnelIds.Any()).SelectMany(a => a.PersonnelIds).Distinct().ToList();
-            var driverIds = assignments.Where(a => a.DriverId != 0).Select(a => a.DriverId).Distinct().ToList();
+    //         // 3. Extract IDs for Lookups (Using .Where(x => x != 0) instead of .HasValue)
+    //         var locationIds = jobs.Where(a => a.JobLocationId != 0).Select(a => a.JobLocationId).Distinct().ToList();
+    //         var engineerIds = assignments.Where(a => a.PersonnelIds != null && a.PersonnelIds.Any()).SelectMany(a => a.PersonnelIds).Distinct().ToList();
+    //         var driverIds = assignments.Where(a => a.DriverId != 0).Select(a => a.DriverId).Distinct().ToList();
 
-            // 4. Fetch References using .Filter instead of .In
-            var locations = (await SupabaseClient.From<LocationTable>()
-                .Filter("id", Supabase.Postgrest.Constants.Operator.In, locationIds)
-                .Get()).Models.ToDictionary(l => l.Id);
+    //         // 4. Fetch References using .Filter instead of .In
+    //         var locations = (await SupabaseClient.From<LocationTable>()
+    //             .Filter("id", Supabase.Postgrest.Constants.Operator.In, locationIds)
+    //             .Get()).Models.ToDictionary(l => l.Id);
 
-            var engineers = (await SupabaseClient.From<Engineer>()
-                        .Filter("id", Supabase.Postgrest.Constants.Operator.In, engineerIds)
-                        .Get()).Models.ToDictionary(e => e.Id);
+    //         var engineers = (await SupabaseClient.From<Engineer>()
+    //                     .Filter("id", Supabase.Postgrest.Constants.Operator.In, engineerIds)
+    //                     .Get()).Models.ToDictionary(e => e.Id);
 
-            var drivers = (await SupabaseClient.From<Driver>()
-                        .Filter("id", Supabase.Postgrest.Constants.Operator.In, driverIds)
-                        .Get()).Models.ToDictionary(d => d.Id);
+    //         var drivers = (await SupabaseClient.From<Driver>()
+    //                     .Filter("id", Supabase.Postgrest.Constants.Operator.In, driverIds)
+    //                     .Get()).Models.ToDictionary(d => d.Id);
 
-            // 5. Map to DTO
-            _jobsGridData = jobs.Select(job =>
-            {
-                // Note: Since you stated assigned_to is in job_assignments, we find the assignment containing this job.id
-                // If your DB job_ids are integers, ensure the comparison type matches.
-                //var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains((Guid)job.Id.GetHashCode()));
+    //         // 5. Map to DTO
+    //         _jobsGridData = jobs.Select(job =>
+    //         {
+    //             // Note: Since you stated assigned_to is in job_assignments, we find the assignment containing this job.id
+    //             // If your DB job_ids are integers, ensure the comparison type matches.
+    //             //var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains((Guid)job.Id.GetHashCode()));
 
-                // Simply check if the JobIds array contains the current job's Guid
-                var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
+    //             // Simply check if the JobIds array contains the current job's Guid
+    //             var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
 
-                // Resolve Location from Job
-                locations.TryGetValue(job.JobLocationId, out var loc);
-                // Resolve Engineers safely
-                string names = "Unassigned";
-                string codes = "N/A";
+    //             // Resolve Location from Job
+    //             locations.TryGetValue(job.JobLocationId, out var loc);
+    //             // Resolve Engineers safely
+    //             string names = "Unassigned";
+    //             string codes = "N/A";
 
-                if (assignment?.PersonnelIds != null && assignment.PersonnelIds.Count() > 0)
-                {
-                    var assignedEngineers = assignment.PersonnelIds
-                        .Where(id => engineers.ContainsKey(id))
-                        .Select(id => engineers[id])
-                        .ToList();
+    //             if (assignment?.PersonnelIds != null && assignment.PersonnelIds.Count() > 0)
+    //             {
+    //                 var assignedEngineers = assignment.PersonnelIds
+    //                     .Where(id => engineers.ContainsKey(id))
+    //                     .Select(id => engineers[id])
+    //                     .ToList();
 
-                    if (assignedEngineers.Any())
-                    {
-                        names = string.Join(", ", assignedEngineers.Select(e => e.FullName));
-                        //codes = string.Join(", ", assignedEngineers.Select(e => e.EmpCode));
-                    }
-                }
-                // Resolve Driver
-                drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
+    //                 if (assignedEngineers.Any())
+    //                 {
+    //                     names = string.Join(", ", assignedEngineers.Select(e => e.FullName));
+    //                     //codes = string.Join(", ", assignedEngineers.Select(e => e.EmpCode));
+    //                 }
+    //             }
+    //             // Resolve Driver
+    //             drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
 
 
-                // locations.TryGetValue(assignment?.LocationId ?? 0, out var loc);
-                // engineers.TryGetValue(assignment?.AssignedToId ?? 0, out var eng);
-                //drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
+    //             // locations.TryGetValue(assignment?.LocationId ?? 0, out var loc);
+    //             // engineers.TryGetValue(assignment?.AssignedToId ?? 0, out var eng);
+    //             //drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
 
-                return new JobDetailsDto
-                {
-                    Id = job.Id,
-                    CreatedAt = job.CreatedAt,
-                    JobName = job.JobName,
-                    //NotificationNumber = job.NotificationNumber,
-                    //Priority = job.Priority ?? "Normal",
-                    JobType = job.tbJobType,
-                    Status = job.JobStatus ?? "pending",
-                    LocationName = loc != null ? (loc.InstallationName ?? "Unknown") : "N/A",
-                    // Join the names and codes into a single string
-                    EngineerNames = names,
-                    //EngineerCodes = codes,
-                    ShiftName = assignment?.ShiftName,
-                    DriverName = drv?.DriverName,
-                    VehicleNumber = drv?.VehicleNumber
-                };
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            _isJobsLoading = false;
-            StateHasChanged();
-        }
-    }
+    //             return new JobDetailsDto
+    //             {
+    //                 Id = job.Id,
+    //                 CreatedAt = job.CreatedAt,
+    //                 JobName = job.JobName,
+    //                 //NotificationNumber = job.NotificationNumber,
+    //                 //Priority = job.Priority ?? "Normal",
+    //                 JobType = job.tbJobType,
+    //                 Status = job.JobStatus ?? "pending",
+    //                 LocationName = loc != null ? (loc.InstallationName ?? "Unknown") : "N/A",
+    //                 // Join the names and codes into a single string
+    //                 EngineerNames = names,
+    //                 //EngineerCodes = codes,
+    //                 ShiftName = assignment?.ShiftName,
+    //                 DriverName = drv?.DriverName,
+    //                 VehicleNumber = drv?.VehicleNumber
+    //             };
+    //         }).ToList();
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Error: {ex.Message}");
+    //     }
+    //     finally
+    //     {
+    //         _isJobsLoading = false;
+    //         StateHasChanged();
+    //     }
+    // }
 
     // // --- Supabase Model Mappings (Decorated with Attributes) ---
     // [Supabase.Postgrest.Attributes.Table("jobs")]
@@ -881,6 +881,86 @@ else
     // }
 
     // Call this inside your existing ApplyBulkUpdate or SaveChanges methods to refresh the grid layout
+    public async Task LoadJobsGridDataAsync()
+{
+    try
+    {
+        _isJobsLoading = true;
+        StateHasChanged();
+
+        // 1. Fetch only the latest 50 Jobs & Assignments concurrently if possible, or sequentially
+        var jobsTask = SupabaseClient.From<Job>()
+            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Limit(50)
+            .Get();
+
+        var assignmentsTask = SupabaseClient.From<Assignment>()
+            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Limit(50)
+            .Get();
+
+        await Task.WhenAll(jobsTask, assignmentsTask);
+
+        var jobs = jobsTask.Result.Models;
+        var assignments = assignmentsTask.Result.Models;
+
+        // 2. Use existing in-memory dictionary lookups (Fall back to direct list if empty)
+        var locations = _dbLocations.ToDictionary(l => l.Id);
+        var engineers = _dbEngineers.ToDictionary(e => e.Id);
+        var drivers = _dbDrivers.ToDictionary(d => d.Id);
+
+        // 3. Map to DTO locally without making extra network queries
+        _jobsGridData = jobs.Select(job =>
+        {
+            var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
+
+            locations.TryGetValue(job.JobLocationId, out var loc);
+
+            string names = "Unassigned";
+            string codes = "N/A";
+
+            if (assignment?.PersonnelIds != null && assignment.PersonnelIds.Any())
+            {
+                var assignedEngineers = assignment.PersonnelIds
+                    .Where(id => engineers.ContainsKey(id))
+                    .Select(id => engineers[id])
+                    .ToList();
+
+                if (assignedEngineers.Any())
+                {
+                    names = string.Join(", ", assignedEngineers.Select(e => e.FullName));
+                }
+            }
+
+            drivers.TryGetValue(assignment?.DriverId ?? 0, out var drv);
+
+            return new JobDetailsDto
+            {
+                Id = job.Id,
+                CreatedAt = job.CreatedAt,
+                JobName = job.JobName ?? "Unnamed Job",
+                JobType = job.tbJobType ?? "N/A",
+                Status = job.JobStatus ?? "pending",
+                LocationName = loc?.InstallationName ?? "N/A",
+                EngineerNames = names,
+                EngineerCodes = codes,
+                ShiftName = assignment?.ShiftName,
+                DriverName = drv?.DriverName,
+                VehicleNumber = drv?.VehicleNumber
+            };
+        }).ToList();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading jobs grid: {ex.Message}");
+    }
+    finally
+    {
+        _isJobsLoading = false;
+        StateHasChanged();
+    }
+}
+    
     private async Task TriggerUIRefresh()
     {
         await LoadJobsGridDataAsync();
@@ -1387,153 +1467,208 @@ else
 
     //protected override async Task OnInitializedAsync() => await LoadData();
 
+    // private async Task LoadData()
+    // {
+    //     _loading = true;
+    //     try
+    //     {
+    //         _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
+
+    //         // Calculate the cutoff date for 7 days ago
+    //         // Use 'o' for round-trip date/time pattern (ISO 8601)
+    //         string sevenDaysAgoIso = DateTime.UtcNow.AddDays(-7).ToString("o");
+
+    //         _dbJobs = (await SupabaseClient.From<Job>()
+    //  .Where(x => x.JobStatus == "pending")
+    //  .Filter("created_at", Operator.GreaterThan, sevenDaysAgoIso) // Pass column name as a string
+    //  .Order("created_at", Ordering.Descending)                 // Pass column name as a string
+    //  .Get()).Models;
+
+
+    //         //_dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
+
+    //         _dbEngineers = (await SupabaseClient
+    // .From<Engineer>()
+    // .Where(x => x.Section == "FIELD MAINTENANCE")
+    // .Order(x => x.FullName, Supabase.Postgrest.Constants.Ordering.Ascending) // Adds the ASC order
+    // .Get()).Models;
+
+    //         //_dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
+    //         _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
+
+
+    //         // _assignments = (await SupabaseClient.From<Assignment>()
+    //         //     .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+    //         //     .Get()).Models;
+
+    //         // Added .Limit(25) to fetch only the latest 25 assignments
+    //         _assignments = (await SupabaseClient.From<Assignment>()
+    //             .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+    //             .Limit(35)
+    //             .Get()).Models;
+
+    //         // Fetch all jobs in one single API call
+    //         var allJobs = (await SupabaseClient.From<Job>().Get()).Models;
+
+    //         // Store both Name and Description in the dictionary cache
+    //         _jobDictionary = allJobs.ToDictionary(
+    //             x => x.Id.ToString(),
+    //             x => (x.JobName ?? "", x.JobDescription ?? "") // Use your actual Description property name here
+    //         );
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         Snackbar.Add($"Error : {e.Message}", Severity.Error);
+    //     }
+    //     finally
+    //     {
+    //         _loading = false; StateHasChanged();
+    //         await JS.InvokeVoidAsync("scrollToToday");
+    //     }
+    // }
     private async Task LoadData()
+{
+    _loading = true;
+    try
     {
-        _loading = true;
-        try
-        {
-            _dbDrivers = (await SupabaseClient.From<Driver>().Get()).Models;
+        string sevenDaysAgoIso = DateTime.UtcNow.AddDays(-7).ToString("o");
 
-            // Calculate the cutoff date for 7 days ago
-            // Use 'o' for round-trip date/time pattern (ISO 8601)
-            string sevenDaysAgoIso = DateTime.UtcNow.AddDays(-7).ToString("o");
+        // Execute core entity queries
+        var driversTask = SupabaseClient.From<Driver>().Get();
+        var jobsTask = SupabaseClient.From<Job>()
+            .Where(x => x.JobStatus == "pending")
+            .Filter("created_at", Operator.GreaterThan, sevenDaysAgoIso)
+            .Order("created_at", Ordering.Descending)
+            .Get();
+        var engineersTask = SupabaseClient.From<Engineer>()
+            .Where(x => x.Section == "FIELD MAINTENANCE")
+            .Order(x => x.FullName, Supabase.Postgrest.Constants.Ordering.Ascending)
+            .Get();
+        var locationsTask = SupabaseClient.From<LocationTable>().Get();
+        var assignmentsTask = SupabaseClient.From<Assignment>()
+            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+            .Limit(35)
+            .Get();
+        var allJobsTask = SupabaseClient.From<Job>().Get();
 
-            _dbJobs = (await SupabaseClient.From<Job>()
-     .Where(x => x.JobStatus == "pending")
-     .Filter("created_at", Operator.GreaterThan, sevenDaysAgoIso) // Pass column name as a string
-     .Order("created_at", Ordering.Descending)                 // Pass column name as a string
-     .Get()).Models;
+        await Task.WhenAll(driversTask, jobsTask, engineersTask, locationsTask, assignmentsTask, allJobsTask);
 
+        _dbDrivers = driversTask.Result.Models;
+        _dbJobs = jobsTask.Result.Models;
+        _dbEngineers = engineersTask.Result.Models;
+        _dbLocations = locationsTask.Result.Models;
+        _assignments = assignmentsTask.Result.Models;
 
-            //_dbJobs = (await SupabaseClient.From<Job>().Where(x => x.JobStatus == "pending").Get()).Models;
+        // Update in LoadData()
+var allJobs = (await SupabaseClient.From<Job>().Limit(5000).Get()).Models;
 
-            _dbEngineers = (await SupabaseClient
-    .From<Engineer>()
-    .Where(x => x.Section == "FIELD MAINTENANCE")
-    .Order(x => x.FullName, Supabase.Postgrest.Constants.Ordering.Ascending) // Adds the ASC order
-    .Get()).Models;
-
-            //_dbEngineers = (await SupabaseClient.From<Engineer>().Where(x => x.Section == "FIELD MAINTENANCE").Get()).Models;
-            _dbLocations = (await SupabaseClient.From<LocationTable>().Get()).Models;
-
-
-            // _assignments = (await SupabaseClient.From<Assignment>()
-            //     .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-            //     .Get()).Models;
-
-            // Added .Limit(25) to fetch only the latest 25 assignments
-            _assignments = (await SupabaseClient.From<Assignment>()
-                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-                .Limit(35)
-                .Get()).Models;
-
-            // Fetch all jobs in one single API call
-            var allJobs = (await SupabaseClient.From<Job>().Get()).Models;
-
-            // Store both Name and Description in the dictionary cache
-            _jobDictionary = allJobs.ToDictionary(
-                x => x.Id.ToString(),
-                x => (x.JobName ?? "", x.JobDescription ?? "") // Use your actual Description property name here
-            );
-        }
-        catch (Exception e)
-        {
-            Snackbar.Add($"Error : {e.Message}", Severity.Error);
-        }
-        finally
-        {
-            _loading = false; StateHasChanged();
-            await JS.InvokeVoidAsync("scrollToToday");
-        }
+_jobDictionary = allJobs.ToDictionary(
+    x => x.Id.ToString().ToLowerInvariant(),
+    x => (x.JobName ?? "", x.JobDescription ?? "")
+);
     }
-
-    private async Task SaveAssignment()
+    catch (Exception e)
     {
-        try
+        Snackbar.Add($"Error : {e.Message}", Severity.Error);
+    }
+    finally
+    {
+        _loading = false; 
+        StateHasChanged();
+        await JS.InvokeVoidAsync("scrollToToday");
+    }
+}
+    private async Task SaveAssignment()
+{
+    try
+    {
+        _isSaving = true;
+        if (_selectedDriver == null || !_selectedJobs.Any()) return;
+
+        // 1. Calculate explicit IST time for DocNumber formatting
+        string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+        TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+        DateTime currentIstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+
+        // 2. Determine target assignment timestamp
+        DateTime createdAtUtc;
+        if (_selectedDate.HasValue && _selectedDate.Value.Date != DateTime.Today)
         {
-            _isSaving = true;
-            if (_selectedDriver == null || !_selectedJobs.Any()) return;
+            // For back-dated or future-dated plotting: set at 09:00 AM IST of selected date
+            DateTime targetIst = new DateTime(_selectedDate.Value.Year, _selectedDate.Value.Month, _selectedDate.Value.Day, 9, 0, 0, DateTimeKind.Unspecified);
+            createdAtUtc = TimeZoneInfo.ConvertTimeToUtc(targetIst, istZone);
+        }
+        else
+        {
+            // For today: use exact current UTC time
+            createdAtUtc = DateTime.UtcNow;
+        }
 
-            // 1. Calculate explicit IST time for string generations (like DocNumber)
-            string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
-            TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
-            DateTime currentIstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
+        // 3. Prepare and Insert Assignment into Supabase
+        var item = new Assignment
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = createdAtUtc,
+            DriverId = _selectedDriver.Id,
+            ShiftName = _selectedShift,
+            job_assignment_table_JobAssignedBy = _fullName,
+            JobAction = "assigned",
+            JobIds = _selectedJobs.Select(x => x.Id).ToList(),
+            PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
+            DocNumber = $"OIL-{_selectedShift[0]}-{currentIstTime:ddMMyy-HHmm}"
+        };
 
-            // 1. Prepare and Save Assignment to Database
-            var item = new Assignment
+        await SupabaseClient.From<Assignment>().Insert(item);
+
+        foreach (var job in _selectedJobs)
+        {
+            job.JobStatus = "assigned";
+            await SupabaseClient.From<Job>().Update(job);
+        }
+
+        // 4. Update Attendance Grid Status
+        string plottedJobNames = string.Join(", ", _selectedJobs.Select(j => j.JobName));
+        DateTime targetDate = DateTime.Today;
+
+        if (_selectedEngineers != null)
+        {
+            foreach (var eng in _selectedEngineers)
             {
-                Id = Guid.NewGuid(),
-                // Ensure this saves as UTC. If utilizing _selectedDate, force it to UTC.
-                CreatedAt = _selectedDate?.ToUniversalTime() ?? DateTime.UtcNow,
-                DriverId = _selectedDriver.Id,
-                ShiftName = _selectedShift,
-                job_assignment_table_JobAssignedBy = _fullName,
-                JobAction = "assigned",
-                JobIds = _selectedJobs.Select(x => x.Id).ToList(),
-                PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
-                // Inject the explicit IST calculation here
-                DocNumber = $"OIL-{_selectedShift[0]}-{currentIstTime:ddMMyy-HHmm}"
-            };
-
-            await SupabaseClient.From<Assignment>().Insert(item);
-
-            foreach (var job in _selectedJobs)
-            {
-                job.JobStatus = "assigned";
-                await SupabaseClient.From<Job>().Update(job);
-            }
-
-            // 2. Format Grid Data (Read BEFORE clearing state)
-            string plottedJobNames = string.Join(", ", _selectedJobs.Select(j => j.JobName));
-            DateTime targetDate = DateTime.Today;
-
-            // 3. Update Attendance Grid for Selected Engineers
-            if (_selectedEngineers != null)
-            {
-                foreach (var eng in _selectedEngineers)
+                var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
+                if (member != null)
                 {
-                    var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
-                    if (member != null)
-                    {
-                        var currentStatus = GetStatus(member.UniqueId, targetDate);
-                        if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
-
-                        OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
-                    }
+                    var currentStatus = GetStatus(member.UniqueId, targetDate);
+                    if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
+                    OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
                 }
             }
-
-            // 4. Update Attendance Grid for Selected Driver
-            var driverMember = AttendanceData.Drivers.FirstOrDefault(d => d.UniqueId == _selectedDriver.VehicleNumber);
-            if (driverMember != null)
-            {
-                var currentStatus = GetStatus(driverMember.UniqueId, targetDate);
-                if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
-
-                OnEntryChanged(driverMember, targetDate, currentStatus, plottedJobNames);
-            }
-
-            // 5. Reload external data
-            await LoadData();
-
-            // 6. Safely clear selections now that all logic is complete
-            _selectedDriver = null;
-            _selectedJobs = new List<Job>();
-            _selectedEngineers = new List<Engineer>();
-
-            _isSaving = false;
-            Snackbar.Add("Job Plotted", Severity.Success);
-
-
-            StateHasChanged();
         }
-        catch (Exception ex)
+
+        var driverMember = AttendanceData.Drivers.FirstOrDefault(d => d.UniqueId == _selectedDriver.VehicleNumber);
+        if (driverMember != null)
         {
-            _isSaving = false;
-            Console.WriteLine($"Method Error: {ex.Message}");
-            Snackbar.Add($"Error : {ex.Message}", Severity.Error);
+            var currentStatus = GetStatus(driverMember.UniqueId, targetDate);
+            if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
+            OnEntryChanged(driverMember, targetDate, currentStatus, plottedJobNames);
         }
+
+        await LoadData();
+
+        _selectedDriver = null;
+        _selectedJobs = new List<Job>();
+        _selectedEngineers = new List<Engineer>();
+
+        _isSaving = false;
+        Snackbar.Add("Job Plotted Successfully", Severity.Success);
+        StateHasChanged();
     }
+    catch (Exception ex)
+    {
+        _isSaving = false;
+        Console.WriteLine($"Method Error: {ex.Message}");
+        Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+    }
+}
 
     // private async Task SaveAssignment()
     // {
@@ -2018,13 +2153,13 @@ else
     // }
     // 2. Change GetJobName to be a purely synchronous memory lookup
     private (string JobName, string JobDescription) GetJobName(Guid id)
+{
+    if (_jobDictionary.TryGetValue(id.ToString().ToLowerInvariant(), out var details))
     {
-        if (_jobDictionary.TryGetValue(id.ToString(), out var details))
-        {
-            return details; // Returns the (Name, Description) tuple from your dictionary
-        }
-        return ("", "");
+        return details;
     }
+    return ("", "");
+}
 
 
     private string GetJobLocationName(Guid id)
