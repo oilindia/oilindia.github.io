@@ -631,26 +631,18 @@
         {
             _loading = true;
 
-            // 1. Fetch all master data concurrently
-            var locationsTask = SupabaseClient.From<Location>().Get();
-            var engineersTask = SupabaseClient.From<EmployeeEngineer>().Get();
-            var executivesTask = SupabaseClient.From<Executive>().Get();
-            var checklistsTask = SupabaseClient.From<ChecklistItem>().Get();
-            var driversTask = SupabaseClient.From<Driver>().Get();
+            // 1. Fetch all master data concurrently with high limits to prevent 100-row truncation
+            var locationsTask = SupabaseClient.From<Location>().Limit(5000).Get();
+            var engineersTask = SupabaseClient.From<EmployeeEngineer>().Limit(5000).Get();
+            var executivesTask = SupabaseClient.From<Executive>().Limit(5000).Get();
+            var checklistsTask = SupabaseClient.From<ChecklistItem>().Limit(5000).Get();
+            var driversTask = SupabaseClient.From<Driver>().Limit(5000).Get();
 
-            // Await all 5 parallel tasks together
+            // Await all parallel tasks together
             await Task.WhenAll(locationsTask, engineersTask, executivesTask, checklistsTask, driversTask);
 
             // 2. Build Base Lookups
-            // _locationLookup = locationsTask.Result.Models.ToDictionary(
-            //     l => l.Id,
-            //     l => l.InstallationName ?? "Unnamed Installation"
-               
-            // );
-
-            _locationLookup = locationsTask.Result.Models
-      .ToDictionary(l => l.Id, l => l);
-
+            _locationLookup = locationsTask.Result.Models.ToDictionary(l => l.Id, l => l);
 
             var allEngineers = engineersTask.Result.Models;
             var engineerLookup = allEngineers.ToDictionary(
@@ -674,6 +666,7 @@
             {
                 var assignmentsRes = await SupabaseClient.From<JobAssignment>()
                     .Filter("personnel_ids", Supabase.Postgrest.Constants.Operator.Contains, new List<long> { currentEmployee.Id })
+                    .Limit(5000)
                     .Get();
 
                 relevantAssignments = assignmentsRes.Models.Where(a => a.status != "deleted").ToList();
@@ -689,7 +682,7 @@
                     var jobsRes = await SupabaseClient.From<Job>()
                         .Where(x => x.Status == "assigned")
                         .Filter("id", Supabase.Postgrest.Constants.Operator.In, assignedJobIds)
-                        .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                        .Limit(5000)
                         .Get();
 
                     _pendingJobs = jobsRes.Models;
@@ -705,13 +698,14 @@
                 var jobsRes = await SupabaseClient.From<Job>()
                     .Where(x => x.Status == "assigned")
                     .Order(x => x.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
+                    .Limit(5000)
                     .Get();
 
                 _pendingJobs = jobsRes.Models;
 
                 if (_pendingJobs.Any())
                 {
-                    var allAssignmentsRes = await SupabaseClient.From<JobAssignment>().Get();
+                    var allAssignmentsRes = await SupabaseClient.From<JobAssignment>().Limit(5000).Get();
                     relevantAssignments = allAssignmentsRes.Models.Where(a => a.status != "deleted").ToList();
                 }
             }
@@ -786,6 +780,7 @@
         finally
         {
             _loading = false;
+            StateHasChanged();
         }
     }
 

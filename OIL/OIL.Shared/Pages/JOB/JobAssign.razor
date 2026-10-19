@@ -137,6 +137,8 @@
     }
 
     <MudGrid Spacing="1" Class="px-2 pb-16">
+
+         <MudExpansionPanel Text="Attendance Schedule" Icon="@Icons.Material.Filled.DocumentScanner">
         @* Side-by-Side Layout: lg="6" ensures two columns on wide screens *@
         <MudItem xs="12" lg="6">
             <MudText Typo="Typo.subtitle2" Class="ml-2 mb-1" Color="Color.Primary">ENGINEERS</MudText>
@@ -229,7 +231,7 @@
                 </MudTable>
             </div>
         </MudItem>
-
+        </MudExpansionPanel>
 
         @* --- NEW: DETAILED JOBS GRID (LAST 3 DAYS) --- *@
         <MudGrid Spacing="1" Class="px-2 pb-16">
@@ -430,7 +432,7 @@ else
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@j.JobDescription</MudText>
                                 <!-- Added created_at date display below -->
                                 <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-disabled);" Class="mt-1">
-                                    Created: @j.CreatedAt?.ToString("dd-MMM-yyyy HH:mm")
+                                    Created: @j.CreatedAt?.ToString("dd-MMM-yyyy HH:mm") 
                                 </MudText>
                             </div>
                         </MudSelectItem>
@@ -888,15 +890,19 @@ else
         _isJobsLoading = true;
         StateHasChanged();
 
-        // 1. Fetch only the latest 50 Jobs & Assignments concurrently if possible, or sequentially
+        // Calculate the exact ISO timestamp for 30 days ago
+        string thirtyDaysAgoIso = DateTime.UtcNow.AddDays(-30).ToString("o");
+
+        // 1. Fetch ONLY jobs created within the last 30 days
         var jobsTask = SupabaseClient.From<Job>()
-            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-            .Limit(50)
+            .Filter("created_at", Operator.GreaterThanOrEqual, thirtyDaysAgoIso)
+            .Order("created_at", Ordering.Descending)
             .Get();
 
+        // 2. Fetch ONLY assignments from the last 30 days
         var assignmentsTask = SupabaseClient.From<Assignment>()
-            .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-            .Limit(50)
+            .Filter("created_at", Operator.GreaterThanOrEqual, thirtyDaysAgoIso)
+            .Order("created_at", Ordering.Descending)
             .Get();
 
         await Task.WhenAll(jobsTask, assignmentsTask);
@@ -904,12 +910,12 @@ else
         var jobs = jobsTask.Result.Models;
         var assignments = assignmentsTask.Result.Models;
 
-        // 2. Use existing in-memory dictionary lookups (Fall back to direct list if empty)
+        // Use existing in-memory dictionaries for fast lookups
         var locations = _dbLocations.ToDictionary(l => l.Id);
         var engineers = _dbEngineers.ToDictionary(e => e.Id);
         var drivers = _dbDrivers.ToDictionary(d => d.Id);
 
-        // 3. Map to DTO locally without making extra network queries
+        // 3. Map to DTO locally
         _jobsGridData = jobs.Select(job =>
         {
             var assignment = assignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(job.Id));
@@ -1037,8 +1043,13 @@ else
     public string _fullName = "";
     private string _designation = "";
 
+    private bool _isInitialized = false;
+
     protected override async Task OnInitializedAsync()
     {
+        // Prevent infinite re-initialization loops
+    if (_isInitialized) return;
+    _isInitialized = true;
         var start = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         for (var dt = start; dt <= start.AddMonths(1).AddDays(-1); dt = dt.AddDays(1)) _daysInMonth.Add(dt);
 
@@ -1062,44 +1073,51 @@ else
             await AttendanceData.InitializeAsync(SupabaseClient);
         }
 
-        LoadData();
+        await LoadData();
 
 
-        LoadJobsGridDataAsync();
+        //await LoadJobsGridDataAsync();
 
 
     }
+
+    private HashSet<string> _engagedResourceDays = new();
 
     private bool IsResourceEngaged(string uniqueId, DateTime date)
-    {
-        var targetDate = date.Date;
+{
+    return _engagedResourceDays.Contains($"{uniqueId}_{date:yyyyMMdd}");
+}
 
-        // Engineer check
-        var eng = _dbEngineers.FirstOrDefault(x => x.EmployeeCode == uniqueId);
+    // private bool IsResourceEngaged(string uniqueId, DateTime date)
+    // {
+    //     var targetDate = date.Date;
 
-        if (eng != null)
-        {
-            return _assignments.Any(a =>
-                a.Status != "dltd" &&
-                a.CreatedAt.HasValue &&
-                a.CreatedAt.Value.Date == targetDate &&
-                a.PersonnelIds.Contains(eng.Id));
-        }
+    //     // Engineer check
+    //     var eng = _dbEngineers.FirstOrDefault(x => x.EmployeeCode == uniqueId);
 
-        // Driver check
-        var drv = _dbDrivers.FirstOrDefault(x => x.VehicleNumber == uniqueId);
+    //     if (eng != null)
+    //     {
+    //         return _assignments.Any(a =>
+    //             a.Status != "dltd" &&
+    //             a.CreatedAt.HasValue &&
+    //             a.CreatedAt.Value.Date == targetDate &&
+    //             a.PersonnelIds.Contains(eng.Id));
+    //     }
 
-        if (drv != null)
-        {
-            return _assignments.Any(a =>
-                a.Status != "dltd" &&
-                a.CreatedAt.HasValue &&
-                a.CreatedAt.Value.Date == targetDate &&
-                a.DriverId == drv.Id);
-        }
+    //     // Driver check
+    //     var drv = _dbDrivers.FirstOrDefault(x => x.VehicleNumber == uniqueId);
 
-        return false;
-    }
+    //     if (drv != null)
+    //     {
+    //         return _assignments.Any(a =>
+    //             a.Status != "dltd" &&
+    //             a.CreatedAt.HasValue &&
+    //             a.CreatedAt.Value.Date == targetDate &&
+    //             a.DriverId == drv.Id);
+    //     }
+
+    //     return false;
+    // }
 
     private int GetTodayPriority(string id)
     {
@@ -1531,13 +1549,11 @@ else
     _loading = true;
     try
     {
-        string sevenDaysAgoIso = DateTime.UtcNow.AddDays(-7).ToString("o");
+        string thirtyDaysAgoIso = DateTime.UtcNow.AddDays(-30).ToString("o");
 
-        // Execute core entity queries
         var driversTask = SupabaseClient.From<Driver>().Get();
         var jobsTask = SupabaseClient.From<Job>()
-            .Where(x => x.JobStatus == "pending")
-            .Filter("created_at", Operator.GreaterThan, sevenDaysAgoIso)
+            .Filter("created_at", Operator.GreaterThan, thirtyDaysAgoIso)
             .Order("created_at", Ordering.Descending)
             .Get();
         var engineersTask = SupabaseClient.From<Engineer>()
@@ -1547,11 +1563,10 @@ else
         var locationsTask = SupabaseClient.From<LocationTable>().Get();
         var assignmentsTask = SupabaseClient.From<Assignment>()
             .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-            .Limit(35)
+            .Limit(100) // Reduced from 1000 to prevent heavy payloads
             .Get();
-        var allJobsTask = SupabaseClient.From<Job>().Get();
 
-        await Task.WhenAll(driversTask, jobsTask, engineersTask, locationsTask, assignmentsTask, allJobsTask);
+        await Task.WhenAll(driversTask, jobsTask, engineersTask, locationsTask, assignmentsTask);
 
         _dbDrivers = driversTask.Result.Models;
         _dbJobs = jobsTask.Result.Models;
@@ -1559,13 +1574,33 @@ else
         _dbLocations = locationsTask.Result.Models;
         _assignments = assignmentsTask.Result.Models;
 
-        // Update in LoadData()
-var allJobs = (await SupabaseClient.From<Job>().Limit(5000).Get()).Models;
+        // Use _dbJobs as the master dictionary source to avoid redundant queries
+        _jobDictionary = _dbJobs.ToDictionary(
+            x => x.Id.ToString().ToLowerInvariant(),
+            x => (x.JobName ?? "", x.JobDescription ?? "")
+        );
 
-_jobDictionary = allJobs.ToDictionary(
-    x => x.Id.ToString().ToLowerInvariant(),
-    x => (x.JobName ?? "", x.JobDescription ?? "")
-);
+        // --- POPULATE FAST ENGAGEMENT CACHE ---
+        _engagedResourceDays.Clear();
+        foreach (var a in _assignments.Where(x => x.Status != "deleted" && x.CreatedAt.HasValue))
+        {
+            var dateStr = a.CreatedAt.Value.ToString("yyyyMMdd");
+            if (a.PersonnelIds != null)
+            {
+                foreach (var pId in a.PersonnelIds)
+                {
+                    var eng = _dbEngineers.FirstOrDefault(e => e.Id == pId);
+                    if (eng != null) _engagedResourceDays.Add($"{eng.EmployeeCode}_{dateStr}");
+                }
+            }
+            if (a.DriverId.HasValue && a.DriverId.Value != 0)
+            {
+                var drv = _dbDrivers.FirstOrDefault(d => d.Id == a.DriverId.Value);
+                if (drv != null) _engagedResourceDays.Add($"{drv.VehicleNumber}_{dateStr}");
+            }
+        }
+
+        await LoadJobsGridDataAsync();
     }
     catch (Exception e)
     {
@@ -1578,33 +1613,53 @@ _jobDictionary = allJobs.ToDictionary(
         await JS.InvokeVoidAsync("scrollToToday");
     }
 }
-    private async Task SaveAssignment()
+    
+
+private async Task SaveAssignment()
 {
     try
     {
-        _isSaving = true;
-        if (_selectedDriver == null || !_selectedJobs.Any()) return;
+        // --- 1. STRICT FRONTEND VALIDATION ---
+        if (_selectedDriver == null)
+        {
+            Snackbar.Add("Please select a vehicle before plotting.", Severity.Warning);
+            return;
+        }
 
-        // 1. Calculate explicit IST time for DocNumber formatting
+        // Force materialization into a concrete List to check count reliably
+        var selectedJobList = _selectedJobs?.ToList() ?? new List<Job>();
+        if (!selectedJobList.Any())
+        {
+            Snackbar.Add("Please select at least one job to assign.", Severity.Warning);
+            return;
+        }
+
+        var selectedEngineerList = _selectedEngineers?.ToList() ?? new List<Engineer>();
+        if (!selectedEngineerList.Any())
+        {
+            Snackbar.Add("Please select at least one personnel.", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+
+        // --- 2. TIMEZONE & TIMESTAMP CALCULATION ---
         string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
         TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById(tzId);
         DateTime currentIstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, istZone);
 
-        // 2. Determine target assignment timestamp
-        DateTime createdAtUtc;
-        if (_selectedDate.HasValue && _selectedDate.Value.Date != DateTime.Today)
-        {
-            // For back-dated or future-dated plotting: set at 09:00 AM IST of selected date
-            DateTime targetIst = new DateTime(_selectedDate.Value.Year, _selectedDate.Value.Month, _selectedDate.Value.Day, 9, 0, 0, DateTimeKind.Unspecified);
-            createdAtUtc = TimeZoneInfo.ConvertTimeToUtc(targetIst, istZone);
-        }
-        else
-        {
-            // For today: use exact current UTC time
-            createdAtUtc = DateTime.UtcNow;
-        }
+        DateTime selectedDt = _selectedDate ?? DateTime.Today;
+        DateTime targetIst = new DateTime(
+            selectedDt.Year, selectedDt.Month, selectedDt.Day, 
+            currentIstTime.Hour, currentIstTime.Minute, currentIstTime.Second, 
+            DateTimeKind.Unspecified
+        );
+        DateTime createdAtUtc = TimeZoneInfo.ConvertTimeToUtc(targetIst, istZone);
 
-        // 3. Prepare and Insert Assignment into Supabase
+        // --- 3. EXPLICIT GUID EXTRACTION FOR SUPABASE SERIALIZATION ---
+        List<Guid> extractedJobGuids = selectedJobList.Select(j => j.Id).Where(id => id != Guid.Empty).ToList();
+        List<long> extractedPersonnelIds = selectedEngineerList.Select(e => e.Id).ToList();
+
         var item = new Assignment
         {
             Id = Guid.NewGuid(),
@@ -1613,34 +1668,33 @@ _jobDictionary = allJobs.ToDictionary(
             ShiftName = _selectedShift,
             job_assignment_table_JobAssignedBy = _fullName,
             JobAction = "assigned",
-            JobIds = _selectedJobs.Select(x => x.Id).ToList(),
-            PersonnelIds = _selectedEngineers.Select(x => x.Id).ToList(),
+            JobIds = extractedJobGuids,               // Guaranteed non-empty List<Guid>
+            PersonnelIds = extractedPersonnelIds,     // Guaranteed non-empty List<long>
             DocNumber = $"OIL-{_selectedShift[0]}-{currentIstTime:ddMMyy-HHmm}"
         };
 
+        // --- 4. INSERT INTO SUPABASE ---
         await SupabaseClient.From<Assignment>().Insert(item);
 
-        foreach (var job in _selectedJobs)
+        // --- 5. UPDATE JOB STATUSES IN SUPABASE ---
+        foreach (var job in selectedJobList)
         {
             job.JobStatus = "assigned";
             await SupabaseClient.From<Job>().Update(job);
         }
 
-        // 4. Update Attendance Grid Status
-        string plottedJobNames = string.Join(", ", _selectedJobs.Select(j => j.JobName));
-        DateTime targetDate = DateTime.Today;
+        // --- 6. UPDATE ATTENDANCE GRID STATUS ---
+        string plottedJobNames = string.Join(", ", selectedJobList.Select(j => j.JobName));
+        DateTime targetDate = selectedDt.Date;
 
-        if (_selectedEngineers != null)
+        foreach (var eng in selectedEngineerList)
         {
-            foreach (var eng in _selectedEngineers)
+            var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
+            if (member != null)
             {
-                var member = AttendanceData.Engineers.FirstOrDefault(e => e.UniqueId == eng.EmployeeCode);
-                if (member != null)
-                {
-                    var currentStatus = GetStatus(member.UniqueId, targetDate);
-                    if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
-                    OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
-                }
+                var currentStatus = GetStatus(member.UniqueId, targetDate);
+                if (string.IsNullOrWhiteSpace(currentStatus)) currentStatus = "P";
+                OnEntryChanged(member, targetDate, currentStatus, plottedJobNames);
             }
         }
 
@@ -1654,12 +1708,13 @@ _jobDictionary = allJobs.ToDictionary(
 
         await LoadData();
 
+        // Reset inputs
         _selectedDriver = null;
         _selectedJobs = new List<Job>();
         _selectedEngineers = new List<Engineer>();
 
         _isSaving = false;
-        Snackbar.Add("Job Plotted Successfully", Severity.Success);
+        Snackbar.Add("Job Plotted Successfully!", Severity.Success);
         StateHasChanged();
     }
     catch (Exception ex)
@@ -1669,7 +1724,6 @@ _jobDictionary = allJobs.ToDictionary(
         Snackbar.Add($"Error: {ex.Message}", Severity.Error);
     }
 }
-
     // private async Task SaveAssignment()
     // {
     //     try
@@ -1996,125 +2050,84 @@ _jobDictionary = allJobs.ToDictionary(
     }
 
     private async Task UpdateAssignment()
+{
+    try
     {
-        try
+        var selectedEditJobs = _editJobs?.ToList() ?? new List<Job>();
+        if (!selectedEditJobs.Any())
         {
-            _loading = true;
-
-            // 0. Fetch fresh active assignments to ensure we capture any real-time shifts
-            var activeAssignments = (await SupabaseClient.From<Assignment>()
-                .Where(x => x.Status != "deleted" && x.Id != _editingItem.Id)
-                .Get()).Models;
-
-            // =================================================================
-            // FIX: Match types exactly to Postgres DDL layout
-            // =================================================================
-
-            // 1. Jobs are UUIDs -> C# Guid
-            var oldJobIds = _editingItem.JobIds ?? new List<Guid>();
-            var newJobIds = _editJobs.Select(j => j.Id).ToList();
-
-            // 2. Personnel are bigints -> C# long
-            var oldPersonnelIds = _editingItem.PersonnelIds ?? new List<long>();
-            var newPersonnelIds = _editEngineers.Select(e => e.Id).ToList();
-
-            // 3. Driver is bigint null -> C# long?
-            long? newDriverId = _editDriver?.Id;
-
-            // =================================================================
-            // STEP 1: RESOLVE JOB CONFLICTS & UPDATES (Guid / UUID)
-            // =================================================================
-            var jobsToUnassignIds = oldJobIds.Except(newJobIds).ToList();
-            var jobsToAssignIds = newJobIds.Except(oldJobIds).ToList();
-
-            // If a job was unselected from this assignment, it returns to "pending"
-            foreach (var jobId in jobsToUnassignIds)
-            {
-                var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
-                if (job != null)
-                {
-                    job.JobStatus = "pending";
-                    await SupabaseClient.From<Job>().Update(job);
-                }
-            }
-
-            // If a job is newly added here, check if it was stolen from another assignment
-            foreach (var jobId in jobsToAssignIds)
-            {
-                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(jobId));
-                if (conflictAssignment != null)
-                {
-                    conflictAssignment.JobIds.Remove(jobId);
-                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
-                }
-
-                var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
-                if (job != null)
-                {
-                    job.JobStatus = "assigned";
-                    await SupabaseClient.From<Job>().Update(job);
-                }
-            }
-
-            // =================================================================
-            // STEP 2: RESOLVE PERSONNEL (ENGINEER) CONFLICTS (long / bigint)
-            // =================================================================
-            var engineersStolenIds = newPersonnelIds.Except(oldPersonnelIds).ToList();
-
-            foreach (var engId in engineersStolenIds)
-            {
-                // If this engineer is working elsewhere, remove them from that assignment
-                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.PersonnelIds != null && a.PersonnelIds.Contains(engId));
-                if (conflictAssignment != null)
-                {
-                    conflictAssignment.PersonnelIds.Remove(engId);
-                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
-                }
-            }
-
-            // =================================================================
-            // STEP 3: RESOLVE DRIVER / VEHICLE CONFLICTS (long? / bigint null)
-            // =================================================================
-            if (newDriverId.HasValue && newDriverId != _editingItem.DriverId)
-            {
-                // If the newly selected driver is assigned to another team, clear them from that team
-                var conflictAssignment = activeAssignments.FirstOrDefault(a => a.DriverId == newDriverId);
-                if (conflictAssignment != null)
-                {
-                    conflictAssignment.DriverId = null; // Explicitly null out the driver from the old team
-                    await SupabaseClient.From<Assignment>().Update(conflictAssignment);
-                }
-            }
-
-            // =================================================================
-            // STEP 4: SAVE THE CURRENT ASSIGNMENT CHANGES
-            // =================================================================
-            _editingItem.DriverId = newDriverId;
-            _editingItem.JobIds = newJobIds;
-            _editingItem.PersonnelIds = newPersonnelIds;
-
-            await SupabaseClient.From<Assignment>().Update(_editingItem);
-
-            // =================================================================
-            // STEP 5: REFRESH STATE
-            // =================================================================
-            _isEditModalOpen = false;
-            Snackbar.Add("Assignment updated and resource conflicts resolved!", Severity.Success);
-
-            await LoadData();
+            Snackbar.Add("An assignment must contain at least one job.", Severity.Warning);
+            return;
         }
-        catch (Exception ex)
+
+        _loading = true;
+
+        var activeAssignments = (await SupabaseClient.From<Assignment>()
+            .Where(x => x.Status != "deleted" && x.Id != _editingItem.Id)
+            .Get()).Models;
+
+        var oldJobIds = _editingItem.JobIds ?? new List<Guid>();
+        var newJobIds = selectedEditJobs.Select(j => j.Id).ToList();
+
+        var oldPersonnelIds = _editingItem.PersonnelIds ?? new List<long>();
+        var newPersonnelIds = (_editEngineers?.ToList() ?? new List<Engineer>()).Select(e => e.Id).ToList();
+
+        long? newDriverId = _editDriver?.Id;
+
+        // Unassign removed jobs
+        var jobsToUnassignIds = oldJobIds.Except(newJobIds).ToList();
+        var jobsToAssignIds = newJobIds.Except(oldJobIds).ToList();
+
+        foreach (var jobId in jobsToUnassignIds)
         {
-            Console.WriteLine($"Critical Update Error: {ex.Message}");
-            Snackbar.Add($"Error updating assignment: {ex.Message}", Severity.Error);
+            var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
+            if (job != null)
+            {
+                job.JobStatus = "pending";
+                await SupabaseClient.From<Job>().Update(job);
+            }
         }
-        finally
+
+        // Assign newly selected jobs & resolve conflicts
+        foreach (var jobId in jobsToAssignIds)
         {
-            _loading = false;
-            StateHasChanged();
+            var conflictAssignment = activeAssignments.FirstOrDefault(a => a.JobIds != null && a.JobIds.Contains(jobId));
+            if (conflictAssignment != null)
+            {
+                conflictAssignment.JobIds.Remove(jobId);
+                await SupabaseClient.From<Assignment>().Update(conflictAssignment);
+            }
+
+            var job = _allDbJobs.FirstOrDefault(j => j.Id == jobId);
+            if (job != null)
+            {
+                job.JobStatus = "assigned";
+                await SupabaseClient.From<Job>().Update(job);
+            }
         }
+
+        _editingItem.DriverId = newDriverId;
+        _editingItem.JobIds = newJobIds;
+        _editingItem.PersonnelIds = newPersonnelIds;
+
+        await SupabaseClient.From<Assignment>().Update(_editingItem);
+
+        _isEditModalOpen = false;
+        Snackbar.Add("Assignment updated successfully!", Severity.Success);
+
+        await LoadData();
     }
-
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Critical Update Error: {ex.Message}");
+        Snackbar.Add($"Error updating assignment: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        _loading = false;
+        StateHasChanged();
+    }
+}
 
     // private void OpenEditModal(Assignment item)
     // {
@@ -2154,11 +2167,20 @@ _jobDictionary = allJobs.ToDictionary(
     // 2. Change GetJobName to be a purely synchronous memory lookup
     private (string JobName, string JobDescription) GetJobName(Guid id)
 {
-    if (_jobDictionary.TryGetValue(id.ToString().ToLowerInvariant(), out var details))
+    string key = id.ToString().ToLowerInvariant();
+    if (_jobDictionary != null && _jobDictionary.TryGetValue(key, out var details))
     {
         return details;
     }
-    return ("", "");
+    
+    // Fallback: search directly in loaded job lists so names never show blank
+    var foundJob = _dbJobs?.FirstOrDefault(j => j.Id == id) ?? _allDbJobs?.FirstOrDefault(j => j.Id == id);
+    if (foundJob != null)
+    {
+        return (foundJob.JobName ?? "N/A", foundJob.JobDescription ?? "");
+    }
+
+    return ("N/A", "");
 }
 
 

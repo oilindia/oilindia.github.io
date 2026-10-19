@@ -13,8 +13,8 @@
 
 <style>
     /* =========================================================
-                   GLOBAL PAGE
-                ========================================================= */
+                       GLOBAL PAGE
+                    ========================================================= */
     html, body {
         margin: 0;
         padding: 0;
@@ -28,8 +28,8 @@
     }
 
     /* =========================================================
-                   EDITABLE CELLS (SCREEN & PRINT)
-                ========================================================= */
+                       EDITABLE CELLS (SCREEN & PRINT)
+                    ========================================================= */
     .editable-cell {
         width: 100%;
         border: 1px dashed #b0bec5;
@@ -61,8 +61,8 @@
     }
 
     /* =========================================================
-                   PRINT FIXES
-                ========================================================= */
+                       PRINT FIXES
+                    ========================================================= */
     @@media print {
         html, body {
             background: white !important;
@@ -159,8 +159,8 @@
     }
 
     /* =========================================================
-                   SCREEN CONTAINER
-                ========================================================= */
+                       SCREEN CONTAINER
+                    ========================================================= */
     .a4-container {
         width: 287mm;
         min-height: 200mm;
@@ -174,8 +174,8 @@
     }
 
     /* =========================================================
-                   TOP TOOLBAR
-                ========================================================= */
+                       TOP TOOLBAR
+                    ========================================================= */
     .no-print {
         position: sticky;
         top: 0;
@@ -183,8 +183,8 @@
     }
 
     /* =========================================================
-                   HEADER TABLE
-                ========================================================= */
+                       HEADER TABLE
+                    ========================================================= */
     .header-table {
         width: 100%;
         border-collapse: collapse;
@@ -223,8 +223,8 @@
     }
 
     /* =========================================================
-                   SECTION BANNERS
-                ========================================================= */
+                       SECTION BANNERS
+                    ========================================================= */
     .section-banner {
         background: #f2f2f2;
         border: 1px solid black;
@@ -238,8 +238,8 @@
     }
 
     /* =========================================================
-                   REPORT TABLE
-                ========================================================= */
+                       REPORT TABLE
+                    ========================================================= */
     .report-table {
         width: 100%;
         border-collapse: collapse;
@@ -274,16 +274,16 @@
         }
 
     /* =========================================================
-                   TEXT ALIGNMENT
-                ========================================================= */
+                       TEXT ALIGNMENT
+                    ========================================================= */
     .text-left {
         text-align: left !important;
         padding-left: 6px !important;
     }
 
     /* =========================================================
-                   FOOTER
-                ========================================================= */
+                       FOOTER
+                    ========================================================= */
     .footer-container {
         display: flex;
         justify-content: space-between;
@@ -319,8 +319,8 @@
     }
 
     /* =========================================================
-                   RESPONSIVE TABLE
-                ========================================================= */
+                       RESPONSIVE TABLE
+                    ========================================================= */
     @@media (max-width: 1200px) {
         .a4-container {
             width: 100%;
@@ -361,8 +361,8 @@
     }
 
     /* =========================================================
-                   LOADING BAR
-                ========================================================= */
+                       LOADING BAR
+                    ========================================================= */
     .mud-progress-linear {
         position: sticky;
         top: 0;
@@ -448,8 +448,10 @@ else
         </div>
 
         @* --- PREVIOUS DAY SECTION --- *@
+
         <div class="section-banner">
             <span>Previous Day Job Carried Out: @(_prevDate?.ToString("dd-MM-yyyy"))</span>
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" OnClick="AddManualPrevRow" Class="no-print"> + Add Row</MudButton>
         </div>
         <table class="report-table">
             <thead>
@@ -472,45 +474,66 @@ else
                 }
                 @foreach (var assignment in _prevDayEntries)
                 {
-                    @if (assignment.JobIds != null)
+                    if (string.Equals(assignment.JobAction, "deleted", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    if (assignment.JobIds != null && assignment.JobIds.Any())
                     {
                         foreach (var jobId in assignment.JobIds)
                         {
                             var job = _jobs.FirstOrDefault(j => j.Id == jobId);
                             if (job == null) continue;
 
-                            if (!string.IsNullOrEmpty(selectedFieldType))
+
+                            // 👉 1. Declare loc FIRST before checking it
+                            var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
+
+                            // 👉 2. Safe filter: only skip if location exists AND field type explicitly mismatches
+                            if (!string.IsNullOrEmpty(selectedFieldType) && loc != null && !string.IsNullOrEmpty(loc.FieldType))
                             {
-                                var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
-                                if (loc == null || !string.Equals(loc.FieldType, selectedFieldType, StringComparison.OrdinalIgnoreCase))
+                                if (!string.Equals(loc.FieldType.Trim(), selectedFieldType.Trim(), StringComparison.OrdinalIgnoreCase))
                                     continue;
                             }
+
+                            
 
                             <tr>
                                 <td>@(prevSl++)</td>
                                 <td><textarea class="editable-cell" @bind="assignment.ShiftName"></textarea></td>
                                 <td><textarea class="editable-cell" @bind="job.NotificationNumber"></textarea></td>
-
                                 <td class="text-left">@GetLocationName(job.LocationId)</td>
                                 <td>@GetEquipmentName(job.LocTagNumber)</td>
-
                                 <td><textarea class="editable-cell" @bind="job.LocTagNumber"></textarea></td>
                                 <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobName"></textarea></td>
                                 <td class="text-left"><textarea class="editable-cell text-left" @bind="job.JobActionRemarks"></textarea></td>
                                 <td><textarea class="editable-cell text-left" @bind="job.JobSpareReplaced"></textarea></td>
-
-                                @* Previous day remarks column was explicitly empty in original layout *@
                                 <td><textarea class="editable-cell text-left" placeholder="Type notes..."></textarea></td>
                             </tr>
                         }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td>@(prevSl++)</td>
+                            <td><textarea class="editable-cell" @bind="assignment.ShiftName"></textarea></td>
+                            <td><textarea class="editable-cell" value=""></textarea></td>
+                            <td class="text-left"></td>
+                            <td></td>
+                            <td><textarea class="editable-cell" value=""></textarea></td>
+                            <td class="text-left"><textarea class="editable-cell text-left" value=""></textarea></td>
+                            <td class="text-left"><textarea class="editable-cell text-left" value=""></textarea></td>
+                            <td><textarea class="editable-cell text-left" value=""></textarea></td>
+                            <td><textarea class="editable-cell text-left" placeholder="Type notes..."></textarea></td>
+                        </tr>
                     }
                 }
             </tbody>
         </table>
 
         @* --- TODAY'S PLANNED SECTION --- *@
+
         <div class="section-banner" style="margin-top: 15px;">
             <span>Today's Planned Jobs: @(_todayDate?.ToString("dd-MM-yyyy"))</span>
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" OnClick="AddManualTodayRow" Class="no-print"> + Add Row</MudButton>
         </div>
         <table class="report-table">
             <thead>
@@ -540,12 +563,17 @@ else
                             var job = _jobs.FirstOrDefault(j => j.Id == jobId);
                             if (job == null) continue;
 
-                            if (!string.IsNullOrEmpty(selectedFieldType))
+                            // 👉 1. Declare loc FIRST before checking it
+                            var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
+
+                            // 👉 2. Safe filter: only skip if location exists AND field type explicitly mismatches
+                            if (!string.IsNullOrEmpty(selectedFieldType) && loc != null && !string.IsNullOrEmpty(loc.FieldType))
                             {
-                                var loc = _locations.FirstOrDefault(l => l.Id == job.LocationId);
-                                if (loc == null || !string.Equals(loc.FieldType, selectedFieldType, StringComparison.OrdinalIgnoreCase))
+                                if (!string.Equals(loc.FieldType.Trim(), selectedFieldType.Trim(), StringComparison.OrdinalIgnoreCase))
                                     continue;
                             }
+
+                            
 
                             <tr>
                                 <td>@(todaySl++)</td>
@@ -674,45 +702,37 @@ else
         _loading = true;
         try
         {
-            // Bypass Supabase default 1,000-row limit
-            _drivers = (await SupabaseClient.From<Driver>().Limit(5000).Get()).Models;
-            _jobs = (await SupabaseClient.From<Job>().Limit(5000).Get()).Models;
-            _engineers = (await SupabaseClient.From<Engineer>().Limit(5000).Get()).Models;
-            _locations = (await SupabaseClient.From<Location>().Limit(5000).Get()).Models;
-            _markers = (await SupabaseClient.From<Marker>().Limit(5000).Get()).Models;
+            _drivers = (await SupabaseClient.From<Driver>().Limit(500).Get()).Models;
+            // 2. Fetch jobs ordered by created_at desc (Job has created_at)
+            _jobs = (await SupabaseClient.From<Job>()
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(5000)
+                .Get()).Models;
+
+            // 3. Fetch assignments ordered by created_at desc (Assignment has created_at)
+            var allAssignments = (await SupabaseClient.From<Assignment>()
+                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
+                .Limit(5000)
+                .Get()).Models;
+
+
+            _engineers = (await SupabaseClient.From<Engineer>().Limit(500).Get()).Models;
+            _locations = (await SupabaseClient.From<Location>().Limit(500).Get()).Models;
+            _markers = (await SupabaseClient.From<Marker>().Limit(500).Get()).Models;
 
             DateTime prevDateVal = _prevDate ?? DateTime.Today.AddDays(-1);
             DateTime todayDateVal = _todayDate ?? DateTime.Today;
 
-            // Build unambiguous ISO range boundaries with +05:30 IST offset
-            string prevStartStr = $"{prevDateVal:yyyy-MM-dd}T00:00:00+05:30";
-            string prevEndStr = $"{prevDateVal:yyyy-MM-dd}T23:59:59.999+05:30";
+            // Order by created_at descending and fetch up to 5000 rows to prevent truncation of recent records
+            
 
-            string todayStartStr = $"{todayDateVal:yyyy-MM-dd}T00:00:00+05:30";
-            string todayEndStr = $"{todayDateVal:yyyy-MM-dd}T23:59:59.999+05:30";
+            _prevDayEntries = allAssignments
+                .Where(a => a.CreatedAtIst.HasValue && a.CreatedAtIst.Value.Date == prevDateVal.Date)
+                .ToList();
 
-            var rawPrevDayEntries = (await SupabaseClient.From<Assignment>()
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, prevStartStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, prevEndStr)
-                .Limit(1000)
-                .Get()).Models;
-
-            var rawTodayEntries = (await SupabaseClient.From<Assignment>()
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.GreaterThanOrEqual, todayStartStr)
-                .Filter("created_at", Supabase.Postgrest.Constants.Operator.LessThanOrEqual, todayEndStr)
-                .Limit(1000)
-                .Get()).Models;
-
-            if (!string.IsNullOrEmpty(selectedFieldType))
-            {
-                _prevDayEntries = FilterAssignmentsByFieldType(rawPrevDayEntries, selectedFieldType);
-                _todayEntries = FilterAssignmentsByFieldType(rawTodayEntries, selectedFieldType);
-            }
-            else
-            {
-                _prevDayEntries = rawPrevDayEntries;
-                _todayEntries = rawTodayEntries;
-            }
+            _todayEntries = allAssignments
+                .Where(a => a.CreatedAtIst.HasValue && a.CreatedAtIst.Value.Date == todayDateVal.Date)
+                .ToList();
         }
         finally
         {
@@ -720,6 +740,32 @@ else
             StateHasChanged();
         }
     }
+
+    private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
+    {
+        if (string.IsNullOrEmpty(fieldType))
+            return assignments;
+
+        var validLocationIds = _locations
+            .Where(l => !string.IsNullOrEmpty(l.FieldType) &&
+                        string.Equals(l.FieldType.Trim(), fieldType.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(l => l.Id)
+            .ToHashSet();
+
+        return assignments.Where(a =>
+        {
+            if (a.JobIds == null || !a.JobIds.Any()) return true;
+
+            return a.JobIds.Any(id =>
+            {
+                var job = _jobs.FirstOrDefault(j => j.Id == id);
+                if (job == null) return false;
+
+                return job.LocationId.HasValue && validLocationIds.Contains(job.LocationId.Value);
+            });
+        }).ToList();
+    }
+
     private void ExecuteTimeCalculations()
     {
         string tzId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
@@ -783,31 +829,7 @@ else
         }
     }
 
-    private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
-    {
-        if (string.IsNullOrEmpty(fieldType))
-            return assignments;
-
-        // Find location IDs matching the selected field type (case-insensitive)
-        var validLocationIds = _locations
-            .Where(l => !string.IsNullOrEmpty(l.FieldType) &&
-                        string.Equals(l.FieldType.Trim(), fieldType.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(l => l.Id)
-            .ToHashSet();
-
-        // Find job IDs belonging to those valid locations
-        var validJobIds = _jobs
-            .Where(j => j.LocationId.HasValue && validLocationIds.Contains(j.LocationId.Value))
-            .Select(j => j.Id)
-            .ToHashSet();
-
-        // Keep assignments that contain at least one valid job ID, OR keep all if none are mapped yet
-        var filtered = assignments
-            .Where(a => a.JobIds == null || !a.JobIds.Any() || a.JobIds.Any(id => validJobIds.Contains(id)))
-            .ToList();
-
-        return filtered;
-    }
+    
 
     // private List<Assignment> FilterAssignmentsByFieldType(List<Assignment> assignments, string fieldType)
     // {
@@ -825,7 +847,57 @@ else
     //         .Where(a => a.JobIds != null && a.JobIds.Any(id => validJobIds.Contains(id)))
     //         .ToList();
     // }
+    private void AddManualPrevRow()
+    {
+        var newJobId = Guid.NewGuid();
+        var newJob = new Job
+        {
+            Id = newJobId,
+            JobName = "",
+            NotificationNumber = "",
+            LocTagNumber = "",
+            JobActionRemarks = "",
+            JobSpareReplaced = "",
+            Description = ""
+        };
+        _jobs.Add(newJob);
 
+        var newAssignment = new Assignment
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = (_prevDate ?? DateTime.Today).ToUniversalTime(),
+            ShiftName = "General",
+            JobIds = new List<Guid> { newJobId }
+        };
+        _prevDayEntries.Add(newAssignment);
+        StateHasChanged();
+    }
+
+    private void AddManualTodayRow()
+    {
+        var newJobId = Guid.NewGuid();
+        var newJob = new Job
+        {
+            Id = newJobId,
+            JobName = "",
+            NotificationNumber = "",
+            LocTagNumber = "",
+            JobActionRemarks = "",
+            JobSpareReplaced = "",
+            Description = ""
+        };
+        _jobs.Add(newJob);
+
+        var newAssignment = new Assignment
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = (_todayDate ?? DateTime.Today).ToUniversalTime(),
+            ShiftName = "General",
+            JobIds = new List<Guid> { newJobId }
+        };
+        _todayEntries.Add(newAssignment);
+        StateHasChanged();
+    }
     private string GetLocationName(long? locationId)
     {
         if (!locationId.HasValue) return "";
@@ -873,6 +945,7 @@ else
         }
         [Column("driver_id")] public long? DriverId { get; set; }
         [Column("shift_name")] public string ShiftName { get; set; }
+        [Column("job_action")] public string JobAction { get; set; }
         [Column("job_ids")] public List<Guid> JobIds { get; set; } = new();
         [Column("personnel_ids")] public List<long> PersonnelIds { get; set; } = new();
         [Column("job_overtime")] public double? JobOvertime { get; set; }
@@ -889,6 +962,8 @@ else
         [Column("description")] public string Description { get; set; }
         [Column("job_action_remarks")] public string JobActionRemarks { get; set; }
         [Column("job_spare_replaced")] public string JobSpareReplaced { get; set; }
+
+
     }
 
     [Table("pid_markers")]
