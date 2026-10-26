@@ -44,7 +44,7 @@
         <section id="timeline" style="padding: 5rem 0; background-color: #FFFFFF; color: #111827; position: relative; border-bottom: 4px solid #D32F2F;">
             <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
-                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #E4E4E7; padding-bottom: 1.5rem; margin-bottom: 3rem;">
+                <div class="section-header-flex">
                     <div>
                         <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #D32F2F; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; letter-spacing: 0.1em;">
                             PRIMARY RESUME FEATURE
@@ -61,7 +61,7 @@
                 </div>
 
                 <!-- Year Controls Bar -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); sm-grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 3rem;">
+                <div class="year-controls-grid">
                     @foreach (var yr in new[] { 1983, 1995, 2010, 2024, 2030 })
                     {
                         var isActive = _selectedYear == yr;
@@ -79,7 +79,7 @@
 
                 <!-- Timeline Active Details Card -->
                 <div style="background-color: #FFFFFF; border: 2px solid #0A0A0A; border-top: 6px solid #D32F2F; border-radius: 1.5rem; padding: 2.5rem; position: relative; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.08);">
-                    <div style="display: grid; grid-template-columns: 1fr; lg-grid-template-columns: 5fr 7fr; gap: 2rem; align-items: center;">
+                    <div class="timeline-grid">
 
                         <!-- Left Info -->
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
@@ -147,7 +147,7 @@
         <section id="summary" style="padding: 5rem 0; background-color: #FAFAFA; color: #111827; border-bottom: 2px solid #E4E4E7;">
             <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
-                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; gap: 2rem; border-bottom: 2px solid #E4E4E7; padding-bottom: 2rem;">
+                <div class="section-header-flex">
                     <div>
                         <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #0A0A0A; color: #FFFFFF; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem; margin-bottom: 0.75rem; border-left: 4px solid #D32F2F; letter-spacing: 0.1em;">
                             EXECUTIVE OPERATIONAL SUMMARY
@@ -167,7 +167,7 @@
                         DEPARTMENT IDENTITY
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr; lg-grid-template-columns: 3fr 2fr; gap: 2rem; align-items: center;">
+                    <div class="who-we-are-grid">
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
                             <h3 style="font-size: 1.5rem; font-weight: 900; color: #0A0A0A; text-transform: uppercase; display: flex; align-items: center; gap: 0.75rem; margin: 0;">
                                 <span style="width: 0.5rem; height: 2rem; background-color: #D32F2F; display: inline-block;"></span>
@@ -202,7 +202,7 @@
                 </div>
 
                 <!-- Metrics Strip Grid -->
-                <div style="margin-top: 2.5rem; display: grid; grid-template-columns: repeat(2, 1fr); sm-grid-template-columns: repeat(3, 1fr); lg-grid-template-columns: repeat(7, 1fr); gap: 1rem;">
+                <div class="metrics-grid">
                     <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1rem; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
                         <div style="font-size: 1.75rem; font-weight: 900; color: #0A0A0A; font-family: monospace;">70+</div>
                         <div style="font-size: 0.625rem; font-weight: 900; text-transform: uppercase; color: #52525B; margin-top: 0.25rem;">Field Installations</div>
@@ -240,7 +240,7 @@
         <section id="portfolio" style="padding: 5rem 0; background-color: #FFFFFF; color: #111827; border-bottom: 2px solid #E4E4E7;">
             <div style="max-width: 80rem; margin: 0 auto; padding: 0 1.5rem;">
 
-                <div style="display: flex; flex-direction: column; md-flex-direction: row; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; border-bottom: 2px solid #E4E4E7; padding-bottom: 1.5rem;">
+                <div class="section-header-flex">
                     <div>
                         <div style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #0A0A0A; color: #FFFFFF; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; padding: 0.25rem 0.75rem; border-radius: 0.25rem;">
                             DIRECT INVOLVEMENT
@@ -253,8 +253,7 @@
                 </div>
 
                 <!-- Asset Grid -->
-                <div style="display: grid; grid-template-columns: repeat(1, 1fr); md-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
-
+                <div class="asset-grid">
                     <div style="background-color: #FAFAFA; border: 2px solid #E4E4E7; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.02); transition: border-color 0.2s;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <span style="font-size: 2rem; font-weight: 900; font-family: monospace; color: #D32F2F;">7000+</span>
@@ -325,7 +324,7 @@
                 </div>
 
                 <!-- Matrix Row 1 -->
-                <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+                <div class="presence-grid-5">
 
                     <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
                         <div style="font-size: 0.75rem; font-family: monospace; color: #D32F2F; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">SCADA Telemetry</div>
@@ -370,8 +369,7 @@
                 </div>
 
                 <!-- Matrix Row 2 -->
-                <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1rem;">
-
+                <div class="presence-grid-4">
                     <div style="background-color: #FFFFFF; border: 2px solid #E4E4E7; padding: 1.25rem; border-radius: 0.75rem; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
                         <div style="font-size: 0.75rem; font-family: monospace; color: #0A0A0A; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem;">OGPS & Utilities</div>
                         <p style="font-size: 0.75rem; color: #52525B; margin: 0;">Boiler control system, plant controls in CBUS, and WSS unit controls.</p>
@@ -410,7 +408,7 @@
                         </p>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(1, 1fr); sm-grid-template-columns: repeat(2, 1fr); lg-grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 3rem;">
+                    <div class="digital-grid">
 
                         <div style="background-color: #141414; border: 2px solid #262626; padding: 1.5rem; border-radius: 1rem;">
                             <div style="color: #D32F2F; font-family: monospace; font-weight: 900; font-size: 1.5rem;">01</div>
@@ -464,7 +462,7 @@
                     </button>
                 </div>
 
-                <div style="width: 100%; border-top: 1px solid #E4E4E7; padding-top: 3rem; margin-top: 2rem; font-size: 0.75rem; font-family: monospace; color: #71717A; display: flex; flex-direction: sm-row; justify-content: space-between; align-items: center; gap: 1rem;">
+                <div class="footer-bottom-row">
                     <div>OIL INDIA • INSTRUMENTATION DEPARTMENT</div>
                     <div style="color: #52525B;">Blazor Razor Component Architecture</div>
                 </div>
@@ -506,10 +504,10 @@
                         <label style="display: block; font-size: 0.6875rem; font-family: monospace; font-weight: bold; color: #52525B; text-transform: uppercase; margin-bottom: 0.25rem;">Operating Unit</label>
                         <select @bind="_loginUnit" style="width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; background-color: #FAFAFA; border: 2px solid #E4E4E7; color: #111827; font-size: 0.75rem; font-family: monospace;">
                             <option value="fhq">FHQ Duliajan / Central Installations</option>
-                            <option value="scada">SCADA Master Control Station (MCS)</option>
+                            @* <option value="scada">SCADA Master Control Station (MCS)</option>
                             <option value="ggs">Gas Gathering Stations (GCS/GGS)</option>
                             <option value="lpg">LPG Process Complex</option>
-                            <option value="rigs">VFD Drilling Rigs Automation</option>
+                            <option value="rigs">VFD Drilling Rigs Automation</option> *@
                         </select>
                     </div>
 
@@ -539,6 +537,135 @@
     </MudOverlay>
 
 </div>
+
+<style>
+    .section-header-flex {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        border-bottom: 2px solid #E4E4E7;
+        padding-bottom: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .year-controls-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 3rem;
+    }
+
+    .timeline-grid, .who-we-are-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .metrics-grid {
+        margin-top: 2.5rem;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .asset-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .presence-grid-5, .presence-grid-4, .digital-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .digital-grid {
+        margin-top: 3rem;
+        gap: 1.5rem;
+    }
+
+    .footer-bottom-row {
+        width: 100%;
+        border-top: 1px solid #E4E4E7;
+        padding-top: 3rem;
+        margin-top: 2rem;
+        font-size: 0.75rem;
+        font-family: monospace;
+        color: #71717A;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    @@media (min-width: 640px) {
+        .year-controls-grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .metrics-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .presence-grid-5, .presence-grid-4 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .digital-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .section-header-flex {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .asset-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (min-width: 1024px) {
+        .timeline-grid {
+            grid-template-columns: 5fr 7fr;
+        }
+
+        .who-we-are-grid {
+            grid-template-columns: 3fr 2fr;
+        }
+
+        .metrics-grid {
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        .asset-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .presence-grid-5 {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .presence-grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .digital-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .footer-bottom-row {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+    }
+</style>
 
 @code {
     private bool _showLoginModal = false;

@@ -73,7 +73,7 @@
         {
             <div class="d-flex align-center gap-2 mt-3">
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
-                <p class="status-text m-0">Converting PDF pages and skipping blank first page...</p>
+                <p class="status-text m-0">Converting all PDF pages...</p>
             </div>
         }
 
@@ -342,7 +342,7 @@
                 
                 let imagesHtml = '';
                 
-                let startPage = pdfDoc.numPages > 1 ? 2 : 1;
+                let startPage = 1;
                 
                 for (let i = startPage; i <= pdfDoc.numPages; i++) {
                     const page = await pdfDoc.getPage(i);
